@@ -50,6 +50,9 @@
 		100000000000000000000041 /* SurfaceModeCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000043 /* SurfaceModeCoordinatorTests.swift */; };
 		100000000000000000000042 /* SignatureSurfaceTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000044 /* SignatureSurfaceTransition.swift */; };
 		100000000000000000000043 /* SignatureSurfaceTransitionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000045 /* SignatureSurfaceTransitionTests.swift */; };
+		100000000000000000000044 /* SettingsSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000046 /* SettingsSidebarView.swift */; };
+		100000000000000000000045 /* FocusSurfaceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000047 /* FocusSurfaceSettingsView.swift */; };
+		100000000000000000000046 /* SurfacePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000048 /* SurfacePreview.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -115,6 +118,9 @@
 		200000000000000000000043 /* SurfaceModeCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceModeCoordinatorTests.swift; sourceTree = "<group>"; };
 		200000000000000000000044 /* SignatureSurfaceTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignatureSurfaceTransition.swift; sourceTree = "<group>"; };
 		200000000000000000000045 /* SignatureSurfaceTransitionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignatureSurfaceTransitionTests.swift; sourceTree = "<group>"; };
+		200000000000000000000046 /* SettingsSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSidebarView.swift; sourceTree = "<group>"; };
+		200000000000000000000047 /* FocusSurfaceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusSurfaceSettingsView.swift; sourceTree = "<group>"; };
+		200000000000000000000048 /* SurfacePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfacePreview.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -293,6 +299,9 @@
 			isa = PBXGroup;
 			children = (
 				200000000000000000000035 /* SettingsView.swift */,
+				200000000000000000000046 /* SettingsSidebarView.swift */,
+				200000000000000000000047 /* FocusSurfaceSettingsView.swift */,
+				200000000000000000000048 /* SurfacePreview.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -497,6 +506,9 @@
 				100000000000000000000039 /* TopSurfacePresentation.swift in Sources */,
 				100000000000000000000040 /* SurfaceModeCoordinator.swift in Sources */,
 				100000000000000000000042 /* SignatureSurfaceTransition.swift in Sources */,
+				100000000000000000000044 /* SettingsSidebarView.swift in Sources */,
+				100000000000000000000045 /* FocusSurfaceSettingsView.swift in Sources */,
+				100000000000000000000046 /* SurfacePreview.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
