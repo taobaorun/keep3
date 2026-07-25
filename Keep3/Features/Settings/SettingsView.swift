@@ -77,29 +77,9 @@ struct SettingsView: View {
       }
 
       Section("外观") {
-        Picker(
-          "切换效果",
-          selection: binding(
-            get: { preferences.motionPreset },
-            set: preferences.setMotionPreset
-          )
-        ) {
-          Text("淡入淡出").tag(SurfaceMotionPreset.fade)
-          Text("滑动").tag(SurfaceMotionPreset.slide)
-          Text("溶解").tag(SurfaceMotionPreset.dissolve)
-        }
-        .pickerStyle(.segmented)
-        .accessibilityIdentifier("settings.motionPreset")
-
-        valueSlider(
-          title: "动画速度",
-          identifier: "settings.motionSpeed",
-          value: preferences.motionSpeed,
-          range: AppPreferences.motionSpeedRange,
-          step: 0.1,
-          valueLabel: String(format: "%.1f×", preferences.motionSpeed),
-          setter: preferences.setMotionSpeed
-        )
+        Text("Keep3 使用统一的 0.76 秒形状与内容交接；“减少动态效果”时改为 0.12 秒交叉淡入。")
+          .font(.caption)
+          .foregroundStyle(.secondary)
 
         valueSlider(
           title: "收起宽度",

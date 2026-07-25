@@ -204,8 +204,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       isCurrentFocus: id == state.currentFocusID,
       presentation: payload,
       appearance: SurfaceAppearance(
-        motionPreset: preferences.motionPreset,
-        motionSpeed: preferences.motionSpeed,
         backgroundOpacity: preferences.backgroundOpacity
       )
     )
