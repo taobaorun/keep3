@@ -43,6 +43,21 @@
 		100000000000000000000034 /* LaunchAtLoginTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000036 /* LaunchAtLoginTests.swift */; };
 		100000000000000000000035 /* LaunchAtLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000037 /* LaunchAtLoginService.swift */; };
 		100000000000000000000036 /* Keep3UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000039 /* Keep3UITests.swift */; };
+		100000000000000000000047 /* MediaRemoteSymbolsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000049 /* MediaRemoteSymbolsTests.swift */; };
+		100000000000000000000048 /* MediaSessionNormalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000050 /* MediaSessionNormalizationTests.swift */; };
+		100000000000000000000049 /* MediaSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000051 /* MediaSession.swift */; };
+		100000000000000000000050 /* MediaCompatibilityReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000052 /* MediaCompatibilityReport.swift */; };
+		100000000000000000000051 /* MediaRemoteSymbols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000053 /* MediaRemoteSymbols.swift */; };
+		100000000000000000000052 /* MediaSessionProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000054 /* MediaSessionProviding.swift */; };
+		100000000000000000000053 /* MediaRemoteAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000055 /* MediaRemoteAdapter.swift */; };
+		100000000000000000000054 /* MediaRemoteServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000056 /* MediaRemoteServiceProtocol.swift */; };
+		100000000000000000000055 /* MediaSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000051 /* MediaSession.swift */; };
+		100000000000000000000056 /* MediaCompatibilityReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000052 /* MediaCompatibilityReport.swift */; };
+		100000000000000000000057 /* MediaRemoteSymbols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000053 /* MediaRemoteSymbols.swift */; };
+		100000000000000000000058 /* MediaRemoteServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000056 /* MediaRemoteServiceProtocol.swift */; };
+		100000000000000000000059 /* MediaRemoteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000057 /* MediaRemoteService.swift */; };
+		100000000000000000000060 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000058 /* main.swift */; };
+		100000000000000000000061 /* Keep3MediaService.xpc in Embed XPC Services */ = {isa = PBXBuildFile; fileRef = 200000000000000000000059 /* Keep3MediaService.xpc */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		100000000000000000000037 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* XCTest.framework */; };
 		100000000000000000000038 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000040 /* Assets.xcassets */; };
 		100000000000000000000039 /* TopSurfacePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000041 /* TopSurfacePresentation.swift */; };
@@ -70,7 +85,28 @@
 			remoteGlobalIDString = 500000000000000000000001;
 			remoteInfo = Keep3;
 		};
+		B00000000000000000000005 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 800000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 500000000000000000000004;
+			remoteInfo = Keep3MediaService;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		D00000000000000000000001 /* Embed XPC Services */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(BUILT_PRODUCTS_DIR)/$(XPCSERVICES_FOLDER_PATH)";
+			dstSubfolderSpec = 0;
+			files = (
+				100000000000000000000061 /* Keep3MediaService.xpc in Embed XPC Services */,
+			);
+			name = "Embed XPC Services";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		200000000000000000000001 /* Keep3App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keep3App.swift; sourceTree = "<group>"; };
@@ -121,6 +157,17 @@
 		200000000000000000000046 /* SettingsSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSidebarView.swift; sourceTree = "<group>"; };
 		200000000000000000000047 /* FocusSurfaceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusSurfaceSettingsView.swift; sourceTree = "<group>"; };
 		200000000000000000000048 /* SurfacePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfacePreview.swift; sourceTree = "<group>"; };
+		200000000000000000000049 /* MediaRemoteSymbolsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRemoteSymbolsTests.swift; sourceTree = "<group>"; };
+		200000000000000000000050 /* MediaSessionNormalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSessionNormalizationTests.swift; sourceTree = "<group>"; };
+		200000000000000000000051 /* MediaSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSession.swift; sourceTree = "<group>"; };
+		200000000000000000000052 /* MediaCompatibilityReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaCompatibilityReport.swift; sourceTree = "<group>"; };
+		200000000000000000000053 /* MediaRemoteSymbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRemoteSymbols.swift; sourceTree = "<group>"; };
+		200000000000000000000054 /* MediaSessionProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSessionProviding.swift; sourceTree = "<group>"; };
+		200000000000000000000055 /* MediaRemoteAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRemoteAdapter.swift; sourceTree = "<group>"; };
+		200000000000000000000056 /* MediaRemoteServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRemoteServiceProtocol.swift; sourceTree = "<group>"; };
+		200000000000000000000057 /* MediaRemoteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRemoteService.swift; sourceTree = "<group>"; };
+		200000000000000000000058 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		200000000000000000000059 /* Keep3MediaService.xpc */ = {isa = PBXFileReference; explicitFileType = "wrapper.xpc-service"; includeInIndex = 0; path = Keep3MediaService.xpc; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -147,6 +194,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		300000000000000000000004 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -154,6 +208,7 @@
 			isa = PBXGroup;
 			children = (
 				400000000000000000000002 /* Keep3 */,
+				400000000000000000000021 /* Keep3MediaService */,
 				400000000000000000000004 /* Keep3Tests */,
 				400000000000000000000017 /* Keep3UITests */,
 				400000000000000000000005 /* Frameworks */,
@@ -170,8 +225,31 @@
 				400000000000000000000008 /* Overlay */,
 				400000000000000000000015 /* Persistence */,
 				400000000000000000000018 /* Resources */,
+				400000000000000000000020 /* Media */,
 			);
 			path = Keep3;
+			sourceTree = "<group>";
+		};
+		400000000000000000000020 /* Media */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000051 /* MediaSession.swift */,
+				200000000000000000000052 /* MediaCompatibilityReport.swift */,
+				200000000000000000000053 /* MediaRemoteSymbols.swift */,
+				200000000000000000000054 /* MediaSessionProviding.swift */,
+				200000000000000000000055 /* MediaRemoteAdapter.swift */,
+				200000000000000000000056 /* MediaRemoteServiceProtocol.swift */,
+			);
+			path = Media;
+			sourceTree = "<group>";
+		};
+		400000000000000000000021 /* Keep3MediaService */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000057 /* MediaRemoteService.swift */,
+				200000000000000000000058 /* main.swift */,
+			);
+			path = Keep3MediaService;
 			sourceTree = "<group>";
 		};
 		400000000000000000000003 /* App */ = {
@@ -194,8 +272,18 @@
 				400000000000000000000009 /* Domain */,
 				400000000000000000000007 /* Overlay */,
 				400000000000000000000014 /* Persistence */,
+				400000000000000000000019 /* Media */,
 			);
 			path = Keep3Tests;
+			sourceTree = "<group>";
+		};
+		400000000000000000000019 /* Media */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000049 /* MediaRemoteSymbolsTests.swift */,
+				200000000000000000000050 /* MediaSessionNormalizationTests.swift */,
+			);
+			path = Media;
 			sourceTree = "<group>";
 		};
 		400000000000000000000007 /* Overlay */ = {
@@ -336,6 +424,7 @@
 				200000000000000000000004 /* Keep3.app */,
 				200000000000000000000005 /* Keep3Tests.xctest */,
 				200000000000000000000038 /* Keep3UITests.xctest */,
+				200000000000000000000059 /* Keep3MediaService.xpc */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -350,10 +439,12 @@
 				700000000000000000000001 /* Sources */,
 				300000000000000000000001 /* Frameworks */,
 				600000000000000000000001 /* Resources */,
+				D00000000000000000000001 /* Embed XPC Services */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				B00000000000000000000006 /* PBXTargetDependency */,
 			);
 			name = Keep3;
 			productName = Keep3;
@@ -396,6 +487,23 @@
 			productReference = 200000000000000000000038 /* Keep3UITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		500000000000000000000004 /* Keep3MediaService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 900000000000000000000005 /* Build configuration list for PBXNativeTarget "Keep3MediaService" */;
+			buildPhases = (
+				700000000000000000000004 /* Sources */,
+				300000000000000000000004 /* Frameworks */,
+				600000000000000000000004 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Keep3MediaService;
+			productName = Keep3MediaService;
+			productReference = 200000000000000000000059 /* Keep3MediaService.xpc */;
+			productType = "com.apple.product-type.xpc-service";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXTargetDependency section */
@@ -408,6 +516,11 @@
 			isa = PBXTargetDependency;
 			target = 500000000000000000000001 /* Keep3 */;
 			targetProxy = B00000000000000000000003 /* PBXContainerItemProxy */;
+		};
+		B00000000000000000000006 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 500000000000000000000004 /* Keep3MediaService */;
+			targetProxy = B00000000000000000000005 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -429,6 +542,9 @@
 						CreatedOnToolsVersion = 16.4;
 						TestTargetID = 500000000000000000000001;
 					};
+					500000000000000000000004 = {
+						CreatedOnToolsVersion = 16.4;
+					};
 				};
 			};
 			buildConfigurationList = 900000000000000000000001 /* Build configuration list for PBXProject "Keep3" */;
@@ -447,6 +563,7 @@
 				500000000000000000000001 /* Keep3 */,
 				500000000000000000000002 /* Keep3Tests */,
 				500000000000000000000003 /* Keep3UITests */,
+				500000000000000000000004 /* Keep3MediaService */,
 			);
 		};
 /* End PBXProject section */
@@ -468,6 +585,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		600000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		600000000000000000000004 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -509,6 +633,12 @@
 				100000000000000000000044 /* SettingsSidebarView.swift in Sources */,
 				100000000000000000000045 /* FocusSurfaceSettingsView.swift in Sources */,
 				100000000000000000000046 /* SurfacePreview.swift in Sources */,
+				100000000000000000000049 /* MediaSession.swift in Sources */,
+				100000000000000000000050 /* MediaCompatibilityReport.swift in Sources */,
+				100000000000000000000051 /* MediaRemoteSymbols.swift in Sources */,
+				100000000000000000000052 /* MediaSessionProviding.swift in Sources */,
+				100000000000000000000053 /* MediaRemoteAdapter.swift in Sources */,
+				100000000000000000000054 /* MediaRemoteServiceProtocol.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -530,6 +660,8 @@
 				100000000000000000000034 /* LaunchAtLoginTests.swift in Sources */,
 				100000000000000000000041 /* SurfaceModeCoordinatorTests.swift in Sources */,
 				100000000000000000000043 /* SignatureSurfaceTransitionTests.swift in Sources */,
+				100000000000000000000047 /* MediaRemoteSymbolsTests.swift in Sources */,
+				100000000000000000000048 /* MediaSessionNormalizationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -538,6 +670,19 @@
 			buildActionMask = 2147483647;
 			files = (
 				100000000000000000000036 /* Keep3UITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		700000000000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000055 /* MediaSession.swift in Sources */,
+				100000000000000000000056 /* MediaCompatibilityReport.swift in Sources */,
+				100000000000000000000057 /* MediaRemoteSymbols.swift in Sources */,
+				100000000000000000000058 /* MediaRemoteServiceProtocol.swift in Sources */,
+				100000000000000000000059 /* MediaRemoteService.swift in Sources */,
+				100000000000000000000060 /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -748,6 +893,37 @@
 			};
 			name = Release;
 		};
+		A00000000000000000000009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGNING_ALLOWED = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Keep3MediaService/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.keep3.Keep3.MediaRemoteService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		A0000000000000000000000A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Keep3MediaService/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.keep3.Keep3.MediaRemoteService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -783,6 +959,15 @@
 			buildConfigurations = (
 				A00000000000000000000007 /* Debug */,
 				A00000000000000000000008 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		900000000000000000000005 /* Build configuration list for PBXNativeTarget "Keep3MediaService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00000000000000000000009 /* Debug */,
+				A0000000000000000000000A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
