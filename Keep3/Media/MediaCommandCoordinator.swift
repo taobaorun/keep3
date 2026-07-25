@@ -14,19 +14,6 @@ protocol MediaCommandSending: Sendable {
 }
 
 @MainActor
-protocol MediaCommandTimerCancellation: AnyObject {
-  func cancel()
-}
-
-@MainActor
-protocol MediaCommandTimerScheduling {
-  func schedule(
-    after delay: TimeInterval,
-    action: @escaping @MainActor () -> Void
-  ) -> any MediaCommandTimerCancellation
-}
-
-@MainActor
 final class MediaCommandCoordinator {
   private static let confirmationTimeout: TimeInterval = 2
 
@@ -45,19 +32,19 @@ final class MediaCommandCoordinator {
 
   private let sender: any MediaCommandSending
   private let haptic: any MediaHapticPerforming
-  private let scheduler: any MediaCommandTimerScheduling
+  private let scheduler: any AppTimerScheduling
   private let onPendingActionChange: (MediaSurfaceAction?) -> Void
   private var currentSnapshot: MediaSessionSnapshot?
   private var isMediaActive = false
   private var pending: PendingCommand?
-  private var timeout: (any MediaCommandTimerCancellation)?
+  private var timeout: (any AppTimerCancellation)?
   private var lastCompletedToken: UUID?
 
   init(
     sender: any MediaCommandSending,
     haptic: any MediaHapticPerforming = AppKitMediaHapticFeedback(),
-    scheduler: any MediaCommandTimerScheduling =
-      TaskMediaCommandTimerScheduler(),
+    scheduler: any AppTimerScheduling =
+      TaskAppTimerScheduler(),
     onPendingActionChange: @escaping (MediaSurfaceAction?) -> Void = {
       _ in
     }
@@ -225,41 +212,5 @@ final class MediaCommandCoordinator {
     if hadPending {
       onPendingActionChange(nil)
     }
-  }
-}
-
-@MainActor
-private final class TaskMediaCommandTimerScheduler:
-  MediaCommandTimerScheduling
-{
-  func schedule(
-    after delay: TimeInterval,
-    action: @escaping @MainActor () -> Void
-  ) -> any MediaCommandTimerCancellation {
-    let task = Task { @MainActor in
-      do {
-        try await Task.sleep(for: .seconds(delay))
-      } catch {
-        return
-      }
-      action()
-    }
-    return TaskMediaCommandTimerCancellation(task: task)
-  }
-}
-
-@MainActor
-private final class TaskMediaCommandTimerCancellation:
-  MediaCommandTimerCancellation
-{
-  private var task: Task<Void, Never>?
-
-  init(task: Task<Void, Never>) {
-    self.task = task
-  }
-
-  func cancel() {
-    task?.cancel()
-    task = nil
   }
 }

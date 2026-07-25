@@ -388,6 +388,9 @@ private final class TopSurfaceEventView: NSView {
   }
 
   func updateActiveFrame(_ frame: CGRect) {
+    guard activeFrame != frame else {
+      return
+    }
     activeFrame = frame
     updateTrackingAreas()
   }

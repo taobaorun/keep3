@@ -67,11 +67,13 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     reply: @escaping @Sendable (Bool) -> Void
   ) {
     queue.async { [weak self] in
-      guard let self, self.currentSessionID == sessionID else {
+      guard let self, self.currentSessionID == sessionID,
+        let command = MediaRemoteCommandName(rawValue: action)
+      else {
         reply(false)
         return
       }
-      reply(self.runtime?.send(action: action, value: value) ?? false)
+      reply(self.runtime?.send(command: command, value: value) ?? false)
     }
   }
 
@@ -385,21 +387,16 @@ private final class MediaRemoteRuntime {
     )
     setElapsedTimeFunction = elapsed
 
-    var capabilities: Set<MediaCapability> = [
+    let report = MediaRemoteSymbolResolver.resolve {
+      dlsym(handle, $0)
+    }
+    var resolvedCapabilities: Set<MediaCapability> = [
       .playPause,
       .previous,
       .next,
     ]
-    if elapsed != nil {
-      capabilities.insert(.seek)
-    }
-    if dlsym(handle, "MRMediaRemoteSetShuffleMode") != nil {
-      capabilities.insert(.shuffle)
-    }
-    if dlsym(handle, "MRMediaRemoteSetRepeatMode") != nil {
-      capabilities.insert(.repeatMode)
-    }
-    self.capabilities = capabilities
+    resolvedCapabilities.formUnion(report.optionalCapabilities)
+    capabilities = resolvedCapabilities
   }
 
   deinit {
@@ -442,19 +439,19 @@ private final class MediaRemoteRuntime {
     pidFunction(queue, block)
   }
 
-  func send(action: String, value: NSNumber?) -> Bool {
-    switch action {
-    case "togglePlayPause":
+  func send(command: MediaRemoteCommandName, value: NSNumber?) -> Bool {
+    switch command {
+    case .togglePlayPause:
       return sendCommandFunction(2, nil) != 0
-    case "next":
+    case .next:
       return sendCommandFunction(4, nil) != 0
-    case "previous":
+    case .previous:
       return sendCommandFunction(5, nil) != 0
-    case "shuffle":
+    case .shuffle:
       return sendCommandFunction(6, nil) != 0
-    case "repeatMode":
+    case .repeatMode:
       return sendCommandFunction(7, nil) != 0
-    case "seek":
+    case .seek:
       guard let value, let setElapsedTimeFunction,
         value.doubleValue.isFinite, value.doubleValue >= 0
       else {
@@ -462,8 +459,6 @@ private final class MediaRemoteRuntime {
       }
       setElapsedTimeFunction(value.doubleValue)
       return true
-    default:
-      return false
     }
   }
 

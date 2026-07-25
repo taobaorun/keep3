@@ -93,16 +93,18 @@ struct MediaSurfaceView: View {
   }
 
   var body: some View {
+    let artwork = MediaArtworkDecoder.decode(presentation.artworkData)
+
     Group {
       if presentation.isExpanded {
-        expandedContent
+        expandedContent(artwork: artwork)
       } else {
-        compactContent
+        compactContent(artwork: artwork)
       }
     }
     .foregroundStyle(.white)
     .frame(width: surfaceSize.width, height: surfaceSize.height)
-    .background { mediaBackground }
+    .background { mediaBackground(artwork: artwork) }
     .clipShape(surfaceShape)
     .overlay(alignment: .top) {
       if case .notchAttached = presentationStyle {
@@ -119,12 +121,12 @@ struct MediaSurfaceView: View {
   }
 
   @ViewBuilder
-  private var compactContent: some View {
+  private func compactContent(artwork: CGImage?) -> some View {
     switch presentationStyle {
     case .floatingCapsule:
       Button(action: onActivateSurface) {
         HStack(spacing: 10) {
-          compactArtwork
+          compactArtwork(artwork: artwork)
           compactMetadata
           Spacer(minLength: 4)
           compactPlaybackIndicator
@@ -160,12 +162,12 @@ struct MediaSurfaceView: View {
     .accessibilityIdentifier("media.compact")
   }
 
-  private var compactArtwork: some View {
+  private func compactArtwork(artwork: CGImage?) -> some View {
     Group {
-      if let image = MediaArtworkDecoder.decode(presentation.artworkData),
+      if let artwork,
         presentation.appearance.artworkTreatment != .gradient
       {
-        Image(decorative: image, scale: 1)
+        Image(decorative: artwork, scale: 1)
           .resizable()
           .scaledToFill()
           .grayscale(
@@ -211,10 +213,10 @@ struct MediaSurfaceView: View {
     }
   }
 
-  private var expandedContent: some View {
+  private func expandedContent(artwork: CGImage?) -> some View {
     VStack(spacing: 0) {
       HStack(alignment: .top, spacing: 14) {
-        expandedArtwork
+        expandedArtwork(artwork: artwork)
         VStack(alignment: .leading, spacing: 5) {
           if let applicationName = presentation.applicationName {
             Text(applicationName.uppercased())
@@ -282,8 +284,8 @@ struct MediaSurfaceView: View {
     .accessibilityIdentifier("media.expanded")
   }
 
-  private var expandedArtwork: some View {
-    compactArtwork
+  private func expandedArtwork(artwork: CGImage?) -> some View {
+    compactArtwork(artwork: artwork)
       .frame(width: 68, height: 68)
   }
 
@@ -405,7 +407,7 @@ struct MediaSurfaceView: View {
     }
   }
 
-  private var mediaBackground: some View {
+  private func mediaBackground(artwork: CGImage?) -> some View {
     ZStack {
       Color.black.opacity(
         reduceTransparency ? 1 : payload.appearance.backgroundOpacity
@@ -416,10 +418,8 @@ struct MediaSurfaceView: View {
           startPoint: .topLeading,
           endPoint: .bottomTrailing
         )
-      } else if let image = MediaArtworkDecoder.decode(
-        presentation.artworkData
-      ) {
-        Image(decorative: image, scale: 1)
+      } else if let artwork {
+        Image(decorative: artwork, scale: 1)
           .resizable()
           .scaledToFill()
           .grayscale(

@@ -2,19 +2,19 @@ import Foundation
 
 @MainActor
 final class MediaSurfaceInteractionModel {
-  private let scheduler: any InteractionTimerScheduling
+  private let scheduler: any AppTimerScheduling
   private let onExpansion: (Bool, SurfaceExpansionReason) -> Void
 
   private var expansionTrigger: SurfaceExpansionTrigger = .hover
   private var isQuickPeekEnabled = true
   private var quickPeekDuration: TimeInterval = 2
   private var expansionReason: SurfaceExpansionReason = .none
-  private var quickPeekTimer: (any InteractionTimerCancellation)?
+  private var quickPeekTimer: (any AppTimerCancellation)?
   private var contentIdentity: ContentIdentity?
 
   init(
-    scheduler: any InteractionTimerScheduling =
-      TaskInteractionTimerScheduler(),
+    scheduler: any AppTimerScheduling =
+      TaskAppTimerScheduler(),
     onExpansion: @escaping (Bool, SurfaceExpansionReason) -> Void
   ) {
     self.scheduler = scheduler

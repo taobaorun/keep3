@@ -292,9 +292,9 @@ private final class InteractionRecorder {
 
 @MainActor
 private final class ManualInteractionTimerScheduler:
-  InteractionTimerScheduling
+  AppTimerScheduling
 {
-  private final class Timer: InteractionTimerCancellation {
+  private final class Timer: AppTimerCancellation {
     let delay: TimeInterval
     let action: () -> Void
     var isCancelled = false
@@ -322,7 +322,7 @@ private final class ManualInteractionTimerScheduler:
   func schedule(
     after delay: TimeInterval,
     action: @escaping @MainActor () -> Void
-  ) -> any InteractionTimerCancellation {
+  ) -> any AppTimerCancellation {
     let timer = Timer(delay: delay, action: action)
     timers.append(timer)
     return timer

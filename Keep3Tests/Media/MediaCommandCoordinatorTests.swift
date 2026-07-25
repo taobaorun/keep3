@@ -141,9 +141,9 @@ private final class HapticRecorder: MediaHapticPerforming {
 
 @MainActor
 private final class ManualCommandTimerScheduler:
-  MediaCommandTimerScheduling
+  AppTimerScheduling
 {
-  private final class Timer: MediaCommandTimerCancellation {
+  private final class Timer: AppTimerCancellation {
     let action: () -> Void
     var isCancelled = false
 
@@ -161,7 +161,7 @@ private final class ManualCommandTimerScheduler:
   func schedule(
     after _: TimeInterval,
     action: @escaping @MainActor () -> Void
-  ) -> any MediaCommandTimerCancellation {
+  ) -> any AppTimerCancellation {
     let timer = Timer(action: action)
     timers.append(timer)
     return timer

@@ -19,16 +19,16 @@ enum TopSurfaceGesturePhase: Equatable, Sendable {
 }
 
 @MainActor
-protocol InteractionTimerCancellation: AnyObject {
+protocol AppTimerCancellation: AnyObject {
   func cancel()
 }
 
 @MainActor
-protocol InteractionTimerScheduling {
+protocol AppTimerScheduling {
   func schedule(
     after delay: TimeInterval,
     action: @escaping @MainActor () -> Void
-  ) -> any InteractionTimerCancellation
+  ) -> any AppTimerCancellation
 }
 
 @MainActor
@@ -37,7 +37,7 @@ final class TopSurfaceInteractionModel {
   private static let collapseDelay: TimeInterval = 0.2
   private static let scrollThreshold: CGFloat = 20
 
-  private let scheduler: any InteractionTimerScheduling
+  private let scheduler: any AppTimerScheduling
   private let onIntent: (TopSurfaceInteractionIntent) -> Void
   private let onPauseRotation: () -> Void
   private let onResumeRotation: () -> Void
@@ -50,12 +50,12 @@ final class TopSurfaceInteractionModel {
   private var isExpanded = false
   private var isPointerInside = false
   private var isRotationPaused = false
-  private var timer: (any InteractionTimerCancellation)?
+  private var timer: (any AppTimerCancellation)?
   private var scrollAccumulator: CGFloat = 0
   private var didNavigateDuringScrollGesture = false
 
   init(
-    scheduler: any InteractionTimerScheduling = TaskInteractionTimerScheduler(),
+    scheduler: any AppTimerScheduling = TaskAppTimerScheduler(),
     onIntent: @escaping (TopSurfaceInteractionIntent) -> Void,
     onPauseRotation: @escaping () -> Void,
     onResumeRotation: @escaping () -> Void,
@@ -285,11 +285,11 @@ final class TopSurfaceInteractionModel {
 }
 
 @MainActor
-final class TaskInteractionTimerScheduler: InteractionTimerScheduling {
+final class TaskAppTimerScheduler: AppTimerScheduling {
   func schedule(
     after delay: TimeInterval,
     action: @escaping @MainActor () -> Void
-  ) -> any InteractionTimerCancellation {
+  ) -> any AppTimerCancellation {
     let task = Task { @MainActor in
       do {
         try await Task.sleep(for: .seconds(delay))
@@ -298,13 +298,13 @@ final class TaskInteractionTimerScheduler: InteractionTimerScheduling {
       }
       action()
     }
-    return TaskInteractionTimerCancellation(task: task)
+    return TaskAppTimerCancellation(task: task)
   }
 }
 
 @MainActor
-private final class TaskInteractionTimerCancellation:
-  InteractionTimerCancellation
+private final class TaskAppTimerCancellation:
+  AppTimerCancellation
 {
   private let task: Task<Void, Never>
 

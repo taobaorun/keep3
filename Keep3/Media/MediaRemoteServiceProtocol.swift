@@ -1,5 +1,14 @@
 import Foundation
 
+enum MediaRemoteCommandName: String, Sendable {
+  case togglePlayPause
+  case next
+  case previous
+  case shuffle
+  case repeatMode
+  case seek
+}
+
 @objc(MediaRemoteClientProtocol)
 protocol MediaRemoteClientProtocol: AnyObject {
   func mediaRemoteDidUpdate(_ propertyList: NSDictionary)

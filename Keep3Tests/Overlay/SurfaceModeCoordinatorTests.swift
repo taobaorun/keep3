@@ -295,8 +295,8 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
 }
 
 @MainActor
-private final class ManualSurfaceModeTimerScheduler: SurfaceModeTimerScheduling {
-  private final class Timer: SurfaceModeTimerCancellation {
+private final class ManualSurfaceModeTimerScheduler: AppTimerScheduling {
+  private final class Timer: AppTimerCancellation {
     let delay: TimeInterval
     let action: () -> Void
     var isCancelled = false
@@ -320,7 +320,7 @@ private final class ManualSurfaceModeTimerScheduler: SurfaceModeTimerScheduling 
   func schedule(
     after delay: TimeInterval,
     action: @escaping @MainActor () -> Void
-  ) -> any SurfaceModeTimerCancellation {
+  ) -> any AppTimerCancellation {
     let timer = Timer(delay: delay, action: action)
     timers.append(timer)
     return timer
