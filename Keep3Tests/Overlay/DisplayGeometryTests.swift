@@ -189,4 +189,26 @@ final class DisplayGeometryTests: XCTestCase {
     XCTAssertEqual(frame.midX, descriptor.frame.midX, accuracy: 0.001)
     XCTAssertEqual(frame.maxY, descriptor.visibleFrame.maxY - 8, accuracy: 0.001)
   }
+
+  func testMediaMetricsStayTopAnchoredAcrossCompactAndExpandedStates() {
+    let descriptor = DisplayDescriptor(
+      frame: CGRect(x: 0, y: 0, width: 1_920, height: 1_080),
+      visibleFrame: CGRect(x: 0, y: 0, width: 1_920, height: 1_055),
+      safeAreaInsets: .zero,
+      auxiliaryTopLeftArea: nil,
+      auxiliaryTopRightArea: nil
+    )
+    let geometry = DisplayGeometry(
+      descriptor: descriptor,
+      metrics: .media
+    )
+
+    XCTAssertEqual(
+      geometry.compactFrame.maxY,
+      geometry.expandedFrame.maxY,
+      accuracy: 0.001
+    )
+    XCTAssertEqual(geometry.compactFrame.size, CGSize(width: 310, height: 44))
+    XCTAssertEqual(geometry.expandedFrame.size, CGSize(width: 380, height: 240))
+  }
 }

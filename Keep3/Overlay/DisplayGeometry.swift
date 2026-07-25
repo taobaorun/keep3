@@ -73,6 +73,12 @@ struct SurfaceMetrics: Equatable {
     expandedSize: CGSize(width: 360, height: 216),
     floatingTopSpacing: 8
   )
+
+  static let media = SurfaceMetrics(
+    compactSize: CGSize(width: 310, height: 44),
+    expandedSize: CGSize(width: 380, height: 240),
+    floatingTopSpacing: 8
+  )
 }
 
 struct SurfaceLayout: Equatable {

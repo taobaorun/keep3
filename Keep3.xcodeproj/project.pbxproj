@@ -68,6 +68,12 @@
 		100000000000000000000069 /* MediaPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000062 /* MediaPreferences.swift */; };
 		10000000000000000000006A /* MediaSessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000063 /* MediaSessionCoordinator.swift */; };
 		10000000000000000000006B /* WorkspaceApplicationObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000064 /* WorkspaceApplicationObserver.swift */; };
+		10000000000000000000006C /* MediaArtworkDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000006B /* MediaArtworkDecoder.swift */; };
+		10000000000000000000006D /* MediaWaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000006C /* MediaWaveformView.swift */; };
+		10000000000000000000006E /* MediaSurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000006D /* MediaSurfaceView.swift */; };
+		10000000000000000000006F /* MediaSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000006E /* MediaSettingsView.swift */; };
+		100000000000000000000070 /* MediaArtworkDecoderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000006F /* MediaArtworkDecoderTests.swift */; };
+		100000000000000000000071 /* MediaSurfacePresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000070 /* MediaSurfacePresentationTests.swift */; };
 		100000000000000000000037 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* XCTest.framework */; };
 		100000000000000000000038 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000040 /* Assets.xcassets */; };
 		100000000000000000000039 /* TopSurfacePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000041 /* TopSurfacePresentation.swift */; };
@@ -189,6 +195,12 @@
 		200000000000000000000068 /* MediaSessionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSessionCoordinatorTests.swift; sourceTree = "<group>"; };
 		200000000000000000000069 /* WorkspaceApplicationObserverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceApplicationObserverTests.swift; sourceTree = "<group>"; };
 		20000000000000000000006A /* ProviderEnrichmentServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderEnrichmentServiceTests.swift; sourceTree = "<group>"; };
+		20000000000000000000006B /* MediaArtworkDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaArtworkDecoder.swift; sourceTree = "<group>"; };
+		20000000000000000000006C /* MediaWaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaWaveformView.swift; sourceTree = "<group>"; };
+		20000000000000000000006D /* MediaSurfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSurfaceView.swift; sourceTree = "<group>"; };
+		20000000000000000000006E /* MediaSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSettingsView.swift; sourceTree = "<group>"; };
+		20000000000000000000006F /* MediaArtworkDecoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaArtworkDecoderTests.swift; sourceTree = "<group>"; };
+		200000000000000000000070 /* MediaSurfacePresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSurfacePresentationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -265,6 +277,7 @@
 				200000000000000000000061 /* ProviderEnrichmentService.swift */,
 				200000000000000000000063 /* MediaSessionCoordinator.swift */,
 				200000000000000000000064 /* WorkspaceApplicationObserver.swift */,
+				20000000000000000000006B /* MediaArtworkDecoder.swift */,
 			);
 			path = Media;
 			sourceTree = "<group>";
@@ -312,6 +325,7 @@
 				200000000000000000000068 /* MediaSessionCoordinatorTests.swift */,
 				200000000000000000000069 /* WorkspaceApplicationObserverTests.swift */,
 				20000000000000000000006A /* ProviderEnrichmentServiceTests.swift */,
+				20000000000000000000006F /* MediaArtworkDecoderTests.swift */,
 			);
 			path = Media;
 			sourceTree = "<group>";
@@ -325,6 +339,7 @@
 				200000000000000000000031 /* DisplayLifecycleTests.swift */,
 				200000000000000000000043 /* SurfaceModeCoordinatorTests.swift */,
 				200000000000000000000045 /* SignatureSurfaceTransitionTests.swift */,
+				200000000000000000000070 /* MediaSurfacePresentationTests.swift */,
 			);
 			path = Overlay;
 			sourceTree = "<group>";
@@ -343,6 +358,8 @@
 				200000000000000000000041 /* TopSurfacePresentation.swift */,
 				200000000000000000000042 /* SurfaceModeCoordinator.swift */,
 				200000000000000000000044 /* SignatureSurfaceTransition.swift */,
+				20000000000000000000006C /* MediaWaveformView.swift */,
+				20000000000000000000006D /* MediaSurfaceView.swift */,
 			);
 			path = Overlay;
 			sourceTree = "<group>";
@@ -422,6 +439,7 @@
 				200000000000000000000046 /* SettingsSidebarView.swift */,
 				200000000000000000000047 /* FocusSurfaceSettingsView.swift */,
 				200000000000000000000048 /* SurfacePreview.swift */,
+				20000000000000000000006E /* MediaSettingsView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -676,6 +694,10 @@
 				100000000000000000000069 /* MediaPreferences.swift in Sources */,
 				10000000000000000000006A /* MediaSessionCoordinator.swift in Sources */,
 				10000000000000000000006B /* WorkspaceApplicationObserver.swift in Sources */,
+				10000000000000000000006C /* MediaArtworkDecoder.swift in Sources */,
+				10000000000000000000006D /* MediaWaveformView.swift in Sources */,
+				10000000000000000000006E /* MediaSurfaceView.swift in Sources */,
+				10000000000000000000006F /* MediaSettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -704,6 +726,8 @@
 				100000000000000000000064 /* MediaSessionCoordinatorTests.swift in Sources */,
 				100000000000000000000065 /* WorkspaceApplicationObserverTests.swift in Sources */,
 				100000000000000000000066 /* ProviderEnrichmentServiceTests.swift in Sources */,
+				100000000000000000000070 /* MediaArtworkDecoderTests.swift in Sources */,
+				100000000000000000000071 /* MediaSurfacePresentationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

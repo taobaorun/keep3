@@ -187,6 +187,53 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertTrue(controller.panel === panel)
   }
 
+  func testControllerCanReuseTheSamePanelForMediaAndFocus() throws {
+    let controller = TopSurfaceController()
+    let frame = CGRect(x: 100, y: 500, width: 310, height: 44)
+    defer { controller.remove() }
+
+    controller.show(
+      frame: frame,
+      content: try makeContent(title: "写 Keep3")
+    )
+    let panel = try XCTUnwrap(controller.panel)
+    let media = MediaSurfacePayload(
+      sessionID: "session-1",
+      contentRevision: 1,
+      isExpanded: false,
+      areControlsEnabled: true,
+      session: MediaSession.normalize(
+        .init(
+          sessionID: "session-1",
+          sourceBundleIdentifier: "com.netease.163music",
+          title: "Track",
+          artist: "Artist",
+          duration: nil,
+          progress: nil,
+          capabilities: ["playPause"]
+        )
+      ),
+      playbackState: .playing
+    )
+    let layout = SurfaceLayout(
+      panelFrame: frame,
+      surfaceFrameInPanel: CGRect(origin: .zero, size: frame.size),
+      obstructionSize: nil
+    )
+
+    controller.showMedia(layout: layout, payload: media)
+
+    XCTAssertTrue(controller.panel === panel)
+    XCTAssertEqual(panel.renderedMediaPayload, media)
+
+    controller.show(
+      frame: frame,
+      content: try makeContent(title: "发布 Keep3")
+    )
+
+    XCTAssertEqual(panel.renderedContent.item.title, "发布 Keep3")
+  }
+
   func testContentOmitsBlankDetailsAndSubitems() throws {
     let item = try FocusItem(
       title: "设计 Keep3",

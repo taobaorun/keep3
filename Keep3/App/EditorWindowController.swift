@@ -6,6 +6,7 @@ final class EditorWindowController: NSWindowController {
   init(
     model: AppModel,
     preferences: AppPreferences,
+    mediaPreferences: MediaPreferences = MediaPreferences.live(),
     launchAtLoginController: LaunchAtLoginController =
       LaunchAtLoginController.live()
   ) {
@@ -23,6 +24,7 @@ final class EditorWindowController: NSWindowController {
       rootView: RootView(
         model: model,
         preferences: preferences,
+        mediaPreferences: mediaPreferences,
         launchAtLoginController: launchAtLoginController
       )
     )

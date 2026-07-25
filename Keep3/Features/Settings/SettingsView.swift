@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
   @ObservedObject var preferences: AppPreferences
+  @ObservedObject var mediaPreferences: MediaPreferences
   @ObservedObject var launchAtLoginController: LaunchAtLoginController
   @State private var selection: SettingsCategory = .general
 
@@ -37,7 +38,7 @@ struct SettingsView: View {
     case .accessibility:
       accessibilitySettings
     case .media:
-      mediaSettings
+      MediaSettingsView(preferences: mediaPreferences)
     }
   }
 
@@ -124,12 +125,6 @@ struct SettingsView: View {
     }
   }
 
-  private var mediaSettings: some View {
-    GroupBox("Media") {
-      Text("Media-First Mode 将在此处提供控制与外观选项。")
-        .foregroundStyle(.secondary)
-    }
-  }
 }
 
 @MainActor

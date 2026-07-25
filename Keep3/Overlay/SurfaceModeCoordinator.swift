@@ -183,7 +183,12 @@ final class SurfaceModeCoordinator {
       sessionID: renderedMedia.sessionID,
       contentRevision: renderedMedia.contentRevision,
       isExpanded: renderedMedia.isExpanded,
-      areControlsEnabled: false
+      areControlsEnabled: false,
+      session: renderedMedia.session,
+      playbackState: renderedMedia.playbackState,
+      capabilityRevision: renderedMedia.capabilityRevision,
+      expansionReason: renderedMedia.expansionReason,
+      appearance: renderedMedia.appearance
     )
     isInHandoffGrace = true
     publish(.media(disabledMedia))
@@ -225,7 +230,10 @@ final class SurfaceModeCoordinator {
         sessionID: mediaSnapshot.session.sessionID,
         contentRevision: mediaSnapshot.contentRevision,
         isExpanded: false,
-        areControlsEnabled: true
+        areControlsEnabled: true,
+        session: mediaSnapshot.session,
+        playbackState: mediaSnapshot.playbackState,
+        capabilityRevision: mediaSnapshot.capabilityRevision
       )
     )
   }
@@ -275,8 +283,8 @@ final class SurfaceModeCoordinator {
   }
 }
 
-private extension TopSurfacePresentation {
-  var isMedia: Bool {
+extension TopSurfacePresentation {
+  fileprivate var isMedia: Bool {
     if case .media = self {
       return true
     }

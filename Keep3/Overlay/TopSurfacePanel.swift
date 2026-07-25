@@ -36,13 +36,27 @@ final class TopSurfacePanel: NSPanel {
   override var canBecomeMain: Bool { false }
 
   private let eventView: TopSurfaceEventView
-  private(set) var renderedContent: TopSurfaceContent
+  private var panelContent: PanelContent
   private(set) var renderedPresentationStyle: TopSurfacePresentationStyle
   private(set) var renderedSurfaceFrameInPanel: CGRect
   private var keyboardNavigationEnabled = false
   private var keyboardEventMonitor: Any?
 
-  init(
+  var renderedContent: TopSurfaceContent {
+    guard case .focus(let content) = panelContent else {
+      preconditionFailure("The panel is currently rendering media")
+    }
+    return content
+  }
+
+  var renderedMediaPayload: MediaSurfacePayload? {
+    guard case .media(let payload) = panelContent else {
+      return nil
+    }
+    return payload
+  }
+
+  convenience init(
     contentRect: CGRect,
     surfaceFrameInPanel: CGRect? = nil,
     content: TopSurfaceContent,
@@ -55,22 +69,78 @@ final class TopSurfacePanel: NSPanel {
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onOpenItem: @escaping () -> Void = {}
   ) {
+    self.init(
+      contentRect: contentRect,
+      surfaceFrameInPanel: surfaceFrameInPanel,
+      panelContent: .focus(content),
+      presentationStyle: presentationStyle,
+      onHoverChanged: onHoverChanged,
+      onScroll: onScroll,
+      onActivateSurface: onActivateSurface,
+      onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+      onDismiss: onDismiss,
+      onNavigate: onNavigate,
+      onOpenItem: onOpenItem,
+      onMediaAction: { _ in }
+    )
+  }
+
+  convenience init(
+    contentRect: CGRect,
+    surfaceFrameInPanel: CGRect? = nil,
+    mediaPayload: MediaSurfacePayload,
+    presentationStyle: TopSurfacePresentationStyle = .floatingCapsule,
+    onHoverChanged: @escaping (Bool) -> Void = { _ in },
+    onActivateSurface: @escaping () -> Void = {},
+    onMediaAction: @escaping (MediaSurfaceAction) -> Void = { _ in }
+  ) {
+    self.init(
+      contentRect: contentRect,
+      surfaceFrameInPanel: surfaceFrameInPanel,
+      panelContent: .media(mediaPayload),
+      presentationStyle: presentationStyle,
+      onHoverChanged: onHoverChanged,
+      onScroll: { _, _ in },
+      onActivateSurface: onActivateSurface,
+      onRequestKeyboardNavigation: {},
+      onDismiss: {},
+      onNavigate: { _ in },
+      onOpenItem: {},
+      onMediaAction: onMediaAction
+    )
+  }
+
+  private init(
+    contentRect: CGRect,
+    surfaceFrameInPanel: CGRect?,
+    panelContent: PanelContent,
+    presentationStyle: TopSurfacePresentationStyle,
+    onHoverChanged: @escaping (Bool) -> Void,
+    onScroll: @escaping (CGFloat, TopSurfaceGesturePhase) -> Void,
+    onActivateSurface: @escaping () -> Void,
+    onRequestKeyboardNavigation: @escaping () -> Void,
+    onDismiss: @escaping () -> Void,
+    onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
+    onOpenItem: @escaping () -> Void,
+    onMediaAction: @escaping (MediaSurfaceAction) -> Void
+  ) {
     let resolvedSurfaceFrame =
       surfaceFrameInPanel ?? CGRect(origin: .zero, size: contentRect.size)
-    renderedContent = content
+    self.panelContent = panelContent
     renderedPresentationStyle = presentationStyle
     renderedSurfaceFrameInPanel = resolvedSurfaceFrame
     eventView = TopSurfaceEventView(
       frame: CGRect(origin: .zero, size: contentRect.size),
       activeFrame: resolvedSurfaceFrame,
-      rootView: TopSurfaceView(
-        content: content,
+      rootView: Self.rootView(
+        for: panelContent,
         presentationStyle: presentationStyle,
         surfaceSize: resolvedSurfaceFrame.size,
         onActivateSurface: onActivateSurface,
         onRequestKeyboardNavigation: onRequestKeyboardNavigation,
         onNavigate: onNavigate,
-        onOpenItem: onOpenItem
+        onOpenItem: onOpenItem,
+        onMediaAction: onMediaAction
       )
     )
 
@@ -130,7 +200,7 @@ final class TopSurfacePanel: NSPanel {
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
     onOpenItem: @escaping () -> Void
   ) {
-    renderedContent = content
+    panelContent = .focus(content)
     renderedPresentationStyle = presentationStyle
     renderedSurfaceFrameInPanel = surfaceFrameInPanel
     hasShadow = presentationStyle.hasPanelShadow
@@ -140,18 +210,88 @@ final class TopSurfacePanel: NSPanel {
     eventView.onDismiss = onDismiss
     eventView.onOpenItem = onOpenItem
     eventView.updateActiveFrame(surfaceFrameInPanel)
-    eventView.hostingView.rootView = TopSurfaceView(
-      content: content,
+    eventView.hostingView.rootView = Self.rootView(
+      for: panelContent,
       presentationStyle: presentationStyle,
       surfaceSize: surfaceFrameInPanel.size,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
       onNavigate: onNavigate,
-      onOpenItem: onOpenItem
+      onOpenItem: onOpenItem,
+      onMediaAction: { _ in }
     )
 
     if !content.isExpanded {
       setKeyboardNavigationEnabled(false)
+    }
+  }
+
+  func update(
+    mediaPayload: MediaSurfacePayload,
+    presentationStyle: TopSurfacePresentationStyle,
+    surfaceFrameInPanel: CGRect,
+    onHoverChanged: @escaping (Bool) -> Void,
+    onActivateSurface: @escaping () -> Void,
+    onMediaAction: @escaping (MediaSurfaceAction) -> Void
+  ) {
+    panelContent = .media(mediaPayload)
+    renderedPresentationStyle = presentationStyle
+    renderedSurfaceFrameInPanel = surfaceFrameInPanel
+    hasShadow = presentationStyle.hasPanelShadow
+    eventView.onHoverChanged = onHoverChanged
+    eventView.onScroll = { _, _ in }
+    eventView.onNavigate = { _ in }
+    eventView.onDismiss = {}
+    eventView.onOpenItem = {}
+    eventView.updateActiveFrame(surfaceFrameInPanel)
+    eventView.hostingView.rootView = Self.rootView(
+      for: panelContent,
+      presentationStyle: presentationStyle,
+      surfaceSize: surfaceFrameInPanel.size,
+      onActivateSurface: onActivateSurface,
+      onRequestKeyboardNavigation: {},
+      onNavigate: { _ in },
+      onOpenItem: {},
+      onMediaAction: onMediaAction
+    )
+    if !mediaPayload.isExpanded {
+      setKeyboardNavigationEnabled(false)
+    }
+  }
+
+  private static func rootView(
+    for content: PanelContent,
+    presentationStyle: TopSurfacePresentationStyle,
+    surfaceSize: CGSize,
+    onActivateSurface: @escaping () -> Void,
+    onRequestKeyboardNavigation: @escaping () -> Void,
+    onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
+    onOpenItem: @escaping () -> Void,
+    onMediaAction: @escaping (MediaSurfaceAction) -> Void
+  ) -> AnyView {
+    switch content {
+    case .focus(let focus):
+      AnyView(
+        TopSurfaceView(
+          content: focus,
+          presentationStyle: presentationStyle,
+          surfaceSize: surfaceSize,
+          onActivateSurface: onActivateSurface,
+          onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+          onNavigate: onNavigate,
+          onOpenItem: onOpenItem
+        )
+      )
+    case .media(let media):
+      AnyView(
+        MediaSurfaceView(
+          payload: media,
+          presentationStyle: presentationStyle,
+          surfaceSize: surfaceSize,
+          onAction: onMediaAction,
+          onActivateSurface: onActivateSurface
+        )
+      )
     }
   }
 
@@ -207,11 +347,16 @@ final class TopSurfacePanel: NSPanel {
   }
 }
 
+private enum PanelContent {
+  case focus(TopSurfaceContent)
+  case media(MediaSurfacePayload)
+}
+
 @MainActor
 private final class TopSurfaceEventView: NSView {
   override var acceptsFirstResponder: Bool { true }
 
-  let hostingView: NSHostingView<TopSurfaceView>
+  let hostingView: NSHostingView<AnyView>
   var onHoverChanged: (Bool) -> Void = { _ in }
   var onScroll: (CGFloat, TopSurfaceGesturePhase) -> Void = { _, _ in }
   var onNavigate: (TopSurfaceBrowseDirection) -> Void = { _ in }
@@ -224,7 +369,7 @@ private final class TopSurfaceEventView: NSView {
   init(
     frame: CGRect,
     activeFrame: CGRect,
-    rootView: TopSurfaceView
+    rootView: AnyView
   ) {
     self.activeFrame = activeFrame
     hostingView = NSHostingView(rootView: rootView)
