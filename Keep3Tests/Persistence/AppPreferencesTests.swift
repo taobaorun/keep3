@@ -67,9 +67,16 @@ final class AppPreferencesTests: XCTestCase {
     XCTAssertEqual(preferences.capsuleWidth, 360)
   }
 
-  func testSystemAccessibilitySettingsOverrideCustomAppearance() {
+  func testSurfaceAppearanceKeepsConfiguredOpacity() {
     let appearance = SurfaceAppearance(backgroundOpacity: 0.78)
     XCTAssertEqual(appearance.backgroundOpacity, 0.78)
+  }
+
+  func testSettingsCategoriesPreserveVisualOrderAndExposeMediaEntry() {
+    XCTAssertEqual(
+      SettingsCategory.allCases,
+      [.general, .focusSurface, .rotation, .interaction, .accessibility, .media]
+    )
   }
 
   private func makeDefaults() -> (UserDefaults, String) {
