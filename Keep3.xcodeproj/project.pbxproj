@@ -44,6 +44,7 @@
 		100000000000000000000035 /* LaunchAtLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000037 /* LaunchAtLoginService.swift */; };
 		100000000000000000000036 /* Keep3UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000039 /* Keep3UITests.swift */; };
 		100000000000000000000037 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* XCTest.framework */; };
+		100000000000000000000038 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000040 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -103,6 +104,7 @@
 		200000000000000000000037 /* LaunchAtLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginService.swift; sourceTree = "<group>"; };
 		200000000000000000000038 /* Keep3UITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Keep3UITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		200000000000000000000039 /* Keep3UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keep3UITests.swift; sourceTree = "<group>"; };
+		200000000000000000000040 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -151,6 +153,7 @@
 				400000000000000000000012 /* Features */,
 				400000000000000000000008 /* Overlay */,
 				400000000000000000000015 /* Persistence */,
+				400000000000000000000018 /* Resources */,
 			);
 			path = Keep3;
 			sourceTree = "<group>";
@@ -287,6 +290,14 @@
 			path = Keep3UITests;
 			sourceTree = "<group>";
 		};
+		400000000000000000000018 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000040 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		400000000000000000000005 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -421,6 +432,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				100000000000000000000038 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -611,6 +623,7 @@
 		A00000000000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGNING_ALLOWED = YES;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -631,6 +644,7 @@
 		A00000000000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_ALLOWED = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = YES;
