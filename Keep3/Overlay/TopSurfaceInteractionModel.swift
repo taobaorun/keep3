@@ -37,7 +37,7 @@ final class TopSurfaceInteractionModel {
   private static let scrollThreshold: CGFloat = 20
 
   private let scheduler: any InteractionTimerScheduling
-  private let onPresentationChange: (TopSurfacePresentationState) -> Void
+  private let onIntent: (TopSurfaceInteractionIntent) -> Void
   private let onPauseRotation: () -> Void
   private let onResumeRotation: () -> Void
   private let onOpenItem: (UUID) -> Void
@@ -55,13 +55,13 @@ final class TopSurfaceInteractionModel {
 
   init(
     scheduler: any InteractionTimerScheduling = TaskInteractionTimerScheduler(),
-    onPresentationChange: @escaping (TopSurfacePresentationState) -> Void,
+    onIntent: @escaping (TopSurfaceInteractionIntent) -> Void,
     onPauseRotation: @escaping () -> Void,
     onResumeRotation: @escaping () -> Void,
     onOpenItem: @escaping (UUID) -> Void
   ) {
     self.scheduler = scheduler
-    self.onPresentationChange = onPresentationChange
+    self.onIntent = onIntent
     self.onPauseRotation = onPauseRotation
     self.onResumeRotation = onResumeRotation
     self.onOpenItem = onOpenItem
@@ -238,12 +238,7 @@ final class TopSurfaceInteractionModel {
   }
 
   private func emitPresentation() {
-    onPresentationChange(
-      TopSurfacePresentationState(
-        visibleItemID: visibleItemID,
-        isExpanded: isExpanded
-      )
-    )
+    onIntent(.focus(visibleItemID: visibleItemID, isExpanded: isExpanded))
   }
 
   private func scheduleExpansion() {

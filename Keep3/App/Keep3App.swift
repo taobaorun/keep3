@@ -26,8 +26,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   )
 
   private lazy var interactionModel = TopSurfaceInteractionModel(
-    onPresentationChange: { [weak self] presentation in
-      self?.present(presentation)
+    onIntent: { [weak self] intent in
+      self?.surfaceModeCoordinator.handleInteraction(intent)
     },
     onPauseRotation: { [weak self] in
       self?.pauseRotation()
@@ -44,6 +44,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     [weak self] itemID in
     self?.showRotatedItem(itemID)
   }
+  private lazy var surfaceModeCoordinator = SurfaceModeCoordinator(
+    onPresentation: { [weak self] presentation in
+      self?.render(presentation)
+    },
+    onMediaOwnershipChange: { [weak self] ownsSurface in
+      if ownsSurface {
+        self?.pauseRotation()
+      } else {
+        self?.resumeRotation()
+      }
+    }
+  )
   private lazy var displayLifecycleCoordinator = DisplayLifecycleCoordinator(
     onRefresh: { [weak self] in
       self?.refreshSurface()
@@ -89,6 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationWillTerminate(_ notification: Notification) {
     displayLifecycleObserver.stop()
+    surfaceModeCoordinator.setSurfaceAvailable(false)
     interactionModel.suspend()
     rotationCoordinator.pause()
     topSurfaceController.remove()
@@ -141,6 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return
     }
     isSurfaceAvailable = false
+    surfaceModeCoordinator.setSurfaceAvailable(false)
     interactionModel.suspend()
     rotationCoordinator.pause()
     topSurfaceController.remove()
@@ -152,6 +166,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     isSurfaceAvailable = true
     resetSurfaceToCurrentFocus()
+    surfaceModeCoordinator.setSurfaceAvailable(true)
+    surfaceModeCoordinator.reconcileAfterAvailability()
   }
 
   private func pauseRotation() {
@@ -166,9 +182,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     interactionModel.showRotatedItem(itemID)
   }
 
-  private func present(_ presentation: TopSurfacePresentationState) {
+  private func render(_ presentation: TopSurfacePresentation) {
+    guard case let .focus(payload) = presentation else {
+      topSurfaceController.remove()
+      return
+    }
+
     guard isSurfaceAvailable,
-      let id = presentation.visibleItemID,
+      let id = payload.visibleItemID,
       let position = state.items.firstIndex(where: { $0.id == id }),
       let item = state.items.first(where: { $0.id == id })
     else {
@@ -181,7 +202,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       position: position + 1,
       itemCount: state.items.count,
       isCurrentFocus: id == state.currentFocusID,
-      isExpanded: presentation.isExpanded,
+      presentation: payload,
       appearance: SurfaceAppearance(
         motionPreset: preferences.motionPreset,
         motionSpeed: preferences.motionSpeed,

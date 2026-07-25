@@ -145,7 +145,7 @@ final class TopSurfaceInteractionTests: XCTestCase {
     var openedIDs: [UUID] = []
     let coordinator = TopSurfaceInteractionModel(
       scheduler: scheduler,
-      onPresentationChange: { _ in },
+      onIntent: { _ in },
       onPauseRotation: {},
       onResumeRotation: {},
       onOpenItem: { openedIDs.append($0) }
@@ -264,7 +264,14 @@ final class TopSurfaceInteractionTests: XCTestCase {
   ) -> TopSurfaceInteractionModel {
     TopSurfaceInteractionModel(
       scheduler: scheduler,
-      onPresentationChange: { recorder.presentations.append($0) },
+      onIntent: { intent in
+        guard case let .focus(visibleItemID, isExpanded) = intent else {
+          return
+        }
+        recorder.presentations.append(
+          .init(visibleItemID: visibleItemID, isExpanded: isExpanded)
+        )
+      },
       onPauseRotation: {
         recorder.pauseCount += 1
       },

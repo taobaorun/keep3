@@ -49,6 +49,38 @@ struct TopSurfaceContent: Equatable, Sendable {
     item.subitems.compactMap(nonempty)
   }
 
+  init(
+    item: FocusItem,
+    position: Int,
+    itemCount: Int,
+    isCurrentFocus: Bool,
+    isExpanded: Bool,
+    appearance: SurfaceAppearance = .default
+  ) {
+    self.item = item
+    self.position = position
+    self.itemCount = itemCount
+    self.isCurrentFocus = isCurrentFocus
+    self.isExpanded = isExpanded
+    self.appearance = appearance
+  }
+
+  init(
+    item: FocusItem,
+    position: Int,
+    itemCount: Int,
+    isCurrentFocus: Bool,
+    presentation: FocusSurfacePayload,
+    appearance: SurfaceAppearance = .default
+  ) {
+    self.item = item
+    self.position = position
+    self.itemCount = itemCount
+    self.isCurrentFocus = isCurrentFocus
+    isExpanded = presentation.isExpanded
+    self.appearance = appearance
+  }
+
   private func nonempty(_ value: String) -> String? {
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
     return trimmed.isEmpty ? nil : trimmed

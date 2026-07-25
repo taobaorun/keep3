@@ -45,6 +45,9 @@
 		100000000000000000000036 /* Keep3UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000039 /* Keep3UITests.swift */; };
 		100000000000000000000037 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* XCTest.framework */; };
 		100000000000000000000038 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000040 /* Assets.xcassets */; };
+		100000000000000000000039 /* TopSurfacePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000041 /* TopSurfacePresentation.swift */; };
+		100000000000000000000040 /* SurfaceModeCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000042 /* SurfaceModeCoordinator.swift */; };
+		100000000000000000000041 /* SurfaceModeCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000043 /* SurfaceModeCoordinatorTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -105,6 +108,9 @@
 		200000000000000000000038 /* Keep3UITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Keep3UITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		200000000000000000000039 /* Keep3UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keep3UITests.swift; sourceTree = "<group>"; };
 		200000000000000000000040 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		200000000000000000000041 /* TopSurfacePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopSurfacePresentation.swift; sourceTree = "<group>"; };
+		200000000000000000000042 /* SurfaceModeCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceModeCoordinator.swift; sourceTree = "<group>"; };
+		200000000000000000000043 /* SurfaceModeCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceModeCoordinatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -189,6 +195,7 @@
 				200000000000000000000009 /* TopSurfacePanelTests.swift */,
 				200000000000000000000026 /* TopSurfaceInteractionTests.swift */,
 				200000000000000000000031 /* DisplayLifecycleTests.swift */,
+				200000000000000000000043 /* SurfaceModeCoordinatorTests.swift */,
 			);
 			path = Overlay;
 			sourceTree = "<group>";
@@ -204,6 +211,8 @@
 				200000000000000000000027 /* TopSurfaceInteractionModel.swift */,
 				200000000000000000000028 /* TopSurfaceContent.swift */,
 				200000000000000000000032 /* DisplayLifecycleObserver.swift */,
+				200000000000000000000041 /* TopSurfacePresentation.swift */,
+				200000000000000000000042 /* SurfaceModeCoordinator.swift */,
 			);
 			path = Overlay;
 			sourceTree = "<group>";
@@ -479,6 +488,8 @@
 				100000000000000000000032 /* AppPreferences.swift in Sources */,
 				100000000000000000000033 /* SettingsView.swift in Sources */,
 				100000000000000000000035 /* LaunchAtLoginService.swift in Sources */,
+				100000000000000000000039 /* TopSurfacePresentation.swift in Sources */,
+				100000000000000000000040 /* SurfaceModeCoordinator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -498,6 +509,7 @@
 				100000000000000000000029 /* DisplayLifecycleTests.swift in Sources */,
 				100000000000000000000031 /* AppPreferencesTests.swift in Sources */,
 				100000000000000000000034 /* LaunchAtLoginTests.swift in Sources */,
+				100000000000000000000041 /* SurfaceModeCoordinatorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
