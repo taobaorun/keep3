@@ -5,8 +5,18 @@ private final class MediaRemoteServiceDelegate: NSObject, NSXPCListenerDelegate 
     _: NSXPCListener,
     shouldAcceptNewConnection newConnection: NSXPCConnection
   ) -> Bool {
-    newConnection.exportedInterface = NSXPCInterface(with: MediaRemoteServiceProtocol.self)
-    newConnection.exportedObject = MediaRemoteService()
+    let service = MediaRemoteService()
+    newConnection.exportedInterface = MediaRemoteXPCInterface.service()
+    newConnection.exportedObject = service
+    newConnection.remoteObjectInterface = MediaRemoteXPCInterface.client()
+    guard
+      let client = newConnection.remoteObjectProxyWithErrorHandler({
+        _ in
+      }) as? MediaRemoteClientProtocol
+    else {
+      return false
+    }
+    service.attach(client: client)
     newConnection.resume()
     return true
   }

@@ -5,11 +5,15 @@ import XCTest
 final class MediaRemoteSymbolsTests: XCTestCase {
   func testMissingMandatorySymbolDisablesTheWholeAdapter() {
     let report = MediaRemoteSymbolResolver.resolve(using: { name in
-      name == "MRMediaRemoteGetNowPlayingClient" ? UnsafeMutableRawPointer(bitPattern: 1) : nil
+      name == "MRMediaRemoteGetNowPlayingInfo"
+        ? UnsafeMutableRawPointer(bitPattern: 1) : nil
     })
 
     XCTAssertEqual(report.status, .unavailable)
-    XCTAssertEqual(report.missingMandatorySymbols.count, 2)
+    XCTAssertEqual(
+      report.missingMandatorySymbols.count,
+      MediaRemoteSymbolResolver.mandatorySymbols.count - 1
+    )
     XCTAssertTrue(report.optionalCapabilities.isEmpty)
   }
 
@@ -22,6 +26,6 @@ final class MediaRemoteSymbolsTests: XCTestCase {
 
     XCTAssertEqual(report.status, .available)
     XCTAssertEqual(report.optionalCapabilities, [])
-    XCTAssertEqual(report.missingOptionalSymbols.count, 4)
+    XCTAssertEqual(report.missingOptionalSymbols.count, 3)
   }
 }

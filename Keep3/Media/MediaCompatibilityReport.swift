@@ -6,7 +6,7 @@ enum MediaAdapterStatus: String, Codable, Equatable, Sendable {
 }
 
 struct MediaCompatibilityReport: Equatable, Sendable {
-  static let protocolVersion = 1
+  static let protocolVersion = 2
 
   let status: MediaAdapterStatus
   let missingMandatorySymbols: [String]
