@@ -16,7 +16,7 @@ struct FocusSurfacePayload: Equatable, Sendable {
 }
 
 struct MediaSurfacePayload: Equatable, Sendable {
-  let sessionID: UUID
+  let sessionID: String
   let contentRevision: UInt64
   let isExpanded: Bool
   let areControlsEnabled: Bool

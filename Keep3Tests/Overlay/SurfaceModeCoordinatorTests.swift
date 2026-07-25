@@ -18,7 +18,7 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
       )
     )
     let media = MediaSurfacePayload(
-      sessionID: UUID(),
+      sessionID: "session-1",
       contentRevision: 1,
       isExpanded: false,
       areControlsEnabled: true
@@ -43,7 +43,7 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
     )
     coordinator.updateFocus(focus(firstFocusID, revision: 1))
     let media = MediaSurfacePayload(
-      sessionID: UUID(),
+      sessionID: "session-1",
       contentRevision: 1,
       isExpanded: false,
       areControlsEnabled: true
@@ -80,7 +80,7 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
       onPresentation: { presentations.append($0) }
     )
     let media = MediaSurfacePayload(
-      sessionID: UUID(),
+      sessionID: "session-1",
       contentRevision: 1,
       isExpanded: false,
       areControlsEnabled: true
@@ -125,12 +125,180 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
     XCTAssertEqual(presentations.last, .focus(focus(focusID, revision: 1)))
   }
 
+  func testOnlyPlayingEligibleSnapshotTakesOverAndEveryInactiveStateUsesGrace() {
+    let inactiveStates: [MediaPlaybackState] = [
+      .paused, .stopped, .interrupted, .unknown,
+    ]
+
+    for state in inactiveStates {
+      let scheduler = ManualSurfaceModeTimerScheduler()
+      var presentations: [TopSurfacePresentation] = []
+      let coordinator = SurfaceModeCoordinator(
+        scheduler: scheduler,
+        onPresentation: { presentations.append($0) }
+      )
+      coordinator.updateFocus(focus(UUID(), revision: 1))
+      coordinator.beginMediaEpoch(7)
+      coordinator.receiveMediaSnapshot(snapshot(state: .playing, epoch: 7))
+
+      coordinator.receiveMediaSnapshot(snapshot(state: state, epoch: 7))
+
+      guard case let .media(payload) = presentations.last else {
+        return XCTFail("\(state) should retain media during grace")
+      }
+      XCTAssertFalse(payload.areControlsEnabled)
+      XCTAssertEqual(scheduler.activeDelays, [0.5])
+
+      scheduler.fireNext()
+      guard case .focus = presentations.last else {
+        return XCTFail("\(state) should return focus after grace")
+      }
+    }
+  }
+
+  func testSourceLossAndRecoveryWithinGraceNeverPublishFocus() {
+    let scheduler = ManualSurfaceModeTimerScheduler()
+    var presentations: [TopSurfacePresentation] = []
+    let coordinator = SurfaceModeCoordinator(
+      scheduler: scheduler,
+      onPresentation: { presentations.append($0) }
+    )
+    coordinator.updateFocus(focus(UUID(), revision: 1))
+    coordinator.beginMediaEpoch(3)
+    coordinator.receiveMediaSnapshot(snapshot(sessionID: "first", epoch: 3))
+
+    coordinator.receiveMediaSnapshot(nil, epoch: 3)
+    coordinator.receiveMediaSnapshot(
+      snapshot(sessionID: "successor", epoch: 3, contentRevision: 2)
+    )
+
+    XCTAssertEqual(
+      presentations.suffix(2),
+      [
+        .media(
+          .init(
+            sessionID: "first",
+            contentRevision: 1,
+            isExpanded: false,
+            areControlsEnabled: false
+          )
+        ),
+        .media(
+          .init(
+            sessionID: "successor",
+            contentRevision: 2,
+            isExpanded: false,
+            areControlsEnabled: true
+          )
+        ),
+      ]
+    )
+    XCTAssertTrue(scheduler.activeDelays.isEmpty)
+  }
+
+  func testFrontmostAndSuppressionReturnFocusImmediatelyThenCanRetake() {
+    let focusPayload = focus(UUID(), revision: 1)
+    var presentations: [TopSurfacePresentation] = []
+    let coordinator = SurfaceModeCoordinator {
+      presentations.append($0)
+    }
+    coordinator.updateFocus(focusPayload)
+    coordinator.beginMediaEpoch(1)
+    coordinator.receiveMediaSnapshot(snapshot(epoch: 1))
+
+    coordinator.updateMediaPolicy(
+      MediaSourcePolicy(hidesFrontmostSource: true)
+    )
+    coordinator.updateFrontmostBundleIdentifier("com.spotify.client")
+
+    XCTAssertEqual(presentations.last, .focus(focusPayload))
+
+    coordinator.updateFrontmostBundleIdentifier("com.apple.TextEdit")
+
+    guard case .media = presentations.last else {
+      return XCTFail("Leaving the source should allow current playing media to retake")
+    }
+
+    coordinator.updateMediaPolicy(
+      MediaSourcePolicy(
+        suppressedBundleIdentifiers: ["com.spotify.client"]
+      )
+    )
+
+    XCTAssertEqual(presentations.last, .focus(focusPayload))
+  }
+
+  func testOldEpochDeliveryCannotRestoreMedia() {
+    let focusPayload = focus(UUID(), revision: 1)
+    var presentations: [TopSurfacePresentation] = []
+    let coordinator = SurfaceModeCoordinator {
+      presentations.append($0)
+    }
+    coordinator.updateFocus(focusPayload)
+    coordinator.beginMediaEpoch(1)
+    coordinator.beginMediaEpoch(2)
+
+    coordinator.receiveMediaSnapshot(snapshot(epoch: 1))
+
+    XCTAssertEqual(presentations.last, .focus(focusPayload))
+  }
+
+  func testWakeWaitsForFreshSnapshotInTheNewEpoch() {
+    let focusPayload = focus(UUID(), revision: 1)
+    var presentations: [TopSurfacePresentation] = []
+    let coordinator = SurfaceModeCoordinator {
+      presentations.append($0)
+    }
+    coordinator.updateFocus(focusPayload)
+    coordinator.beginMediaEpoch(1)
+    coordinator.receiveMediaSnapshot(snapshot(epoch: 1))
+
+    coordinator.setSurfaceAvailable(false)
+    coordinator.beginMediaEpoch(2)
+    coordinator.setSurfaceAvailable(true)
+    coordinator.receiveMediaSnapshot(snapshot(epoch: 1))
+    coordinator.reconcileAfterAvailability()
+
+    XCTAssertEqual(presentations.last, .focus(focusPayload))
+
+    coordinator.receiveMediaSnapshot(snapshot(epoch: 2))
+
+    guard case .media = presentations.last else {
+      return XCTFail("Only a fresh snapshot may restore media after wake")
+    }
+  }
+
   private func focus(_ id: UUID, revision: UInt64) -> FocusSurfacePayload {
     .init(
       visibleItemID: id,
       isExpanded: false,
       revision: revision,
       expansionReason: .none
+    )
+  }
+
+  private func snapshot(
+    sessionID: String = "session-1",
+    state: MediaPlaybackState = .playing,
+    epoch: UInt64,
+    contentRevision: UInt64 = 1
+  ) -> MediaSessionSnapshot {
+    MediaSessionSnapshot(
+      session: MediaSession.normalize(
+        .init(
+          sessionID: sessionID,
+          sourceBundleIdentifier: "com.spotify.client",
+          title: "Track",
+          artist: "Artist",
+          duration: 180,
+          progress: 20,
+          capabilities: ["playPause", "next"]
+        )
+      )!,
+      playbackState: state,
+      subscriptionEpoch: epoch,
+      capabilityRevision: 1,
+      contentRevision: contentRevision
     )
   }
 }
