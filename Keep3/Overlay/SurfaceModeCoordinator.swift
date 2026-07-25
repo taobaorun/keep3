@@ -30,6 +30,10 @@ final class SurfaceModeCoordinator {
   private var isAwaitingReconciliation = false
   private var isInHandoffGrace = false
   private var handoffTimer: (any SurfaceModeTimerCancellation)?
+  private var mediaEpoch: UInt64?
+  private var mediaSnapshot: MediaSessionSnapshot?
+  private var mediaPolicy = MediaSourcePolicy()
+  private var frontmostBundleIdentifier: String?
 
   var designatedFocusID: UUID? {
     focusPayload?.visibleItemID
@@ -66,6 +70,10 @@ final class SurfaceModeCoordinator {
   }
 
   func updateMedia(_ payload: MediaSurfacePayload?) {
+    guard mediaPayload != payload else {
+      return
+    }
+
     generation &+= 1
     handoffGeneration &+= 1
     handoffTimer?.cancel()
@@ -80,6 +88,61 @@ final class SurfaceModeCoordinator {
 
     mediaPayload = payload
     reconcile()
+  }
+
+  func beginMediaEpoch(_ epoch: UInt64) {
+    guard mediaEpoch != epoch else {
+      return
+    }
+    mediaEpoch = epoch
+    mediaSnapshot = nil
+    removeMediaImmediately()
+  }
+
+  func endMediaEpoch(_ epoch: UInt64) {
+    guard mediaEpoch == epoch else {
+      return
+    }
+    mediaEpoch = nil
+    mediaSnapshot = nil
+    removeMediaImmediately()
+  }
+
+  func receiveMediaSnapshot(_ snapshot: MediaSessionSnapshot?) {
+    guard let mediaEpoch else {
+      return
+    }
+    receiveMediaSnapshot(snapshot, epoch: mediaEpoch)
+  }
+
+  func receiveMediaSnapshot(
+    _ snapshot: MediaSessionSnapshot?,
+    epoch: UInt64
+  ) {
+    guard mediaEpoch == epoch else {
+      return
+    }
+    guard snapshot?.subscriptionEpoch == epoch || snapshot == nil else {
+      return
+    }
+    mediaSnapshot = snapshot
+    reconcileMediaEligibility()
+  }
+
+  func updateMediaPolicy(_ policy: MediaSourcePolicy) {
+    guard mediaPolicy != policy else {
+      return
+    }
+    mediaPolicy = policy
+    reconcileMediaEligibility()
+  }
+
+  func updateFrontmostBundleIdentifier(_ bundleIdentifier: String?) {
+    guard frontmostBundleIdentifier != bundleIdentifier else {
+      return
+    }
+    frontmostBundleIdentifier = bundleIdentifier
+    reconcileMediaEligibility()
   }
 
   func setSurfaceAvailable(_ isAvailable: Bool) {
@@ -134,6 +197,47 @@ final class SurfaceModeCoordinator {
       self.isInHandoffGrace = false
       self.reconcile()
     }
+  }
+
+  private func reconcileMediaEligibility() {
+    guard let mediaSnapshot else {
+      updateMedia(nil)
+      return
+    }
+
+    guard mediaSnapshot.playbackState == .playing else {
+      updateMedia(nil)
+      return
+    }
+
+    guard
+      mediaPolicy.allows(
+        mediaSnapshot,
+        frontmostBundleIdentifier: frontmostBundleIdentifier
+      )
+    else {
+      removeMediaImmediately()
+      return
+    }
+
+    updateMedia(
+      .init(
+        sessionID: mediaSnapshot.session.sessionID,
+        contentRevision: mediaSnapshot.contentRevision,
+        isExpanded: false,
+        areControlsEnabled: true
+      )
+    )
+  }
+
+  private func removeMediaImmediately() {
+    generation &+= 1
+    handoffGeneration &+= 1
+    handoffTimer?.cancel()
+    handoffTimer = nil
+    isInHandoffGrace = false
+    mediaPayload = nil
+    reconcile()
   }
 
   private func reconcile() {

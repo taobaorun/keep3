@@ -9,6 +9,14 @@ enum MediaCapability: String, CaseIterable, Codable, Hashable, Sendable {
   case repeatMode
 }
 
+enum MediaPlaybackState: String, Codable, Equatable, Sendable {
+  case playing
+  case paused
+  case stopped
+  case interrupted
+  case unknown
+}
+
 struct MediaSession: Equatable, Sendable {
   let sessionID: String
   let sourceBundleIdentifier: String?
@@ -43,6 +51,14 @@ struct MediaSession: Equatable, Sendable {
     else { return nil }
     return value
   }
+}
+
+struct MediaSessionSnapshot: Equatable, Sendable {
+  let session: MediaSession
+  let playbackState: MediaPlaybackState
+  let subscriptionEpoch: UInt64
+  let capabilityRevision: UInt64
+  let contentRevision: UInt64
 }
 
 struct MediaSessionWirePayload: Equatable, Sendable {

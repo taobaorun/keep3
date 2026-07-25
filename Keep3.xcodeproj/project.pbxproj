@@ -58,6 +58,16 @@
 		100000000000000000000059 /* MediaRemoteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000057 /* MediaRemoteService.swift */; };
 		100000000000000000000060 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000058 /* main.swift */; };
 		100000000000000000000061 /* Keep3MediaService.xpc in Embed XPC Services */ = {isa = PBXBuildFile; fileRef = 200000000000000000000059 /* Keep3MediaService.xpc */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		100000000000000000000062 /* MediaSourcePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000066 /* MediaSourcePolicyTests.swift */; };
+		100000000000000000000063 /* MediaPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000067 /* MediaPreferencesTests.swift */; };
+		100000000000000000000064 /* MediaSessionCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000068 /* MediaSessionCoordinatorTests.swift */; };
+		100000000000000000000065 /* WorkspaceApplicationObserverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000069 /* WorkspaceApplicationObserverTests.swift */; };
+		100000000000000000000066 /* ProviderEnrichmentServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000006A /* ProviderEnrichmentServiceTests.swift */; };
+		100000000000000000000067 /* MediaSourcePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000060 /* MediaSourcePolicy.swift */; };
+		100000000000000000000068 /* ProviderEnrichmentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000061 /* ProviderEnrichmentService.swift */; };
+		100000000000000000000069 /* MediaPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000062 /* MediaPreferences.swift */; };
+		10000000000000000000006A /* MediaSessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000063 /* MediaSessionCoordinator.swift */; };
+		10000000000000000000006B /* WorkspaceApplicationObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000064 /* WorkspaceApplicationObserver.swift */; };
 		100000000000000000000037 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* XCTest.framework */; };
 		100000000000000000000038 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000040 /* Assets.xcassets */; };
 		100000000000000000000039 /* TopSurfacePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000041 /* TopSurfacePresentation.swift */; };
@@ -168,6 +178,17 @@
 		200000000000000000000057 /* MediaRemoteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRemoteService.swift; sourceTree = "<group>"; };
 		200000000000000000000058 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		200000000000000000000059 /* Keep3MediaService.xpc */ = {isa = PBXFileReference; explicitFileType = "wrapper.xpc-service"; includeInIndex = 0; path = Keep3MediaService.xpc; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000060 /* MediaSourcePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSourcePolicy.swift; sourceTree = "<group>"; };
+		200000000000000000000061 /* ProviderEnrichmentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderEnrichmentService.swift; sourceTree = "<group>"; };
+		200000000000000000000062 /* MediaPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPreferences.swift; sourceTree = "<group>"; };
+		200000000000000000000063 /* MediaSessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSessionCoordinator.swift; sourceTree = "<group>"; };
+		200000000000000000000064 /* WorkspaceApplicationObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceApplicationObserver.swift; sourceTree = "<group>"; };
+		200000000000000000000065 /* Keep3.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Keep3.entitlements; sourceTree = "<group>"; };
+		200000000000000000000066 /* MediaSourcePolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSourcePolicyTests.swift; sourceTree = "<group>"; };
+		200000000000000000000067 /* MediaPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPreferencesTests.swift; sourceTree = "<group>"; };
+		200000000000000000000068 /* MediaSessionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSessionCoordinatorTests.swift; sourceTree = "<group>"; };
+		200000000000000000000069 /* WorkspaceApplicationObserverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceApplicationObserverTests.swift; sourceTree = "<group>"; };
+		20000000000000000000006A /* ProviderEnrichmentServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderEnrichmentServiceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -226,6 +247,7 @@
 				400000000000000000000015 /* Persistence */,
 				400000000000000000000018 /* Resources */,
 				400000000000000000000020 /* Media */,
+				200000000000000000000065 /* Keep3.entitlements */,
 			);
 			path = Keep3;
 			sourceTree = "<group>";
@@ -239,6 +261,10 @@
 				200000000000000000000054 /* MediaSessionProviding.swift */,
 				200000000000000000000055 /* MediaRemoteAdapter.swift */,
 				200000000000000000000056 /* MediaRemoteServiceProtocol.swift */,
+				200000000000000000000060 /* MediaSourcePolicy.swift */,
+				200000000000000000000061 /* ProviderEnrichmentService.swift */,
+				200000000000000000000063 /* MediaSessionCoordinator.swift */,
+				200000000000000000000064 /* WorkspaceApplicationObserver.swift */,
 			);
 			path = Media;
 			sourceTree = "<group>";
@@ -282,6 +308,10 @@
 			children = (
 				200000000000000000000049 /* MediaRemoteSymbolsTests.swift */,
 				200000000000000000000050 /* MediaSessionNormalizationTests.swift */,
+				200000000000000000000066 /* MediaSourcePolicyTests.swift */,
+				200000000000000000000068 /* MediaSessionCoordinatorTests.swift */,
+				200000000000000000000069 /* WorkspaceApplicationObserverTests.swift */,
+				20000000000000000000006A /* ProviderEnrichmentServiceTests.swift */,
 			);
 			path = Media;
 			sourceTree = "<group>";
@@ -369,6 +399,7 @@
 			children = (
 				200000000000000000000033 /* AppPreferencesTests.swift */,
 				200000000000000000000020 /* JSONStateStoreTests.swift */,
+				200000000000000000000067 /* MediaPreferencesTests.swift */,
 			);
 			path = Persistence;
 			sourceTree = "<group>";
@@ -379,6 +410,7 @@
 				200000000000000000000034 /* AppPreferences.swift */,
 				200000000000000000000021 /* StateStore.swift */,
 				200000000000000000000022 /* JSONStateStore.swift */,
+				200000000000000000000062 /* MediaPreferences.swift */,
 			);
 			path = Persistence;
 			sourceTree = "<group>";
@@ -639,6 +671,11 @@
 				100000000000000000000052 /* MediaSessionProviding.swift in Sources */,
 				100000000000000000000053 /* MediaRemoteAdapter.swift in Sources */,
 				100000000000000000000054 /* MediaRemoteServiceProtocol.swift in Sources */,
+				100000000000000000000067 /* MediaSourcePolicy.swift in Sources */,
+				100000000000000000000068 /* ProviderEnrichmentService.swift in Sources */,
+				100000000000000000000069 /* MediaPreferences.swift in Sources */,
+				10000000000000000000006A /* MediaSessionCoordinator.swift in Sources */,
+				10000000000000000000006B /* WorkspaceApplicationObserver.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -662,6 +699,11 @@
 				100000000000000000000043 /* SignatureSurfaceTransitionTests.swift in Sources */,
 				100000000000000000000047 /* MediaRemoteSymbolsTests.swift in Sources */,
 				100000000000000000000048 /* MediaSessionNormalizationTests.swift in Sources */,
+				100000000000000000000062 /* MediaSourcePolicyTests.swift in Sources */,
+				100000000000000000000063 /* MediaPreferencesTests.swift in Sources */,
+				100000000000000000000064 /* MediaSessionCoordinatorTests.swift in Sources */,
+				100000000000000000000065 /* WorkspaceApplicationObserverTests.swift in Sources */,
+				100000000000000000000066 /* ProviderEnrichmentServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -802,9 +844,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_ENTITLEMENTS = Keep3/Keep3.entitlements;
 				CODE_SIGNING_ALLOWED = YES;
 				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Keep3 uses Automation only after you explicitly enable provider enhancements.";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -822,9 +867,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Keep3/Keep3.entitlements;
 				CODE_SIGNING_ALLOWED = NO;
 				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Keep3 uses Automation only after you explicitly enable provider enhancements.";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
