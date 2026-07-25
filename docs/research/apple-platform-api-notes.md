@@ -13,9 +13,41 @@
   https://developer.apple.com/documentation/foundation/jsonencoder/encode%28_%3A%29
   and https://developer.apple.com/documentation/foundation/jsondecoder
 
-This file records the official Apple documentation checked before implementing
-platform-sensitive Keep3 behavior. Product behavior that cannot be supported by
-these public APIs must degrade gracefully rather than use a private framework.
+This file records the platform evidence checked before implementing sensitive
+Keep3 behavior. Public APIs remain mandatory except for the explicitly
+documented personal-build global-media exception below.
+
+## Visual System 2.0 and global media exception
+
+Verified on 2026-07-25 and 2026-07-26 with Xcode 16.4, the macOS 15.5 SDK, the
+locally installed Alcove 1.7.7 (199), and a built Keep3 helper:
+
+- Apple's public `MediaPlayer` now-playing APIs describe and control the current
+  application's own playback session. They do not provide Keep3 with the global
+  cross-application session exposed by Control Center.
+- The locally installed Alcove app contains `AlcoveHelper.xpc`; both its app and
+  helper binaries link the private system `MediaRemote.framework`. The helper
+  uses MediaRemote now-playing notifications, metadata queries, application
+  PID lookup, command dispatch, and elapsed-time updates.
+- `MediaRemote.framework` is an Apple private framework shipped by macOS. It is
+  neither an open-source protocol nor Alcove-owned technology. Its symbols and
+  behavior can change without source or binary compatibility guarantees.
+- Keep3 follows the same architectural boundary rather than linking the private
+  framework into its main UI process: an embedded XPC service dynamically loads
+  MediaRemote, validates mandatory symbols, normalizes bounded metadata, and
+  publishes a versioned property-list snapshot.
+- The main app treats the helper as untrusted and disposable. Invalid payloads,
+  incompatible protocol versions, missing symbols, XPC interruption, stale
+  subscription epochs, or unavailable sessions retract media state and restore
+  the latest priority surface.
+- The helper bundle identifier intentionally follows the Control Center-style
+  service namespace used by the inspected implementation:
+  `com.apple.controlcenter.Keep3MediaService`.
+
+Distribution implication: this implementation is appropriate for the user's
+directly installed personal build, not the Mac App Store. Every macOS update
+requires compatibility probing and the public-API path must remain the default
+choice if Apple later exposes equivalent system-wide media control.
 
 ## Tasks 12–13: Preferences and accessibility appearance
 

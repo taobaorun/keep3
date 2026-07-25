@@ -18,6 +18,7 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
   private var pendingRefresh: DispatchWorkItem?
   private var contentRevision: UInt64 = 0
   private var currentSessionID: String?
+  private var currentContentIdentity: ContentIdentity?
 
   func attach(client: any MediaRemoteClientProtocol) {
     self.client = client
@@ -158,7 +159,6 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     processIdentifier: Int32,
     runtime: MediaRemoteRuntime
   ) {
-    contentRevision &+= 1
     let application =
       processIdentifier > 0
       ? NSRunningApplication(
@@ -174,6 +174,20 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
         "\($0):\(processIdentifier)"
       } ?? uniqueIdentifier.map { "media:\($0)" }
       ?? "media:global"
+    let contentIdentity = ContentIdentity(
+      sessionID: sessionID,
+      uniqueIdentifier: uniqueIdentifier,
+      title:
+        information["kMRMediaRemoteNowPlayingInfoTitle"] as? String,
+      artist:
+        information["kMRMediaRemoteNowPlayingInfoArtist"] as? String,
+      album:
+        information["kMRMediaRemoteNowPlayingInfoAlbum"] as? String
+    )
+    if currentContentIdentity != contentIdentity {
+      contentRevision &+= 1
+      currentContentIdentity = contentIdentity
+    }
     currentSessionID = sessionID
 
     var propertyList: [String: Any] = [
@@ -244,8 +258,8 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
   }
 
   private func publishUnavailable() {
-    contentRevision &+= 1
     currentSessionID = nil
+    currentContentIdentity = nil
     client?.mediaRemoteDidUpdate([
       "protocolVersion": NSNumber(
         value: MediaCompatibilityReport.protocolVersion
@@ -275,7 +289,16 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     runtime?.unregisterNotifications()
     runtime = nil
     currentSessionID = nil
+    currentContentIdentity = nil
   }
+}
+
+private struct ContentIdentity: Equatable {
+  let sessionID: String
+  let uniqueIdentifier: String?
+  let title: String?
+  let artist: String?
+  let album: String?
 }
 
 private final class MediaRemoteRuntime {

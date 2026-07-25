@@ -85,7 +85,38 @@ final class Keep3UITests: XCTestCase {
     XCTAssertEqual(titleField.value as? String, "Beta")
   }
 
-  private func launchIsolatedApp() throws {
+  func testPlayingMediaOwnsSurfaceAndDisablingMediaRestoresFocus()
+    throws
+  {
+    try launchIsolatedApp(mediaFixture: true)
+    defer { cleanUpIsolatedApp() }
+
+    let expandedMedia = app.descendants(matching: .any)["media.expanded"]
+    XCTAssertTrue(expandedMedia.waitForExistence(timeout: 4))
+
+    let next = app.buttons["media.action.next"]
+    XCTAssertTrue(next.waitForExistence(timeout: 2))
+    next.click()
+    XCTAssertTrue(next.waitForExistence(timeout: 2))
+    XCTAssertTrue(next.isEnabled)
+
+    addItem("Focus Returns")
+    openSettings()
+    let mediaCategory =
+      app.descendants(matching: .any)["settings.category.media"]
+    XCTAssertTrue(mediaCategory.waitForExistence(timeout: 2))
+    mediaCategory.click()
+
+    let mediaEnabled = app.switches["settings.media.enabled"]
+    XCTAssertTrue(mediaEnabled.waitForExistence(timeout: 2))
+    mediaEnabled.click()
+
+    XCTAssertTrue(
+      app.buttons["overlay.compact"].waitForExistence(timeout: 4)
+    )
+  }
+
+  private func launchIsolatedApp(mediaFixture: Bool = false) throws {
     continueAfterFailure = false
 
     let identifier = UUID().uuidString
@@ -101,6 +132,9 @@ final class Keep3UITests: XCTestCase {
     app.launchEnvironment["KEEP3_UI_TEST_STATE_PATH"] =
       testDirectoryURL.appendingPathComponent("state.json").path
     app.launchEnvironment["KEEP3_UI_TEST_DEFAULTS_SUITE"] = defaultsSuiteName
+    if mediaFixture {
+      app.launchEnvironment["KEEP3_UI_TEST_MEDIA_FIXTURE"] = "playing"
+    }
     app.launch()
 
     XCTAssertTrue(app.windows["Keep3"].waitForExistence(timeout: 5))

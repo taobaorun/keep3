@@ -79,6 +79,18 @@ struct MediaAdapterSnapshot: Equatable, Sendable {
   let capabilityRevision: UInt64
   let contentRevision: UInt64
 
+  init(
+    session: MediaSession,
+    playbackState: MediaPlaybackState,
+    capabilityRevision: UInt64,
+    contentRevision: UInt64
+  ) {
+    self.session = session
+    self.playbackState = playbackState
+    self.capabilityRevision = capabilityRevision
+    self.contentRevision = contentRevision
+  }
+
   init?(propertyList: NSDictionary) {
     guard
       let protocolVersion = propertyList["protocolVersion"] as? NSNumber,

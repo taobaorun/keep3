@@ -39,6 +39,14 @@ actor MediaSessionCoordinator {
     await onSnapshot(snapshot)
   }
 
+  func receiveUnavailable(epoch candidateEpoch: UInt64) async {
+    guard candidateEpoch == epoch else {
+      return
+    }
+    currentSnapshot = nil
+    await onSnapshot(nil)
+  }
+
   func requestUserInitiatedProviderEnrichment(
     for snapshot: MediaSessionSnapshot,
     using service: ProviderEnrichmentService

@@ -25,8 +25,7 @@ enum ProviderCommandBackend: Equatable, Sendable {
 
 struct ProviderEnrichment: Equatable, Sendable {
   let bundleIdentifier: String
-  let capabilityBackends:
-    [ProviderEnrichmentCapability: ProviderCommandBackend]
+  let capabilityBackends: [ProviderEnrichmentCapability: ProviderCommandBackend]
 }
 
 struct ProviderAutomationTarget: Equatable, Sendable {
@@ -55,8 +54,7 @@ struct ProviderEnrichmentService: Sendable {
 
   private struct ProviderDefinition: Sendable {
     let target: ProviderAutomationTarget
-    let commands:
-      [ProviderEnrichmentCapability: ProviderAutomationCommand]
+    let commands: [ProviderEnrichmentCapability: ProviderAutomationCommand]
   }
 
   private static let registry: [String: ProviderDefinition] = [

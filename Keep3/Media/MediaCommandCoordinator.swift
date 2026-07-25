@@ -46,20 +46,26 @@ final class MediaCommandCoordinator {
   private let sender: any MediaCommandSending
   private let haptic: any MediaHapticPerforming
   private let scheduler: any MediaCommandTimerScheduling
+  private let onPendingActionChange: (MediaSurfaceAction?) -> Void
   private var currentSnapshot: MediaSessionSnapshot?
   private var isMediaActive = false
   private var pending: PendingCommand?
   private var timeout: (any MediaCommandTimerCancellation)?
+  private var lastCompletedToken: UUID?
 
   init(
     sender: any MediaCommandSending,
     haptic: any MediaHapticPerforming = AppKitMediaHapticFeedback(),
     scheduler: any MediaCommandTimerScheduling =
-      TaskMediaCommandTimerScheduler()
+      TaskMediaCommandTimerScheduler(),
+    onPendingActionChange: @escaping (MediaSurfaceAction?) -> Void = {
+      _ in
+    }
   ) {
     self.sender = sender
     self.haptic = haptic
     self.scheduler = scheduler
+    self.onPendingActionChange = onPendingActionChange
   }
 
   var pendingAction: MediaSurfaceAction? {
@@ -104,14 +110,16 @@ final class MediaCommandCoordinator {
       capabilityRevision: snapshot.capabilityRevision,
       contentRevisionBeforeDispatch: snapshot.contentRevision
     )
+    lastCompletedToken = nil
     pending = command
+    onPendingActionChange(action)
 
     let result = await sender.send(
       action,
       to: snapshot.session.sessionID
     )
     guard pending?.token == command.token else {
-      return false
+      return lastCompletedToken == command.token
     }
 
     switch result {
@@ -191,6 +199,7 @@ final class MediaCommandCoordinator {
     guard pending?.token == command.token else {
       return
     }
+    lastCompletedToken = command.token
     clearPending()
     if command.requiresTrackConfirmation {
       haptic.performConfirmedTrackChange()
@@ -209,9 +218,13 @@ final class MediaCommandCoordinator {
   }
 
   private func clearPending() {
+    let hadPending = pending != nil
     timeout?.cancel()
     timeout = nil
     pending = nil
+    if hadPending {
+      onPendingActionChange(nil)
+    }
   }
 }
 

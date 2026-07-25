@@ -366,6 +366,7 @@ struct MediaSurfaceView: View {
     .buttonStyle(.plain)
     .disabled(!presentation.areControlsEnabled)
     .accessibilityLabel(label(for: action))
+    .accessibilityIdentifier("media.action.\(identifier(for: action))")
   }
 
   private func symbol(for action: MediaSurfaceAction) -> String {
@@ -389,6 +390,18 @@ struct MediaSurfaceView: View {
     case .hideSource: "隐藏来源"
     case .shuffle: "随机播放"
     case .repeatMode: "循环模式"
+    }
+  }
+
+  private func identifier(for action: MediaSurfaceAction) -> String {
+    switch action {
+    case .previous: "previous"
+    case .togglePlayPause: "playPause"
+    case .next: "next"
+    case .seek: "seek"
+    case .hideSource: "hideSource"
+    case .shuffle: "shuffle"
+    case .repeatMode: "repeat"
     }
   }
 

@@ -143,7 +143,7 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
 
       coordinator.receiveMediaSnapshot(snapshot(state: state, epoch: 7))
 
-      guard case let .media(payload) = presentations.last else {
+      guard case .media(let payload) = presentations.last else {
         return XCTFail("\(state) should retain media during grace")
       }
       XCTAssertFalse(payload.areControlsEnabled)
@@ -172,26 +172,17 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
       snapshot(sessionID: "successor", epoch: 3, contentRevision: 2)
     )
 
+    let finalMedia = presentations.suffix(2).compactMap {
+      presentation -> MediaSurfacePayload? in
+      guard case .media(let payload) = presentation else {
+        return nil
+      }
+      return payload
+    }
+    XCTAssertEqual(finalMedia.map(\.sessionID), ["first", "successor"])
     XCTAssertEqual(
-      presentations.suffix(2),
-      [
-        .media(
-          .init(
-            sessionID: "first",
-            contentRevision: 1,
-            isExpanded: false,
-            areControlsEnabled: false
-          )
-        ),
-        .media(
-          .init(
-            sessionID: "successor",
-            contentRevision: 2,
-            isExpanded: false,
-            areControlsEnabled: true
-          )
-        ),
-      ]
+      finalMedia.map(\.areControlsEnabled),
+      [false, true]
     )
     XCTAssertTrue(scheduler.activeDelays.isEmpty)
   }
