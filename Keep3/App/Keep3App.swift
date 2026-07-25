@@ -15,6 +15,7 @@ struct Keep3App: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let appModel = AppDelegate.makeAppModel()
   private let preferences = AppDelegate.makePreferences()
+  private let mediaPreferences = AppDelegate.makeMediaPreferences()
   private let launchAtLoginController = LaunchAtLoginController.live()
   private let topSurfaceController = TopSurfaceController()
   private var state = Keep3State()
@@ -22,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private lazy var editorWindowController = EditorWindowController(
     model: appModel,
     preferences: preferences,
+    mediaPreferences: mediaPreferences,
     launchAtLoginController: launchAtLoginController
   )
 
@@ -277,5 +279,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return AppPreferences.live()
     }
     return AppPreferences(defaults: defaults)
+  }
+
+  private static func makeMediaPreferences() -> MediaPreferences {
+    let environment = ProcessInfo.processInfo.environment
+    guard
+      let suiteName = environment["KEEP3_UI_TEST_DEFAULTS_SUITE"],
+      !suiteName.isEmpty,
+      let defaults = UserDefaults(suiteName: suiteName)
+    else {
+      return MediaPreferences.live()
+    }
+    return MediaPreferences(defaults: defaults)
   }
 }

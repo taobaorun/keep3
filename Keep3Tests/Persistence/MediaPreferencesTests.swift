@@ -12,6 +12,11 @@ final class MediaPreferencesTests: XCTestCase {
     XCTAssertTrue(preferences.isQuickPeekEnabled)
     XCTAssertEqual(preferences.quickPeekDuration, 2)
     XCTAssertFalse(preferences.hidesFrontmostSource)
+    XCTAssertEqual(preferences.expansionTrigger, .hover)
+    XCTAssertEqual(preferences.artworkTreatment, .artwork)
+    XCTAssertTrue(preferences.showsWaveform)
+    XCTAssertEqual(preferences.secondaryAction, .none)
+    XCTAssertEqual(preferences.backgroundOpacity, 0.94)
     XCTAssertEqual(preferences.automationPermissionPosture, .notRequested)
 
     XCTAssertTrue(
@@ -32,6 +37,36 @@ final class MediaPreferencesTests: XCTestCase {
     )
     XCTAssertFalse(
       preferences.suppressedBundleIdentifiers.contains("com.spotify.client")
+    )
+  }
+
+  func testAppearanceSettingsPersistAndOpacityIsBounded() {
+    let defaults = makeDefaults()
+    let preferences = MediaPreferences(defaults: defaults)
+
+    preferences.setExpansionTrigger(.click)
+    preferences.setArtworkTreatment(.monochrome)
+    preferences.setShowsWaveform(false)
+    preferences.setSecondaryAction(.repeatMode)
+    preferences.setBackgroundOpacity(9)
+
+    let relaunched = MediaPreferences(defaults: defaults)
+    XCTAssertEqual(relaunched.expansionTrigger, .click)
+    XCTAssertEqual(relaunched.artworkTreatment, .monochrome)
+    XCTAssertFalse(relaunched.showsWaveform)
+    XCTAssertEqual(relaunched.secondaryAction, .repeatMode)
+    XCTAssertEqual(
+      relaunched.backgroundOpacity,
+      MediaPreferences.backgroundOpacityRange.upperBound
+    )
+    XCTAssertEqual(
+      relaunched.appearance,
+      MediaSurfaceAppearance(
+        artworkTreatment: .monochrome,
+        showsWaveform: false,
+        secondaryAction: .repeatMode,
+        backgroundOpacity: 1
+      )
     )
   }
 

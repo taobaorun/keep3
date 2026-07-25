@@ -37,6 +37,31 @@ final class TopSurfaceController {
     )
   }
 
+  func showMediaOnPrimaryDisplay(
+    payload: MediaSurfacePayload,
+    metrics: SurfaceMetrics = .media,
+    onHoverChanged: @escaping (Bool) -> Void = { _ in },
+    onActivateSurface: @escaping () -> Void = {},
+    onAction: @escaping (MediaSurfaceAction) -> Void = { _ in }
+  ) {
+    guard let screen = NSScreen.screens.first else {
+      remove()
+      return
+    }
+
+    let geometry = DisplayGeometry(
+      descriptor: DisplayDescriptor(screen: screen),
+      metrics: metrics
+    )
+    showMedia(
+      layout: geometry.layout(isExpanded: payload.isExpanded),
+      payload: payload,
+      onHoverChanged: onHoverChanged,
+      onActivateSurface: onActivateSurface,
+      onAction: onAction
+    )
+  }
+
   func show(
     layout: SurfaceLayout,
     content: TopSurfaceContent,
@@ -65,6 +90,46 @@ final class TopSurfaceController {
       onNavigate: onNavigate,
       onOpenItem: onOpenItem
     )
+  }
+
+  func showMedia(
+    layout: SurfaceLayout,
+    payload: MediaSurfacePayload,
+    onHoverChanged: @escaping (Bool) -> Void = { _ in },
+    onActivateSurface: @escaping () -> Void = {},
+    onAction: @escaping (MediaSurfaceAction) -> Void = { _ in }
+  ) {
+    let presentationStyle =
+      layout.obstructionSize.map {
+        TopSurfacePresentationStyle.notchAttached(notchSize: $0)
+      } ?? .floatingCapsule
+
+    let surfacePanel: TopSurfacePanel
+    if let panel {
+      surfacePanel = panel
+    } else {
+      surfacePanel = TopSurfacePanel(
+        contentRect: layout.panelFrame,
+        surfaceFrameInPanel: layout.surfaceFrameInPanel,
+        mediaPayload: payload,
+        presentationStyle: presentationStyle,
+        onHoverChanged: onHoverChanged,
+        onActivateSurface: onActivateSurface,
+        onMediaAction: onAction
+      )
+      panel = surfacePanel
+    }
+
+    surfacePanel.update(
+      mediaPayload: payload,
+      presentationStyle: presentationStyle,
+      surfaceFrameInPanel: layout.surfaceFrameInPanel,
+      onHoverChanged: onHoverChanged,
+      onActivateSurface: onActivateSurface,
+      onMediaAction: onAction
+    )
+    surfacePanel.setFrame(layout.panelFrame, display: true)
+    surfacePanel.orderFrontRegardless()
   }
 
   func show(

@@ -10,14 +10,19 @@ enum AutomationPermissionPosture: String, Equatable, Sendable {
 final class MediaPreferences: ObservableObject {
   static let quickPeekDurationRange = 1.0...5.0
   static let maximumSuppressedSources = 32
+  static let backgroundOpacityRange = 0.78...1.0
 
   @Published private(set) var isMediaFirstEnabled: Bool
   @Published private(set) var isQuickPeekEnabled: Bool
   @Published private(set) var quickPeekDuration: TimeInterval
   @Published private(set) var hidesFrontmostSource: Bool
+  @Published private(set) var expansionTrigger: SurfaceExpansionTrigger
+  @Published private(set) var artworkTreatment: MediaArtworkTreatment
+  @Published private(set) var showsWaveform: Bool
+  @Published private(set) var secondaryAction: MediaSecondaryAction
+  @Published private(set) var backgroundOpacity: Double
   @Published private(set) var suppressedBundleIdentifiers: Set<String>
-  @Published private(set) var automationPermissionPosture:
-    AutomationPermissionPosture
+  @Published private(set) var automationPermissionPosture: AutomationPermissionPosture
 
   var onChange: (() -> Void)?
 
@@ -28,6 +33,11 @@ final class MediaPreferences: ObservableObject {
     static let quickPeekEnabled = "mediaQuickPeekEnabled"
     static let quickPeekDuration = "mediaQuickPeekDuration"
     static let frontmost = "mediaHideFrontmost"
+    static let expansionTrigger = "mediaExpansionTrigger"
+    static let artworkTreatment = "mediaArtworkTreatment"
+    static let waveform = "mediaShowsWaveform"
+    static let secondaryAction = "mediaSecondaryAction"
+    static let backgroundOpacity = "mediaBackgroundOpacity"
     static let suppressed = "mediaSuppressedSources"
     static let permissionPosture = "mediaAutomationPermissionPosture"
   }
@@ -42,6 +52,21 @@ final class MediaPreferences: ObservableObject {
       to: Self.quickPeekDurationRange
     )
     hidesFrontmostSource = defaults.bool(forKey: Key.frontmost)
+    expansionTrigger =
+      defaults.string(forKey: Key.expansionTrigger)
+      .flatMap(SurfaceExpansionTrigger.init(rawValue:)) ?? .hover
+    artworkTreatment =
+      defaults.string(forKey: Key.artworkTreatment)
+      .flatMap(MediaArtworkTreatment.init(rawValue:)) ?? .artwork
+    showsWaveform =
+      defaults.object(forKey: Key.waveform) as? Bool ?? true
+    secondaryAction =
+      defaults.string(forKey: Key.secondaryAction)
+      .flatMap(MediaSecondaryAction.init(rawValue:)) ?? .none
+    backgroundOpacity = Self.clamp(
+      defaults.object(forKey: Key.backgroundOpacity) as? Double ?? 0.94,
+      to: Self.backgroundOpacityRange
+    )
     suppressedBundleIdentifiers = Set(
       (defaults.stringArray(forKey: Key.suppressed) ?? [])
         .filter(Self.isPersistableBundleIdentifier)
@@ -52,6 +77,10 @@ final class MediaPreferences: ObservableObject {
       defaults.string(forKey: Key.permissionPosture)
       .flatMap(AutomationPermissionPosture.init(rawValue:))
       ?? .notRequested
+  }
+
+  static func live() -> MediaPreferences {
+    MediaPreferences(defaults: .standard)
   }
 
   func setMediaFirstEnabled(_ value: Bool) {
@@ -74,6 +103,45 @@ final class MediaPreferences: ObservableObject {
     update(\.hidesFrontmostSource, value: value, key: Key.frontmost)
   }
 
+  func setExpansionTrigger(_ value: SurfaceExpansionTrigger) {
+    update(
+      \.expansionTrigger,
+      value: value,
+      key: Key.expansionTrigger,
+      storedValue: value.rawValue
+    )
+  }
+
+  func setArtworkTreatment(_ value: MediaArtworkTreatment) {
+    update(
+      \.artworkTreatment,
+      value: value,
+      key: Key.artworkTreatment,
+      storedValue: value.rawValue
+    )
+  }
+
+  func setShowsWaveform(_ value: Bool) {
+    update(\.showsWaveform, value: value, key: Key.waveform)
+  }
+
+  func setSecondaryAction(_ value: MediaSecondaryAction) {
+    update(
+      \.secondaryAction,
+      value: value,
+      key: Key.secondaryAction,
+      storedValue: value.rawValue
+    )
+  }
+
+  func setBackgroundOpacity(_ value: Double) {
+    update(
+      \.backgroundOpacity,
+      value: Self.clamp(value, to: Self.backgroundOpacityRange),
+      key: Key.backgroundOpacity
+    )
+  }
+
   @discardableResult
   func setSuppressed(
     _ identifier: String?,
@@ -87,8 +155,9 @@ final class MediaPreferences: ObservableObject {
 
     var updated = suppressedBundleIdentifiers
     if isSuppressed {
-      guard updated.contains(identifier)
-        || updated.count < Self.maximumSuppressedSources
+      guard
+        updated.contains(identifier)
+          || updated.count < Self.maximumSuppressedSources
       else {
         return false
       }
@@ -124,6 +193,15 @@ final class MediaPreferences: ObservableObject {
       isMediaFirstEnabled: isMediaFirstEnabled,
       hidesFrontmostSource: hidesFrontmostSource,
       suppressedBundleIdentifiers: suppressedBundleIdentifiers
+    )
+  }
+
+  var appearance: MediaSurfaceAppearance {
+    MediaSurfaceAppearance(
+      artworkTreatment: artworkTreatment,
+      showsWaveform: showsWaveform,
+      secondaryAction: secondaryAction,
+      backgroundOpacity: backgroundOpacity
     )
   }
 

@@ -15,11 +15,78 @@ struct FocusSurfacePayload: Equatable, Sendable {
   let expansionReason: SurfaceExpansionReason
 }
 
+enum MediaArtworkTreatment: String, CaseIterable, Codable, Equatable, Sendable {
+  case artwork
+  case monochrome
+  case gradient
+}
+
+enum MediaSecondaryAction: String, CaseIterable, Codable, Equatable, Sendable {
+  case none
+  case shuffle
+  case repeatMode
+}
+
+enum MediaSurfaceAction: Equatable, Sendable {
+  case previous
+  case togglePlayPause
+  case next
+  case seek(to: TimeInterval)
+  case hideSource
+  case shuffle
+  case repeatMode
+}
+
+struct MediaSurfaceAppearance: Equatable, Sendable {
+  let artworkTreatment: MediaArtworkTreatment
+  let showsWaveform: Bool
+  let secondaryAction: MediaSecondaryAction
+  let backgroundOpacity: Double
+
+  static let standard = MediaSurfaceAppearance(
+    artworkTreatment: .artwork,
+    showsWaveform: true,
+    secondaryAction: .none,
+    backgroundOpacity: 0.94
+  )
+}
+
 struct MediaSurfacePayload: Equatable, Sendable {
   let sessionID: String
   let contentRevision: UInt64
   let isExpanded: Bool
   let areControlsEnabled: Bool
+  let session: MediaSession?
+  let playbackState: MediaPlaybackState
+  let capabilityRevision: UInt64
+  let expansionReason: SurfaceExpansionReason
+  let appearance: MediaSurfaceAppearance
+
+  init(
+    sessionID: String,
+    contentRevision: UInt64,
+    isExpanded: Bool,
+    areControlsEnabled: Bool,
+    session: MediaSession? = nil,
+    playbackState: MediaPlaybackState = .unknown,
+    capabilityRevision: UInt64 = 0,
+    expansionReason: SurfaceExpansionReason = .none,
+    appearance: MediaSurfaceAppearance = .standard
+  ) {
+    self.sessionID = sessionID
+    self.contentRevision = contentRevision
+    self.isExpanded = isExpanded
+    self.areControlsEnabled = areControlsEnabled
+    self.session = session
+    self.playbackState = playbackState
+    self.capabilityRevision = capabilityRevision
+    self.expansionReason = expansionReason
+    self.appearance = appearance
+  }
+
+  var isTemporaryExpansion: Bool {
+    expansionReason == .quickPeek
+  }
 }
 
 enum TopSurfacePresentation: Equatable, Sendable {

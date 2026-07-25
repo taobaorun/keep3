@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
   @ObservedObject var model: AppModel
   @ObservedObject var preferences: AppPreferences
+  @ObservedObject var mediaPreferences: MediaPreferences
   @ObservedObject var launchAtLoginController: LaunchAtLoginController
 
   var body: some View {
@@ -14,6 +15,7 @@ struct RootView: View {
 
       SettingsView(
         preferences: preferences,
+        mediaPreferences: mediaPreferences,
         launchAtLoginController: launchAtLoginController
       )
       .tabItem {
