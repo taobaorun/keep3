@@ -5,12 +5,6 @@ enum SurfaceExpansionTrigger: String, CaseIterable, Sendable {
   case click
 }
 
-enum SurfaceMotionPreset: String, CaseIterable, Sendable {
-  case fade
-  case slide
-  case dissolve
-}
-
 @MainActor
 final class AppPreferences: ObservableObject {
   private enum Key {
@@ -18,13 +12,10 @@ final class AppPreferences: ObservableObject {
     static let currentFocusDuration = "currentFocusDuration"
     static let secondaryDuration = "secondaryDuration"
     static let expansionTrigger = "expansionTrigger"
-    static let motionPreset = "motionPreset"
-    static let motionSpeed = "motionSpeed"
     static let capsuleWidth = "capsuleWidth"
     static let backgroundOpacity = "backgroundOpacity"
   }
 
-  static let motionSpeedRange = 0.5...2.0
   static let capsuleWidthRange = 240.0...420.0
   static let backgroundOpacityRange = 0.78...1.0
 
@@ -32,8 +23,6 @@ final class AppPreferences: ObservableObject {
   @Published private(set) var currentFocusDuration: TimeInterval
   @Published private(set) var secondaryDuration: TimeInterval
   @Published private(set) var expansionTrigger: SurfaceExpansionTrigger
-  @Published private(set) var motionPreset: SurfaceMotionPreset
-  @Published private(set) var motionSpeed: Double
   @Published private(set) var capsuleWidth: Double
   @Published private(set) var backgroundOpacity: Double
 
@@ -58,13 +47,6 @@ final class AppPreferences: ObservableObject {
     expansionTrigger =
       defaults.string(forKey: Key.expansionTrigger)
       .flatMap(SurfaceExpansionTrigger.init(rawValue:)) ?? .hover
-    motionPreset =
-      defaults.string(forKey: Key.motionPreset)
-      .flatMap(SurfaceMotionPreset.init(rawValue:)) ?? .fade
-    motionSpeed = Self.clamp(
-      defaults.object(forKey: Key.motionSpeed) as? Double ?? 1,
-      to: Self.motionSpeedRange
-    )
     capsuleWidth = Self.clamp(
       defaults.object(forKey: Key.capsuleWidth) as? Double ?? 280,
       to: Self.capsuleWidthRange
@@ -116,23 +98,6 @@ final class AppPreferences: ObservableObject {
       value: value,
       key: Key.expansionTrigger,
       storedValue: value.rawValue
-    )
-  }
-
-  func setMotionPreset(_ value: SurfaceMotionPreset) {
-    update(
-      \.motionPreset,
-      value: value,
-      key: Key.motionPreset,
-      storedValue: value.rawValue
-    )
-  }
-
-  func setMotionSpeed(_ value: Double) {
-    update(
-      \.motionSpeed,
-      value: Self.clamp(value, to: Self.motionSpeedRange),
-      key: Key.motionSpeed
     )
   }
 

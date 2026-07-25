@@ -234,24 +234,40 @@ final class TopSurfacePanelTests: XCTestCase {
       position: 1,
       itemCount: 2,
       isCurrentFocus: true,
-      isExpanded: false
+      presentation: .init(
+        visibleItemID: firstID,
+        isExpanded: false,
+        revision: 1,
+        expansionReason: .none
+      )
     )
     let editedFirst = TopSurfaceContent(
       item: try FocusItem(id: firstID, title: "修改后的第一件事"),
       position: 1,
       itemCount: 2,
       isCurrentFocus: true,
-      isExpanded: false
+      presentation: .init(
+        visibleItemID: firstID,
+        isExpanded: false,
+        revision: 2,
+        expansionReason: .none
+      )
     )
     let second = TopSurfaceContent(
       item: try FocusItem(id: secondID, title: "第二件事"),
       position: 2,
       itemCount: 2,
       isCurrentFocus: false,
-      isExpanded: false
+      presentation: .init(
+        visibleItemID: secondID,
+        isExpanded: false,
+        revision: 1,
+        expansionReason: .none
+      )
     )
 
-    XCTAssertEqual(first.transitionIdentity, editedFirst.transitionIdentity)
+    XCTAssertEqual(first.transitionIdentity.itemID, editedFirst.transitionIdentity.itemID)
+    XCTAssertNotEqual(first.transitionIdentity.revision, editedFirst.transitionIdentity.revision)
     XCTAssertNotEqual(first.transitionIdentity, second.transitionIdentity)
   }
 

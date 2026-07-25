@@ -1,31 +1,8 @@
 import Foundation
 
 struct SurfaceAppearance: Equatable, Sendable {
-  static let `default` = SurfaceAppearance(
-    motionPreset: .fade,
-    motionSpeed: 1,
-    backgroundOpacity: 0.94
-  )
+  static let `default` = SurfaceAppearance(backgroundOpacity: 0.94)
 
-  let motionPreset: SurfaceMotionPreset
-  let motionSpeed: Double
-  let backgroundOpacity: Double
-
-  func resolved(
-    reduceMotion: Bool,
-    reduceTransparency: Bool
-  ) -> ResolvedSurfaceAppearance {
-    ResolvedSurfaceAppearance(
-      motionPreset: reduceMotion ? nil : motionPreset,
-      animationDuration: reduceMotion ? 0.12 : 0.45 / motionSpeed,
-      backgroundOpacity: reduceTransparency ? 1 : backgroundOpacity
-    )
-  }
-}
-
-struct ResolvedSurfaceAppearance: Equatable, Sendable {
-  let motionPreset: SurfaceMotionPreset?
-  let animationDuration: TimeInterval
   let backgroundOpacity: Double
 }
 
@@ -37,8 +14,10 @@ struct TopSurfaceContent: Equatable, Sendable {
   let isExpanded: Bool
   var appearance: SurfaceAppearance = .default
 
-  var transitionIdentity: UUID {
-    item.id
+  let presentationRevision: UInt64
+
+  var transitionIdentity: SurfaceTransitionIdentity {
+    SurfaceTransitionIdentity(itemID: item.id, revision: presentationRevision)
   }
 
   var displayDetails: String? {
@@ -63,6 +42,7 @@ struct TopSurfaceContent: Equatable, Sendable {
     self.isCurrentFocus = isCurrentFocus
     self.isExpanded = isExpanded
     self.appearance = appearance
+    presentationRevision = 0
   }
 
   init(
@@ -79,10 +59,16 @@ struct TopSurfaceContent: Equatable, Sendable {
     self.isCurrentFocus = isCurrentFocus
     isExpanded = presentation.isExpanded
     self.appearance = appearance
+    presentationRevision = presentation.revision
   }
 
   private func nonempty(_ value: String) -> String? {
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
     return trimmed.isEmpty ? nil : trimmed
   }
+}
+
+struct SurfaceTransitionIdentity: Hashable, Sendable {
+  let itemID: UUID
+  let revision: UInt64
 }

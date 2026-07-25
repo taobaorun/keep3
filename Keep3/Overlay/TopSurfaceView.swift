@@ -265,6 +265,9 @@ struct TopSurfaceView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.accessibilityReduceTransparency) private
     var reduceTransparency
+  @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+  @Environment(\.accessibilityDifferentiateWithoutColor) private
+    var differentiateWithoutColor
 
   var body: some View {
     surfaceBody
@@ -314,9 +317,7 @@ struct TopSurfaceView: View {
   private var floatingCompactContent: some View {
     compactButton {
       HStack(spacing: 8) {
-        Image(systemName: "scope")
-          .font(.system(size: 11, weight: .semibold))
-          .accessibilityHidden(true)
+        focusMarker
 
         Text(content.item.title)
           .font(.subheadline.weight(.medium))
@@ -338,11 +339,7 @@ struct TopSurfaceView: View {
     return compactButton {
       HStack(spacing: 0) {
         HStack(spacing: 4) {
-          Image(systemName: content.isCurrentFocus ? "scope" : "circle")
-            .font(.system(size: 9, weight: .semibold))
-
-          Text("\(content.position)/\(content.itemCount)")
-            .font(.caption2.monospacedDigit().weight(.semibold))
+          focusMarker
         }
         .foregroundStyle(.white.opacity(0.78))
         .frame(width: layout.leftWingFrame.width)
@@ -422,12 +419,12 @@ struct TopSurfaceView: View {
 
   private var expandedHeader: some View {
     HStack(spacing: 8) {
-      Label(
-        content.isCurrentFocus ? "当前重点" : "重点",
-        systemImage: content.isCurrentFocus ? "scope" : "circle"
-      )
+      HStack(spacing: 6) {
+        focusMarker
+        Text(content.isCurrentFocus ? "当前重点" : "第 \(content.position) 项重点")
+      }
       .font(.caption.weight(.semibold))
-      .foregroundStyle(.white.opacity(0.72))
+      .foregroundStyle(.white.opacity(0.78))
 
       Spacer(minLength: 8)
 
@@ -578,15 +575,18 @@ struct TopSurfaceView: View {
   }
 
   private var accessibilitySummary: String {
-    let focusDescription = content.isCurrentFocus ? "当前重点" : "重点"
+    let focusDescription = content.isCurrentFocus ? "当前重点" : "次要重点，第 \(content.position) 项"
     return
       "\(focusDescription)，\(content.item.title)，第 \(content.position) 件，共 \(content.itemCount) 件"
   }
 
-  private var resolvedAppearance: ResolvedSurfaceAppearance {
-    content.appearance.resolved(
+  private var signatureTransition: SignatureSurfaceTransition {
+    SignatureSurfaceTransition.resolve(
       reduceMotion: reduceMotion,
-      reduceTransparency: reduceTransparency
+      reduceTransparency: reduceTransparency,
+      increaseContrast: colorSchemeContrast == .increased,
+      differentiateWithoutColor: differentiateWithoutColor,
+      backgroundOpacity: content.appearance.backgroundOpacity
     )
   }
 
@@ -605,7 +605,7 @@ struct TopSurfaceView: View {
     case .notchAttached:
       1
     case .floatingCapsule:
-      resolvedAppearance.backgroundOpacity
+      signatureTransition.backgroundOpacity
     }
   }
 
@@ -617,17 +617,31 @@ struct TopSurfaceView: View {
   }
 
   private var surfaceAnimation: Animation {
-    .easeInOut(duration: resolvedAppearance.animationDuration)
+    .easeInOut(duration: signatureTransition.duration)
   }
 
   private var surfaceTransition: AnyTransition {
-    switch resolvedAppearance.motionPreset {
-    case .none, .fade:
-      .opacity
-    case .slide:
-      .opacity.combined(with: .move(edge: .top))
-    case .dissolve:
-      .opacity.combined(with: .scale(scale: 0.985))
+    .opacity
+  }
+
+  @ViewBuilder
+  private var focusMarker: some View {
+    if content.isCurrentFocus {
+      Capsule()
+        .fill(.white)
+        .frame(width: 15, height: 6)
+        .accessibilityLabel("当前重点")
+    } else {
+      Text("\(content.position)")
+        .font(.caption2.monospacedDigit().weight(.bold))
+        .frame(width: 15, height: 15)
+        .overlay {
+          Capsule().stroke(
+            .white,
+            lineWidth: signatureTransition.usesHighContrastMarkers ? 1.5 : 1
+          )
+        }
+        .accessibilityLabel("次要重点，第 \(content.position) 项")
     }
   }
 }
