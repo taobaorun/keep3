@@ -82,7 +82,7 @@ struct RotationSchedule: Equatable, Sendable {
 }
 
 extension Comparable {
-  fileprivate func clamped(to range: ClosedRange<Self>) -> Self {
+  func clamped(to range: ClosedRange<Self>) -> Self {
     min(max(self, range.lowerBound), range.upperBound)
   }
 }

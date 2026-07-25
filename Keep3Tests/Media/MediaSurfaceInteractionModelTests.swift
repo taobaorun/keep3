@@ -118,9 +118,9 @@ final class MediaSurfaceInteractionModelTests: XCTestCase {
 
 @MainActor
 private final class ManualMediaInteractionTimerScheduler:
-  InteractionTimerScheduling
+  AppTimerScheduling
 {
-  private final class Timer: InteractionTimerCancellation {
+  private final class Timer: AppTimerCancellation {
     let delay: TimeInterval
     let action: () -> Void
     var isCancelled = false
@@ -148,7 +148,7 @@ private final class ManualMediaInteractionTimerScheduler:
   func schedule(
     after delay: TimeInterval,
     action: @escaping @MainActor () -> Void
-  ) -> any InteractionTimerCancellation {
+  ) -> any AppTimerCancellation {
     let timer = Timer(delay: delay, action: action)
     timers.append(timer)
     return timer

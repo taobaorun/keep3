@@ -17,6 +17,7 @@ actor UnavailableMediaRemoteAdapter: MediaSessionAdapter {
 
 actor MediaRemoteAdapter: MediaSessionAdapter {
   static let serviceName = "com.apple.controlcenter.Keep3MediaService"
+  private static let requestTimeout: TimeInterval = 2
 
   private let onSnapshot: MediaAdapterSnapshotDelivery
   private var connection: NSXPCConnection?
@@ -29,7 +30,7 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
   func start() async -> MediaCompatibilityReport {
     disconnect()
 
-    let compatibilityRequest = CompatibilityRequest()
+    let compatibilityRequest = OneShotRequest<MediaCompatibilityReport>()
     let connection = NSXPCConnection(serviceName: Self.serviceName)
     connection.remoteObjectInterface = MediaRemoteXPCInterface.service()
     connection.exportedInterface = MediaRemoteXPCInterface.client()
@@ -73,17 +74,25 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
       )
     }
 
-    let report = await compatibilityRequest.value()
+    let report = await compatibilityRequest.value(
+      timeout: Self.requestTimeout,
+      fallback: .unavailable
+    )
     guard report.status == .available else {
       disconnect()
       return report
     }
 
-    let monitoringRequest = BooleanRequest()
+    let monitoringRequest = OneShotRequest<Bool>()
     service.startMonitoring { started in
       monitoringRequest.complete(with: started)
     }
-    guard await monitoringRequest.value() else {
+    guard
+      await monitoringRequest.value(
+        timeout: Self.requestTimeout,
+        fallback: false
+      )
+    else {
       disconnect()
       return .unavailable
     }
@@ -112,15 +121,19 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
       return .rejected
     }
 
-    let request = BooleanRequest()
+    let request = OneShotRequest<Bool>()
     service.sendCommand(
-      command.name,
+      command.name.rawValue,
       sessionID: sessionID,
       value: command.value
     ) { accepted in
       request.complete(with: accepted)
     }
-    return await request.value() ? .accepted : .rejected
+    return
+      await request.value(
+        timeout: Self.requestTimeout,
+        fallback: false
+      ) ? .accepted : .rejected
   }
 
   private func remoteService(
@@ -140,7 +153,6 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
     connection?.invalidationHandler = nil
     connection?.invalidate()
   }
-
 }
 
 private final class MediaRemoteClientReceiver: NSObject,
@@ -182,7 +194,7 @@ private final class MediaRemoteClientReceiver: NSObject,
 }
 
 private struct MediaRemoteCommand {
-  let name: String
+  let name: MediaRemoteCommandName
   let value: NSNumber?
 }
 
@@ -190,81 +202,75 @@ extension MediaSurfaceAction {
   fileprivate var remoteCommand: MediaRemoteCommand? {
     switch self {
     case .previous:
-      return MediaRemoteCommand(name: "previous", value: nil)
+      return MediaRemoteCommand(name: .previous, value: nil)
     case .togglePlayPause:
-      return MediaRemoteCommand(name: "togglePlayPause", value: nil)
+      return MediaRemoteCommand(name: .togglePlayPause, value: nil)
     case .next:
-      return MediaRemoteCommand(name: "next", value: nil)
+      return MediaRemoteCommand(name: .next, value: nil)
     case .seek(let time):
       guard time.isFinite, time >= 0 else {
         return nil
       }
       return MediaRemoteCommand(
-        name: "seek",
+        name: .seek,
         value: NSNumber(value: time)
       )
     case .shuffle:
-      return MediaRemoteCommand(name: "shuffle", value: nil)
+      return MediaRemoteCommand(name: .shuffle, value: nil)
     case .repeatMode:
-      return MediaRemoteCommand(name: "repeatMode", value: nil)
+      return MediaRemoteCommand(name: .repeatMode, value: nil)
     case .hideSource:
       return nil
     }
   }
 }
 
-private final class CompatibilityRequest: @unchecked Sendable {
+private final class OneShotRequest<Value: Sendable>: @unchecked Sendable {
   private let lock = NSLock()
-  private var continuation: CheckedContinuation<MediaCompatibilityReport, Never>?
-  private var report: MediaCompatibilityReport?
+  private var continuation: CheckedContinuation<Value, Never>?
+  private var result: Value?
+  private var hasCompleted = false
 
-  func value() async -> MediaCompatibilityReport {
-    await withCheckedContinuation { continuation in
-      lock.withLock {
-        if let report {
-          continuation.resume(returning: report)
-        } else {
+  func value(
+    timeout: TimeInterval,
+    fallback: Value
+  ) async -> Value {
+    let timeoutWorkItem = DispatchWorkItem { [weak self] in
+      self?.complete(with: fallback)
+    }
+    DispatchQueue.global(qos: .utility).asyncAfter(
+      deadline: .now() + timeout,
+      execute: timeoutWorkItem
+    )
+
+    let resolved: Value = await withCheckedContinuation { continuation in
+      let existing = lock.withLock { () -> Value? in
+        guard hasCompleted else {
           self.continuation = continuation
+          return nil
         }
+        return result
+      }
+      if let existing {
+        continuation.resume(returning: existing)
       }
     }
+    timeoutWorkItem.cancel()
+    return resolved
   }
 
-  func complete(with report: MediaCompatibilityReport) {
-    lock.withLock {
-      guard self.report == nil else { return }
-      self.report = report
-      continuation?.resume(returning: report)
-      continuation = nil
-    }
-  }
-}
-
-private final class BooleanRequest: @unchecked Sendable {
-  private let lock = NSLock()
-  private var continuation: CheckedContinuation<Bool, Never>?
-  private var result: Bool?
-
-  func value() async -> Bool {
-    await withCheckedContinuation { continuation in
-      lock.withLock {
-        if let result {
-          continuation.resume(returning: result)
-        } else {
-          self.continuation = continuation
-        }
+  func complete(with result: Value) {
+    let continuation = lock.withLock {
+      () -> CheckedContinuation<Value, Never>? in
+      guard !hasCompleted else {
+        return nil
       }
-    }
-  }
-
-  func complete(with result: Bool) {
-    lock.withLock {
-      guard self.result == nil else {
-        return
-      }
+      hasCompleted = true
       self.result = result
-      continuation?.resume(returning: result)
-      continuation = nil
+      let pendingContinuation = self.continuation
+      self.continuation = nil
+      return pendingContinuation
     }
+    continuation?.resume(returning: result)
   }
 }

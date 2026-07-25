@@ -47,10 +47,9 @@ final class MediaPreferences: ObservableObject {
     isMediaFirstEnabled = defaults.object(forKey: Key.enabled) as? Bool ?? true
     isQuickPeekEnabled =
       defaults.object(forKey: Key.quickPeekEnabled) as? Bool ?? true
-    quickPeekDuration = Self.clamp(
-      defaults.object(forKey: Key.quickPeekDuration) as? Double ?? 2,
-      to: Self.quickPeekDurationRange
-    )
+    quickPeekDuration =
+      (defaults.object(forKey: Key.quickPeekDuration) as? Double ?? 2)
+      .clamped(to: Self.quickPeekDurationRange)
     hidesFrontmostSource = defaults.bool(forKey: Key.frontmost)
     expansionTrigger =
       defaults.string(forKey: Key.expansionTrigger)
@@ -63,10 +62,9 @@ final class MediaPreferences: ObservableObject {
     secondaryAction =
       defaults.string(forKey: Key.secondaryAction)
       .flatMap(MediaSecondaryAction.init(rawValue:)) ?? .none
-    backgroundOpacity = Self.clamp(
-      defaults.object(forKey: Key.backgroundOpacity) as? Double ?? 0.94,
-      to: Self.backgroundOpacityRange
-    )
+    backgroundOpacity =
+      (defaults.object(forKey: Key.backgroundOpacity) as? Double ?? 0.94)
+      .clamped(to: Self.backgroundOpacityRange)
     suppressedBundleIdentifiers = Set(
       (defaults.stringArray(forKey: Key.suppressed) ?? [])
         .filter(Self.isPersistableBundleIdentifier)
@@ -94,7 +92,7 @@ final class MediaPreferences: ObservableObject {
   func setQuickPeekDuration(_ value: TimeInterval) {
     update(
       \.quickPeekDuration,
-      value: Self.clamp(value, to: Self.quickPeekDurationRange),
+      value: value.clamped(to: Self.quickPeekDurationRange),
       key: Key.quickPeekDuration
     )
   }
@@ -137,7 +135,7 @@ final class MediaPreferences: ObservableObject {
   func setBackgroundOpacity(_ value: Double) {
     update(
       \.backgroundOpacity,
-      value: Self.clamp(value, to: Self.backgroundOpacityRange),
+      value: value.clamped(to: Self.backgroundOpacityRange),
       key: Key.backgroundOpacity
     )
   }
@@ -231,12 +229,5 @@ final class MediaPreferences: ObservableObject {
       CharacterSet.alphanumerics.contains(scalar)
         || scalar == "." || scalar == "-"
     }
-  }
-
-  private static func clamp<T: Comparable>(
-    _ value: T,
-    to range: ClosedRange<T>
-  ) -> T {
-    min(max(value, range.lowerBound), range.upperBound)
   }
 }

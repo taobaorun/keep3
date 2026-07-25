@@ -1,23 +1,10 @@
 import Foundation
 
 @MainActor
-protocol SurfaceModeTimerCancellation: AnyObject {
-  func cancel()
-}
-
-@MainActor
-protocol SurfaceModeTimerScheduling {
-  func schedule(
-    after delay: TimeInterval,
-    action: @escaping @MainActor () -> Void
-  ) -> any SurfaceModeTimerCancellation
-}
-
-@MainActor
 final class SurfaceModeCoordinator {
   private static let handoffGrace: TimeInterval = 0.5
 
-  private let scheduler: any SurfaceModeTimerScheduling
+  private let scheduler: any AppTimerScheduling
   private let onPresentation: (TopSurfacePresentation) -> Void
   private let onMediaOwnershipChange: (Bool) -> Void
 
@@ -29,7 +16,7 @@ final class SurfaceModeCoordinator {
   private var isSurfaceAvailable = true
   private var isAwaitingReconciliation = false
   private var isInHandoffGrace = false
-  private var handoffTimer: (any SurfaceModeTimerCancellation)?
+  private var handoffTimer: (any AppTimerCancellation)?
   private var mediaEpoch: UInt64?
   private var mediaSnapshot: MediaSessionSnapshot?
   private var mediaPolicy = MediaSourcePolicy()
@@ -44,7 +31,7 @@ final class SurfaceModeCoordinator {
   }
 
   init(
-    scheduler: any SurfaceModeTimerScheduling = TaskSurfaceModeTimerScheduler(),
+    scheduler: any AppTimerScheduling = TaskAppTimerScheduler(),
     onPresentation: @escaping (TopSurfacePresentation) -> Void,
     onMediaOwnershipChange: @escaping (Bool) -> Void = { _ in }
   ) {
@@ -326,36 +313,5 @@ extension TopSurfacePresentation {
       return true
     }
     return false
-  }
-}
-
-@MainActor
-private final class TaskSurfaceModeTimerScheduler: SurfaceModeTimerScheduling {
-  func schedule(
-    after delay: TimeInterval,
-    action: @escaping @MainActor () -> Void
-  ) -> any SurfaceModeTimerCancellation {
-    let task = Task { @MainActor in
-      do {
-        try await Task.sleep(for: .seconds(delay))
-      } catch {
-        return
-      }
-      action()
-    }
-    return TaskSurfaceModeTimerCancellation(task: task)
-  }
-}
-
-@MainActor
-private final class TaskSurfaceModeTimerCancellation: SurfaceModeTimerCancellation {
-  private let task: Task<Void, Never>
-
-  init(task: Task<Void, Never>) {
-    self.task = task
-  }
-
-  func cancel() {
-    task.cancel()
   }
 }

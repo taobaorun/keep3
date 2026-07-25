@@ -34,27 +34,21 @@ final class AppPreferences: ObservableObject {
     self.defaults = defaults
     isAutomaticRotationEnabled =
       defaults.object(forKey: Key.isAutomaticRotationEnabled) as? Bool ?? true
-    currentFocusDuration = Self.clamp(
-      defaults.object(forKey: Key.currentFocusDuration) as? Double
-        ?? RotationDurations.default.currentFocus,
-      to: RotationDurations.currentFocusRange
-    )
-    secondaryDuration = Self.clamp(
-      defaults.object(forKey: Key.secondaryDuration) as? Double
-        ?? RotationDurations.default.secondary,
-      to: RotationDurations.secondaryRange
-    )
+    currentFocusDuration =
+      (defaults.object(forKey: Key.currentFocusDuration) as? Double
+      ?? RotationDurations.default.currentFocus).clamped(to: RotationDurations.currentFocusRange)
+    secondaryDuration =
+      (defaults.object(forKey: Key.secondaryDuration) as? Double
+      ?? RotationDurations.default.secondary).clamped(to: RotationDurations.secondaryRange)
     expansionTrigger =
       defaults.string(forKey: Key.expansionTrigger)
       .flatMap(SurfaceExpansionTrigger.init(rawValue:)) ?? .hover
-    capsuleWidth = Self.clamp(
-      defaults.object(forKey: Key.capsuleWidth) as? Double ?? 280,
-      to: Self.capsuleWidthRange
-    )
-    backgroundOpacity = Self.clamp(
-      defaults.object(forKey: Key.backgroundOpacity) as? Double ?? 0.94,
-      to: Self.backgroundOpacityRange
-    )
+    capsuleWidth =
+      (defaults.object(forKey: Key.capsuleWidth) as? Double ?? 280)
+      .clamped(to: Self.capsuleWidthRange)
+    backgroundOpacity =
+      (defaults.object(forKey: Key.backgroundOpacity) as? Double ?? 0.94)
+      .clamped(to: Self.backgroundOpacityRange)
   }
 
   static func live() -> AppPreferences {
@@ -79,7 +73,7 @@ final class AppPreferences: ObservableObject {
   func setCurrentFocusDuration(_ value: TimeInterval) {
     update(
       \.currentFocusDuration,
-      value: Self.clamp(value, to: RotationDurations.currentFocusRange),
+      value: value.clamped(to: RotationDurations.currentFocusRange),
       key: Key.currentFocusDuration
     )
   }
@@ -87,7 +81,7 @@ final class AppPreferences: ObservableObject {
   func setSecondaryDuration(_ value: TimeInterval) {
     update(
       \.secondaryDuration,
-      value: Self.clamp(value, to: RotationDurations.secondaryRange),
+      value: value.clamped(to: RotationDurations.secondaryRange),
       key: Key.secondaryDuration
     )
   }
@@ -104,7 +98,7 @@ final class AppPreferences: ObservableObject {
   func setCapsuleWidth(_ value: Double) {
     update(
       \.capsuleWidth,
-      value: Self.clamp(value, to: Self.capsuleWidthRange),
+      value: value.clamped(to: Self.capsuleWidthRange),
       key: Key.capsuleWidth
     )
   }
@@ -112,7 +106,7 @@ final class AppPreferences: ObservableObject {
   func setBackgroundOpacity(_ value: Double) {
     update(
       \.backgroundOpacity,
-      value: Self.clamp(value, to: Self.backgroundOpacityRange),
+      value: value.clamped(to: Self.backgroundOpacityRange),
       key: Key.backgroundOpacity
     )
   }
@@ -129,12 +123,5 @@ final class AppPreferences: ObservableObject {
     self[keyPath: keyPath] = value
     defaults.set(storedValue ?? value, forKey: key)
     onChange?()
-  }
-
-  private static func clamp<T: Comparable>(
-    _ value: T,
-    to range: ClosedRange<T>
-  ) -> T {
-    min(max(value, range.lowerBound), range.upperBound)
   }
 }

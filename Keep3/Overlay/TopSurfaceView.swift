@@ -338,11 +338,9 @@ struct TopSurfaceView: View {
 
     return compactButton {
       HStack(spacing: 0) {
-        HStack(spacing: 4) {
-          focusMarker
-        }
-        .foregroundStyle(.white.opacity(0.78))
-        .frame(width: layout.leftWingFrame.width)
+        focusMarker
+          .foregroundStyle(.white.opacity(0.78))
+          .frame(width: layout.leftWingFrame.width)
 
         Color.clear
           .frame(width: layout.obstructionFrame.width)

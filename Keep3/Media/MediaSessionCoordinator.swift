@@ -40,7 +40,7 @@ actor MediaSessionCoordinator {
   }
 
   func receiveUnavailable(epoch candidateEpoch: UInt64) async {
-    guard candidateEpoch == epoch else {
+    guard candidateEpoch == epoch, currentSnapshot != nil else {
       return
     }
     currentSnapshot = nil
