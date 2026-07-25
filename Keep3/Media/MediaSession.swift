@@ -73,6 +73,52 @@ struct MediaSessionSnapshot: Equatable, Sendable {
   let contentRevision: UInt64
 }
 
+struct MediaAdapterSnapshot: Equatable, Sendable {
+  let session: MediaSession
+  let playbackState: MediaPlaybackState
+  let capabilityRevision: UInt64
+  let contentRevision: UInt64
+
+  init?(propertyList: NSDictionary) {
+    guard
+      let protocolVersion = propertyList["protocolVersion"] as? NSNumber,
+      protocolVersion.intValue == MediaCompatibilityReport.protocolVersion,
+      propertyList["isPresent"] as? Bool == true,
+      let sessionID = propertyList["sessionID"] as? String,
+      let playbackValue = propertyList["playbackState"] as? String,
+      let playbackState = MediaPlaybackState(rawValue: playbackValue),
+      let capabilityNumber = propertyList["capabilityRevision"] as? NSNumber,
+      capabilityNumber.int64Value >= 0,
+      let contentNumber = propertyList["contentRevision"] as? NSNumber,
+      contentNumber.int64Value >= 0,
+      let capabilities = propertyList["capabilities"] as? [String],
+      let session = MediaSession.normalize(
+        .init(
+          sessionID: sessionID,
+          sourceBundleIdentifier:
+            propertyList["sourceBundleIdentifier"] as? String,
+          title: propertyList["title"] as? String,
+          artist: propertyList["artist"] as? String,
+          album: propertyList["album"] as? String,
+          applicationName: propertyList["applicationName"] as? String,
+          artworkData: propertyList["artworkData"] as? Data,
+          artworkMIMEType: propertyList["artworkMIMEType"] as? String,
+          duration: (propertyList["duration"] as? NSNumber)?.doubleValue,
+          progress: (propertyList["progress"] as? NSNumber)?.doubleValue,
+          capabilities: capabilities
+        )
+      )
+    else {
+      return nil
+    }
+
+    self.session = session
+    self.playbackState = playbackState
+    capabilityRevision = capabilityNumber.uint64Value
+    contentRevision = contentNumber.uint64Value
+  }
+}
+
 struct MediaSessionWirePayload: Equatable, Sendable {
   let sessionID: String
   let sourceBundleIdentifier: String?

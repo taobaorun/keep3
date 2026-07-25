@@ -1,6 +1,35 @@
 import Foundation
 
+@objc(MediaRemoteClientProtocol)
+protocol MediaRemoteClientProtocol: AnyObject {
+  func mediaRemoteDidUpdate(_ propertyList: NSDictionary)
+}
+
 @objc(MediaRemoteServiceProtocol)
 protocol MediaRemoteServiceProtocol: AnyObject {
-  func compatibilityReport(reply: @escaping (NSDictionary) -> Void)
+  func compatibilityReport(
+    reply: @escaping @Sendable (NSDictionary) -> Void
+  )
+  func startMonitoring(reply: @escaping @Sendable (Bool) -> Void)
+  func stopMonitoring()
+  func sendCommand(
+    _ action: String,
+    sessionID: String,
+    value: NSNumber?,
+    reply: @escaping @Sendable (Bool) -> Void
+  )
+}
+
+enum MediaRemoteXPCInterface {
+  static func service() -> NSXPCInterface {
+    NSXPCInterface(
+      with: MediaRemoteServiceProtocol.self
+    )
+  }
+
+  static func client() -> NSXPCInterface {
+    NSXPCInterface(
+      with: MediaRemoteClientProtocol.self
+    )
+  }
 }

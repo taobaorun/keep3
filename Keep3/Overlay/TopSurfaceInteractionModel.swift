@@ -10,7 +10,8 @@ enum TopSurfaceBrowseDirection {
   case next
 }
 
-enum TopSurfaceGesturePhase {
+enum TopSurfaceGesturePhase: Equatable, Sendable {
+  case none
   case began
   case changed
   case ended
@@ -164,6 +165,9 @@ final class TopSurfaceInteractionModel {
     }
 
     switch phase {
+    case .none:
+      scrollAccumulator = delta
+      didNavigateDuringScrollGesture = false
     case .began:
       scrollAccumulator = delta
       didNavigateDuringScrollGesture = false
@@ -183,6 +187,11 @@ final class TopSurfaceInteractionModel {
 
     browse(scrollAccumulator > 0 ? .next : .previous)
     didNavigateDuringScrollGesture = true
+
+    if phase == .none {
+      scrollAccumulator = 0
+      didNavigateDuringScrollGesture = false
+    }
   }
 
   func activateVisibleItem() {

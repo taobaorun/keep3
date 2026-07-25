@@ -36,4 +36,35 @@ final class MediaSessionNormalizationTests: XCTestCase {
     XCTAssertEqual(session?.capabilities, [.playPause])
     XCTAssertNil(session?.duration)
   }
+
+  func testNormalizesVersionedXPCSnapshotAndRejectsProtocolMismatch() {
+    let propertyList: NSDictionary = [
+      "protocolVersion": NSNumber(
+        value: MediaCompatibilityReport.protocolVersion
+      ),
+      "isPresent": true,
+      "sessionID": "com.netease.163music:42",
+      "sourceBundleIdentifier": "com.netease.163music",
+      "applicationName": "网易云音乐",
+      "title": "Track",
+      "artist": "Artist",
+      "playbackState": "playing",
+      "capabilityRevision": 1,
+      "contentRevision": 2,
+      "capabilities": ["previous", "playPause", "next"],
+    ]
+
+    let snapshot = MediaAdapterSnapshot(propertyList: propertyList)
+
+    XCTAssertEqual(
+      snapshot?.session.sourceBundleIdentifier,
+      "com.netease.163music"
+    )
+    XCTAssertEqual(snapshot?.playbackState, .playing)
+    XCTAssertEqual(snapshot?.contentRevision, 2)
+
+    let mismatched = propertyList.mutableCopy() as! NSMutableDictionary
+    mismatched["protocolVersion"] = -1
+    XCTAssertNil(MediaAdapterSnapshot(propertyList: mismatched))
+  }
 }

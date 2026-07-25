@@ -219,8 +219,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           self?.interactionModel.pointerExited()
         }
       },
-      onScroll: { [weak self] delta, phase in
-        self?.interactionModel.scroll(delta: delta, phase: phase)
+      onScroll: { [weak self] event in
+        guard event.momentumPhase == .none else {
+          return
+        }
+        let delta =
+          event.isPrecise
+          ? event.focusNavigationDelta
+          : event.focusNavigationDelta * 20
+        self?.interactionModel.scroll(
+          delta: delta,
+          phase: event.physicalPhase
+        )
       },
       onActivateSurface: { [weak self] in
         self?.interactionModel.activateSurface()

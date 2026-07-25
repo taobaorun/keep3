@@ -8,7 +8,7 @@ final class TopSurfaceController {
     content: TopSurfaceContent,
     metrics: SurfaceMetrics = .standard,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
-    onScroll: @escaping (CGFloat, TopSurfaceGesturePhase) -> Void = { _, _ in },
+    onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
     onRequestKeyboardNavigation: @escaping () -> Void = {},
     onDismiss: @escaping () -> Void = {},
@@ -41,6 +41,7 @@ final class TopSurfaceController {
     payload: MediaSurfacePayload,
     metrics: SurfaceMetrics = .media,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
+    onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
     onAction: @escaping (MediaSurfaceAction) -> Void = { _ in }
   ) {
@@ -57,6 +58,7 @@ final class TopSurfaceController {
       layout: geometry.layout(isExpanded: payload.isExpanded),
       payload: payload,
       onHoverChanged: onHoverChanged,
+      onScroll: onScroll,
       onActivateSurface: onActivateSurface,
       onAction: onAction
     )
@@ -66,7 +68,7 @@ final class TopSurfaceController {
     layout: SurfaceLayout,
     content: TopSurfaceContent,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
-    onScroll: @escaping (CGFloat, TopSurfaceGesturePhase) -> Void = { _, _ in },
+    onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
     onRequestKeyboardNavigation: @escaping () -> Void = {},
     onDismiss: @escaping () -> Void = {},
@@ -96,6 +98,7 @@ final class TopSurfaceController {
     layout: SurfaceLayout,
     payload: MediaSurfacePayload,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
+    onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
     onAction: @escaping (MediaSurfaceAction) -> Void = { _ in }
   ) {
@@ -114,6 +117,7 @@ final class TopSurfaceController {
         mediaPayload: payload,
         presentationStyle: presentationStyle,
         onHoverChanged: onHoverChanged,
+        onScroll: onScroll,
         onActivateSurface: onActivateSurface,
         onMediaAction: onAction
       )
@@ -125,6 +129,7 @@ final class TopSurfaceController {
       presentationStyle: presentationStyle,
       surfaceFrameInPanel: layout.surfaceFrameInPanel,
       onHoverChanged: onHoverChanged,
+      onScroll: onScroll,
       onActivateSurface: onActivateSurface,
       onMediaAction: onAction
     )
@@ -137,7 +142,7 @@ final class TopSurfaceController {
     content: TopSurfaceContent,
     presentationStyle: TopSurfacePresentationStyle = .floatingCapsule,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
-    onScroll: @escaping (CGFloat, TopSurfaceGesturePhase) -> Void = { _, _ in },
+    onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
     onRequestKeyboardNavigation: @escaping () -> Void = {},
     onDismiss: @escaping () -> Void = {},
@@ -174,7 +179,7 @@ final class TopSurfaceController {
     content: TopSurfaceContent,
     presentationStyle: TopSurfacePresentationStyle,
     onHoverChanged: @escaping (Bool) -> Void,
-    onScroll: @escaping (CGFloat, TopSurfaceGesturePhase) -> Void,
+    onScroll: @escaping (SurfaceScrollEvent) -> Void,
     onActivateSurface: @escaping () -> Void,
     onRequestKeyboardNavigation: @escaping () -> Void,
     onDismiss: @escaping () -> Void,

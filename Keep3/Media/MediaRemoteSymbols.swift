@@ -2,8 +2,11 @@ import Foundation
 
 enum MediaRemoteSymbolResolver {
   static let mandatorySymbols = [
-    "MRMediaRemoteGetNowPlayingClient",
+    "MRMediaRemoteGetNowPlayingInfo",
+    "MRMediaRemoteGetNowPlayingApplicationIsPlaying",
+    "MRMediaRemoteGetNowPlayingApplicationPID",
     "MRMediaRemoteRegisterForNowPlayingNotifications",
+    "MRMediaRemoteUnregisterForNowPlayingNotifications",
     "MRMediaRemoteSendCommand",
   ]
 
@@ -11,7 +14,6 @@ enum MediaRemoteSymbolResolver {
     ("MRMediaRemoteSetElapsedTime", .seek),
     ("MRMediaRemoteSetShuffleMode", .shuffle),
     ("MRMediaRemoteSetRepeatMode", .repeatMode),
-    ("MRMediaRemoteGetPlaybackQueue", .previous),
   ]
 
   static func resolve(
@@ -29,9 +31,10 @@ enum MediaRemoteSymbolResolver {
     let missingOptional = optionalSymbols.compactMap { symbol, _ in
       lookup(symbol) == nil ? symbol : nil
     }
-    let capabilities = Set(optionalSymbols.compactMap { symbol, capability in
-      lookup(symbol) == nil ? nil : capability
-    })
+    let capabilities = Set(
+      optionalSymbols.compactMap { symbol, capability in
+        lookup(symbol) == nil ? nil : capability
+      })
     return .init(
       status: .available,
       missingMandatorySymbols: [],

@@ -62,7 +62,7 @@ final class TopSurfacePanel: NSPanel {
     content: TopSurfaceContent,
     presentationStyle: TopSurfacePresentationStyle = .floatingCapsule,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
-    onScroll: @escaping (CGFloat, TopSurfaceGesturePhase) -> Void = { _, _ in },
+    onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
     onRequestKeyboardNavigation: @escaping () -> Void = {},
     onDismiss: @escaping () -> Void = {},
@@ -91,6 +91,7 @@ final class TopSurfacePanel: NSPanel {
     mediaPayload: MediaSurfacePayload,
     presentationStyle: TopSurfacePresentationStyle = .floatingCapsule,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
+    onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
     onMediaAction: @escaping (MediaSurfaceAction) -> Void = { _ in }
   ) {
@@ -100,7 +101,7 @@ final class TopSurfacePanel: NSPanel {
       panelContent: .media(mediaPayload),
       presentationStyle: presentationStyle,
       onHoverChanged: onHoverChanged,
-      onScroll: { _, _ in },
+      onScroll: onScroll,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: {},
       onDismiss: {},
@@ -116,7 +117,7 @@ final class TopSurfacePanel: NSPanel {
     panelContent: PanelContent,
     presentationStyle: TopSurfacePresentationStyle,
     onHoverChanged: @escaping (Bool) -> Void,
-    onScroll: @escaping (CGFloat, TopSurfaceGesturePhase) -> Void,
+    onScroll: @escaping (SurfaceScrollEvent) -> Void,
     onActivateSurface: @escaping () -> Void,
     onRequestKeyboardNavigation: @escaping () -> Void,
     onDismiss: @escaping () -> Void,
@@ -193,7 +194,7 @@ final class TopSurfacePanel: NSPanel {
     presentationStyle: TopSurfacePresentationStyle,
     surfaceFrameInPanel: CGRect,
     onHoverChanged: @escaping (Bool) -> Void,
-    onScroll: @escaping (CGFloat, TopSurfaceGesturePhase) -> Void,
+    onScroll: @escaping (SurfaceScrollEvent) -> Void,
     onActivateSurface: @escaping () -> Void,
     onRequestKeyboardNavigation: @escaping () -> Void,
     onDismiss: @escaping () -> Void,
@@ -231,6 +232,7 @@ final class TopSurfacePanel: NSPanel {
     presentationStyle: TopSurfacePresentationStyle,
     surfaceFrameInPanel: CGRect,
     onHoverChanged: @escaping (Bool) -> Void,
+    onScroll: @escaping (SurfaceScrollEvent) -> Void,
     onActivateSurface: @escaping () -> Void,
     onMediaAction: @escaping (MediaSurfaceAction) -> Void
   ) {
@@ -239,7 +241,7 @@ final class TopSurfacePanel: NSPanel {
     renderedSurfaceFrameInPanel = surfaceFrameInPanel
     hasShadow = presentationStyle.hasPanelShadow
     eventView.onHoverChanged = onHoverChanged
-    eventView.onScroll = { _, _ in }
+    eventView.onScroll = onScroll
     eventView.onNavigate = { _ in }
     eventView.onDismiss = {}
     eventView.onOpenItem = {}
@@ -358,7 +360,7 @@ private final class TopSurfaceEventView: NSView {
 
   let hostingView: NSHostingView<AnyView>
   var onHoverChanged: (Bool) -> Void = { _ in }
-  var onScroll: (CGFloat, TopSurfaceGesturePhase) -> Void = { _, _ in }
+  var onScroll: (SurfaceScrollEvent) -> Void = { _ in }
   var onNavigate: (TopSurfaceBrowseDirection) -> Void = { _ in }
   var onDismiss: () -> Void = {}
   var onOpenItem: () -> Void = {}
@@ -422,28 +424,15 @@ private final class TopSurfaceEventView: NSView {
   }
 
   override func scrollWheel(with event: NSEvent) {
-    let delta = navigationDelta(for: event)
-
-    if event.phase.isEmpty {
-      guard event.momentumPhase.isEmpty else {
-        return
-      }
-      onScroll(delta, .began)
-      onScroll(0, .ended)
-      return
-    }
-
-    if event.phase.contains(.began) {
-      onScroll(delta, .began)
-    } else if event.phase.contains(.changed)
-      || event.phase.contains(.stationary)
-    {
-      onScroll(delta, .changed)
-    } else if event.phase.contains(.ended) {
-      onScroll(0, .ended)
-    } else if event.phase.contains(.cancelled) {
-      onScroll(0, .cancelled)
-    }
+    onScroll(
+      SurfaceScrollEvent(
+        deltaX: event.scrollingDeltaX,
+        deltaY: event.scrollingDeltaY,
+        isPrecise: event.hasPreciseScrollingDeltas,
+        physicalPhase: physicalPhase(for: event.phase),
+        momentumPhase: momentumPhase(for: event.momentumPhase)
+      )
+    )
   }
 
   override func swipe(with event: NSEvent) {
@@ -488,15 +477,36 @@ private final class TopSurfaceEventView: NSView {
     return true
   }
 
-  private func navigationDelta(for event: NSEvent) -> CGFloat {
-    let horizontal = event.scrollingDeltaX
-    let vertical = event.scrollingDeltaY
-    let dominantDelta =
-      abs(horizontal) > abs(vertical) ? -horizontal : vertical
-
-    guard !event.hasPreciseScrollingDeltas else {
-      return dominantDelta
+  private func physicalPhase(
+    for phase: NSEvent.Phase
+  ) -> TopSurfaceGesturePhase {
+    if phase.contains(.began) {
+      return .began
     }
-    return dominantDelta * 20
+    if phase.contains(.changed) || phase.contains(.stationary) {
+      return .changed
+    }
+    if phase.contains(.ended) {
+      return .ended
+    }
+    if phase.contains(.cancelled) {
+      return .cancelled
+    }
+    return .none
+  }
+
+  private func momentumPhase(
+    for phase: NSEvent.Phase
+  ) -> SurfaceScrollMomentumPhase {
+    if phase.contains(.began) {
+      return .began
+    }
+    if phase.contains(.changed) || phase.contains(.stationary) {
+      return .changed
+    }
+    if phase.contains(.ended) || phase.contains(.cancelled) {
+      return .ended
+    }
+    return .none
   }
 }
