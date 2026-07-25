@@ -285,7 +285,7 @@ final class TopSurfaceInteractionModel {
 }
 
 @MainActor
-private final class TaskInteractionTimerScheduler: InteractionTimerScheduling {
+final class TaskInteractionTimerScheduler: InteractionTimerScheduling {
   func schedule(
     after delay: TimeInterval,
     action: @escaping @MainActor () -> Void

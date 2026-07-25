@@ -1,24 +1,28 @@
 import Foundation
 
-actor UnavailableMediaRemoteAdapter: MediaSessionProviding {
+actor UnavailableMediaRemoteAdapter: MediaSessionAdapter {
   func start() -> MediaCompatibilityReport {
     .unavailable
   }
 
   func stop() {}
+
+  func send(
+    _: MediaSurfaceAction,
+    to _: String
+  ) -> MediaCommandDispatchResult {
+    .rejected
+  }
 }
 
-actor MediaRemoteAdapter: MediaSessionProviding, MediaCommandSending {
-  typealias SnapshotDelivery =
-    @MainActor @Sendable (MediaAdapterSnapshot?) -> Void
-
+actor MediaRemoteAdapter: MediaSessionAdapter {
   static let serviceName = "com.apple.controlcenter.Keep3MediaService"
 
-  private let onSnapshot: SnapshotDelivery
+  private let onSnapshot: MediaAdapterSnapshotDelivery
   private var connection: NSXPCConnection?
   private var receiver: MediaRemoteClientReceiver?
 
-  init(onSnapshot: @escaping SnapshotDelivery = { _ in }) {
+  init(onSnapshot: @escaping MediaAdapterSnapshotDelivery = { _ in }) {
     self.onSnapshot = onSnapshot
   }
 

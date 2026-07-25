@@ -80,6 +80,9 @@
 		100000000000000000000075 /* MediaGestureRecognizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000074 /* MediaGestureRecognizerTests.swift */; };
 		100000000000000000000076 /* MediaCommandCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000075 /* MediaCommandCoordinatorTests.swift */; };
 		100000000000000000000077 /* MediaRemoteAdapterIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000076 /* MediaRemoteAdapterIntegrationTests.swift */; };
+		100000000000000000000078 /* MediaSurfaceInteractionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000077 /* MediaSurfaceInteractionModel.swift */; };
+		100000000000000000000079 /* MediaFixtureAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000078 /* MediaFixtureAdapter.swift */; };
+		10000000000000000000007A /* MediaSurfaceInteractionModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000079 /* MediaSurfaceInteractionModelTests.swift */; };
 		100000000000000000000037 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* XCTest.framework */; };
 		100000000000000000000038 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000040 /* Assets.xcassets */; };
 		100000000000000000000039 /* TopSurfacePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000041 /* TopSurfacePresentation.swift */; };
@@ -213,6 +216,9 @@
 		200000000000000000000074 /* MediaGestureRecognizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaGestureRecognizerTests.swift; sourceTree = "<group>"; };
 		200000000000000000000075 /* MediaCommandCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaCommandCoordinatorTests.swift; sourceTree = "<group>"; };
 		200000000000000000000076 /* MediaRemoteAdapterIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRemoteAdapterIntegrationTests.swift; sourceTree = "<group>"; };
+		200000000000000000000077 /* MediaSurfaceInteractionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSurfaceInteractionModel.swift; sourceTree = "<group>"; };
+		200000000000000000000078 /* MediaFixtureAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFixtureAdapter.swift; sourceTree = "<group>"; };
+		200000000000000000000079 /* MediaSurfaceInteractionModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSurfaceInteractionModelTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -293,6 +299,8 @@
 				200000000000000000000071 /* MediaGestureRecognizer.swift */,
 				200000000000000000000072 /* MediaCommandCoordinator.swift */,
 				200000000000000000000073 /* MediaHapticFeedback.swift */,
+				200000000000000000000077 /* MediaSurfaceInteractionModel.swift */,
+				200000000000000000000078 /* MediaFixtureAdapter.swift */,
 			);
 			path = Media;
 			sourceTree = "<group>";
@@ -344,6 +352,7 @@
 				200000000000000000000074 /* MediaGestureRecognizerTests.swift */,
 				200000000000000000000075 /* MediaCommandCoordinatorTests.swift */,
 				200000000000000000000076 /* MediaRemoteAdapterIntegrationTests.swift */,
+				200000000000000000000079 /* MediaSurfaceInteractionModelTests.swift */,
 			);
 			path = Media;
 			sourceTree = "<group>";
@@ -719,6 +728,8 @@
 				100000000000000000000072 /* MediaGestureRecognizer.swift in Sources */,
 				100000000000000000000073 /* MediaCommandCoordinator.swift in Sources */,
 				100000000000000000000074 /* MediaHapticFeedback.swift in Sources */,
+				100000000000000000000078 /* MediaSurfaceInteractionModel.swift in Sources */,
+				100000000000000000000079 /* MediaFixtureAdapter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -752,6 +763,7 @@
 				100000000000000000000075 /* MediaGestureRecognizerTests.swift in Sources */,
 				100000000000000000000076 /* MediaCommandCoordinatorTests.swift in Sources */,
 				100000000000000000000077 /* MediaRemoteAdapterIntegrationTests.swift in Sources */,
+				10000000000000000000007A /* MediaSurfaceInteractionModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

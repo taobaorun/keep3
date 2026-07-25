@@ -42,6 +42,7 @@ measures.
 - Intentional hover expansion with details.
 - Local persistence and launch-at-login support.
 - A small set of appearance and interaction preferences.
+- A media-first top surface for the active system media session.
 - Accessibility, reduced-motion behavior, and idle resource constraints.
 
 ### Out of Scope
@@ -50,7 +51,7 @@ measures.
 - Dates, deadlines, reminders, or notifications.
 - Automatic activity monitoring or drift detection.
 - Calendar, Reminders, third-party, account, cloud, or team integration.
-- Music, clipboard, file shelf, system HUD, or other general notch utilities.
+- Clipboard, file shelf, system HUD, or other general notch utilities.
 - iPhone, iPad, Apple Watch, ActivityKit, or Live Activities.
 - Independent overlays per display or freely draggable overlay placement.
 
@@ -223,6 +224,30 @@ Additional rules:
 5. No timer fires more frequently than once per second, and idle rotation uses
    deadline-based scheduling rather than polling.
 
+### FR-11: Media-First Surface
+
+1. When media-first mode is enabled and the active system media session is
+   playing, media owns the same fixed top-surface canvas used by priorities.
+2. Pausing, stopping, interruption, player exit, source suppression, or loss of
+   the media session returns the surface to the latest designated priority.
+3. Compact media shows artwork or a fallback, title, artist, and a playback
+   indicator. Expanded media shows metadata, progress, capability-gated
+   controls, and the configured secondary action.
+4. A new track can trigger a bounded Quick Peek. Hover or click expansion
+   supersedes Quick Peek and remains under direct user control.
+5. Precise vertical two-finger gestures dispatch at most one previous/next
+   command per physical gesture. Horizontal intent and momentum do not switch
+   tracks.
+6. Track-change haptics occur only after a newer content identity is observed
+   for the same media session and capability revision. Rejected, timed-out, and
+   stale commands do not produce success feedback.
+7. The global media boundary runs in an embedded XPC service. Failure,
+   interruption, incompatible symbols, or malformed payloads retract media
+   state without affecting priorities or the editor.
+8. Media settings include the master switch, Quick Peek, manual expansion,
+   artwork treatment, waveform, secondary action, opacity, frontmost-player
+   suppression, and persisted per-source suppression.
+
 ## Tech Stack
 
 - Xcode 16.4 baseline.
@@ -237,8 +262,16 @@ Additional rules:
 - `swift-format` from the Xcode toolchain.
 - No third-party runtime or development dependencies in the MVP.
 
-All screen and notch behavior must use documented Apple APIs. Private
-MediaRemote or other private frameworks are prohibited.
+All screen, notch, window, persistence, and settings behavior uses documented
+Apple APIs. Global cross-application media control is an explicit personal-build
+exception: public `MediaPlayer` APIs expose an app's own now-playing session,
+not the system-wide session controlled by Control Center. Keep3 therefore
+dynamically resolves the private system `MediaRemote.framework` inside a
+separately embedded XPC service, validates every required symbol at runtime,
+uses a versioned property-list boundary, and fails closed to priorities.
+
+This exception is not App Store compatible and must be re-evaluated for every
+macOS release before distribution.
 
 ## Commands
 

@@ -33,6 +33,10 @@ final class SurfaceModeCoordinator {
   private var mediaEpoch: UInt64?
   private var mediaSnapshot: MediaSessionSnapshot?
   private var mediaPolicy = MediaSourcePolicy()
+  private var mediaAppearance = MediaSurfaceAppearance.standard
+  private var mediaExpansionReason = SurfaceExpansionReason.none
+  private var isMediaExpanded = false
+  private var areMediaControlsEnabled = true
   private var frontmostBundleIdentifier: String?
 
   var designatedFocusID: UUID? {
@@ -51,7 +55,7 @@ final class SurfaceModeCoordinator {
 
   func handleInteraction(_ intent: TopSurfaceInteractionIntent) {
     switch intent {
-    case let .focus(visibleItemID, isExpanded):
+    case .focus(let visibleItemID, let isExpanded):
       updateFocus(
         .init(
           visibleItemID: visibleItemID,
@@ -137,6 +141,37 @@ final class SurfaceModeCoordinator {
     reconcileMediaEligibility()
   }
 
+  func updateMediaAppearance(_ appearance: MediaSurfaceAppearance) {
+    guard mediaAppearance != appearance else {
+      return
+    }
+    mediaAppearance = appearance
+    reconcileMediaEligibility()
+  }
+
+  func updateMediaExpansion(
+    isExpanded: Bool,
+    reason: SurfaceExpansionReason
+  ) {
+    guard
+      isMediaExpanded != isExpanded
+        || mediaExpansionReason != reason
+    else {
+      return
+    }
+    isMediaExpanded = isExpanded
+    mediaExpansionReason = reason
+    reconcileMediaEligibility()
+  }
+
+  func setMediaControlsEnabled(_ isEnabled: Bool) {
+    guard areMediaControlsEnabled != isEnabled else {
+      return
+    }
+    areMediaControlsEnabled = isEnabled
+    reconcileMediaEligibility()
+  }
+
   func updateFrontmostBundleIdentifier(_ bundleIdentifier: String?) {
     guard frontmostBundleIdentifier != bundleIdentifier else {
       return
@@ -174,7 +209,7 @@ final class SurfaceModeCoordinator {
   }
 
   private func beginHandoffGraceIfNeeded() {
-    guard case let .media(renderedMedia)? = renderedPresentation else {
+    guard case .media(let renderedMedia)? = renderedPresentation else {
       reconcile()
       return
     }
@@ -229,11 +264,13 @@ final class SurfaceModeCoordinator {
       .init(
         sessionID: mediaSnapshot.session.sessionID,
         contentRevision: mediaSnapshot.contentRevision,
-        isExpanded: false,
-        areControlsEnabled: true,
+        isExpanded: isMediaExpanded,
+        areControlsEnabled: areMediaControlsEnabled,
         session: mediaSnapshot.session,
         playbackState: mediaSnapshot.playbackState,
-        capabilityRevision: mediaSnapshot.capabilityRevision
+        capabilityRevision: mediaSnapshot.capabilityRevision,
+        expansionReason: mediaExpansionReason,
+        appearance: mediaAppearance
       )
     )
   }

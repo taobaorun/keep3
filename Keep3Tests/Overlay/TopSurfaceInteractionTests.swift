@@ -265,7 +265,7 @@ final class TopSurfaceInteractionTests: XCTestCase {
     TopSurfaceInteractionModel(
       scheduler: scheduler,
       onIntent: { intent in
-        guard case let .focus(visibleItemID, isExpanded) = intent else {
+        guard case .focus(let visibleItemID, let isExpanded) = intent else {
           return
         }
         recorder.presentations.append(

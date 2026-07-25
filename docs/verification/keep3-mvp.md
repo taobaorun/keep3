@@ -5,6 +5,12 @@ Environment: MacBook Pro (Mac14,10), Apple M2 Pro, 32 GB RAM, macOS 15.7.7,
 Xcode 16.4, Swift 6, arm64
 Status: Implementation complete; distribution remains out of scope
 
+> Historical baseline: this report predates Visual System 2.0 and the
+> user-approved personal-build MediaRemote exception. Its “no private
+> framework” findings apply to the original focus-only MVP. See
+> [`keep3-visual-media.md`](keep3-visual-media.md) for the current architecture
+> and verification.
+
 ## Result
 
 The Keep3 MVP implementation satisfies the agreed product scope and automated

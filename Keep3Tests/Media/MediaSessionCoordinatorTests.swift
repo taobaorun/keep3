@@ -99,8 +99,7 @@ private actor SuspendedAutomationPermissionRequester:
   AutomationPermissionRequesting
 {
   private var requestContinuation: CheckedContinuation<Void, Never>?
-  private var resultContinuation:
-    CheckedContinuation<AutomationPermissionOutcome, Never>?
+  private var resultContinuation: CheckedContinuation<AutomationPermissionOutcome, Never>?
 
   func requestPermission(
     for _: ProviderAutomationTarget

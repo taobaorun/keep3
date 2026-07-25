@@ -42,8 +42,8 @@ final class WorkspaceApplicationObserverTests: XCTestCase {
   }
 }
 
-private extension Notification.Name {
-  static let testApplicationActivated = Notification.Name(
+extension Notification.Name {
+  fileprivate static let testApplicationActivated = Notification.Name(
     "WorkspaceApplicationObserverTests.didActivate"
   )
 }
