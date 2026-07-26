@@ -113,6 +113,24 @@ final class TopSurfaceInteractionModel {
     didNavigateDuringScrollGesture = false
   }
 
+  func synchronizeUnifiedExpansion(_ shouldExpand: Bool) {
+    guard isExpanded != shouldExpand else {
+      return
+    }
+
+    cancelTimer()
+    isExpanded = shouldExpand
+    scrollAccumulator = 0
+    didNavigateDuringScrollGesture = false
+
+    if shouldExpand {
+      pauseRotationIfNeeded()
+    } else {
+      resetToCurrentFocus()
+      resumeRotationIfNeeded()
+    }
+  }
+
   func pointerEntered() {
     guard !isPointerInside else {
       return

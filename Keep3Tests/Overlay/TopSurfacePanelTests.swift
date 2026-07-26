@@ -68,6 +68,14 @@ final class TopSurfacePanelTests: XCTestCase {
       .next
     )
     XCTAssertEqual(
+      TopSurfaceKeyboardCommand(keyCode: 126, modifiers: []),
+      .surfaceUp
+    )
+    XCTAssertEqual(
+      TopSurfaceKeyboardCommand(keyCode: 125, modifiers: []),
+      .surfaceDown
+    )
+    XCTAssertEqual(
       TopSurfaceKeyboardCommand(
         keyCode: 124,
         modifiers: [.numericPad, .function]

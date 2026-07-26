@@ -4,6 +4,8 @@ import SwiftUI
 enum TopSurfaceKeyboardCommand: Equatable, Sendable {
   case previous
   case next
+  case surfaceUp
+  case surfaceDown
   case dismiss
   case openItem
 
@@ -20,6 +22,10 @@ enum TopSurfaceKeyboardCommand: Equatable, Sendable {
       self = .previous
     case 124:
       self = .next
+    case 126:
+      self = .surfaceUp
+    case 125:
+      self = .surfaceDown
     case 53:
       self = .dismiss
     case 36, 76:
@@ -542,6 +548,10 @@ private final class TopSurfaceEventView: NSView {
       onNavigate(.previous)
     case .next:
       onNavigate(.next)
+    case .surfaceUp:
+      emitVerticalKeyboardGesture(deltaY: -30)
+    case .surfaceDown:
+      emitVerticalKeyboardGesture(deltaY: 30)
     case .dismiss:
       onDismiss()
     case .openItem:
@@ -549,6 +559,27 @@ private final class TopSurfaceEventView: NSView {
       onDismiss()
     }
     return true
+  }
+
+  private func emitVerticalKeyboardGesture(deltaY: CGFloat) {
+    onScroll(
+      SurfaceScrollEvent(
+        deltaX: 0,
+        deltaY: deltaY,
+        isPrecise: true,
+        physicalPhase: .began,
+        momentumPhase: .none
+      )
+    )
+    onScroll(
+      SurfaceScrollEvent(
+        deltaX: 0,
+        deltaY: 0,
+        isPrecise: true,
+        physicalPhase: .ended,
+        momentumPhase: .none
+      )
+    )
   }
 
   private func physicalPhase(

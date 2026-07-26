@@ -1,7 +1,7 @@
 import Foundation
 
 @MainActor
-final class CalendarSessionCoordinator {
+final class CalendarSessionCoordinator: ObservableObject {
   typealias StateDelivery = (CalendarSessionState) -> Void
 
   private static let queryDuration: TimeInterval = 24 * 60 * 60
@@ -14,7 +14,7 @@ final class CalendarSessionCoordinator {
   private var generation: UInt64 = 0
   private var refreshTask: Task<Void, Never>?
   private var lastEvents: [CalendarEvent] = []
-  private(set) var state: CalendarSessionState = .disabled
+  @Published private(set) var state: CalendarSessionState = .disabled
   private(set) var isEnabled = false
 
   init(

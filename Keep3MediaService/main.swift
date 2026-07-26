@@ -1,10 +1,19 @@
 import Foundation
 
 private final class MediaRemoteServiceDelegate: NSObject, NSXPCListenerDelegate {
+  #if !DEBUG
+    private weak var activeConnection: NSXPCConnection?
+  #endif
+
   func listener(
     _: NSXPCListener,
     shouldAcceptNewConnection newConnection: NSXPCConnection
   ) -> Bool {
+    #if !DEBUG
+      guard activeConnection == nil else {
+        return false
+      }
+    #endif
     let service = MediaRemoteService()
     newConnection.exportedInterface = MediaRemoteXPCInterface.service()
     newConnection.exportedObject = service
@@ -17,6 +26,22 @@ private final class MediaRemoteServiceDelegate: NSObject, NSXPCListenerDelegate 
       return false
     }
     service.attach(client: client)
+    #if !DEBUG
+      activeConnection = newConnection
+      newConnection.interruptionHandler = { [weak service] in
+        service?.invalidateClient()
+      }
+      newConnection.invalidationHandler = {
+        [weak self, weak newConnection, weak service] in
+        service?.invalidateClient()
+        guard let newConnection,
+          self?.activeConnection === newConnection
+        else {
+          return
+        }
+        self?.activeConnection = nil
+      }
+    #endif
     newConnection.resume()
     return true
   }

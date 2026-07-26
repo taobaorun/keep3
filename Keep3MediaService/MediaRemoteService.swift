@@ -29,6 +29,16 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     self.client = client
   }
 
+  func invalidateClient() {
+    queue.async { [weak self] in
+      guard let self else {
+        return
+      }
+      self.stopMonitoringOnQueue()
+      self.client = nil
+    }
+  }
+
   func compatibilityReport(
     reply: @escaping @Sendable (NSDictionary) -> Void
   ) {
@@ -566,28 +576,21 @@ private final class MediaRemoteRuntime {
 }
 
 private final class SupportedCommandsRuntime {
-  private typealias GetLocalOriginFunction =
-    @convention(c) () -> UnsafeRawPointer?
   private typealias CommandsCompletion =
     @convention(block) (NSArray?) -> Void
   private typealias CopySupportedCommandsFunction =
-    @convention(c) (UnsafeRawPointer?, CommandsCompletion) -> Void
+    @convention(c) (DispatchQueue, CommandsCompletion) -> Void
   private typealias CommandInfoGetCommandFunction =
     @convention(c) (UnsafeRawPointer) -> Int32
   private typealias CommandInfoGetEnabledFunction =
     @convention(c) (UnsafeRawPointer) -> UInt8
 
-  private let getLocalOrigin: GetLocalOriginFunction
   private let copySupportedCommands: CopySupportedCommandsFunction
   private let getCommand: CommandInfoGetCommandFunction
   private let getEnabled: CommandInfoGetEnabledFunction
 
   init?(handle: UnsafeMutableRawPointer) {
     guard
-      let getLocalOrigin: GetLocalOriginFunction = Self.resolve(
-        "MRMediaRemoteGetLocalOrigin",
-        in: handle
-      ),
       let copySupportedCommands: CopySupportedCommandsFunction = Self.resolve(
         "MRMediaRemoteCopySupportedCommands",
         in: handle
@@ -603,7 +606,6 @@ private final class SupportedCommandsRuntime {
     else {
       return nil
     }
-    self.getLocalOrigin = getLocalOrigin
     self.copySupportedCommands = copySupportedCommands
     self.getCommand = getCommand
     self.getEnabled = getEnabled
@@ -631,7 +633,7 @@ private final class SupportedCommandsRuntime {
         completion.call(capabilities)
       }
     }
-    copySupportedCommands(getLocalOrigin(), block)
+    copySupportedCommands(queue, block)
   }
 
   private static func resolve<Function>(

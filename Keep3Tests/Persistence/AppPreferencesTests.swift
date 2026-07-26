@@ -72,10 +72,18 @@ final class AppPreferencesTests: XCTestCase {
     XCTAssertEqual(appearance.backgroundOpacity, 0.78)
   }
 
-  func testSettingsCategoriesPreserveVisualOrderAndExposeMediaEntry() {
+  func testSettingsCategoriesPreserveVisualOrderAndExposeEventEntries() {
     XCTAssertEqual(
       SettingsCategory.allCases,
-      [.general, .focusSurface, .rotation, .interaction, .accessibility, .media]
+      [
+        .general,
+        .focusSurface,
+        .rotation,
+        .interaction,
+        .accessibility,
+        .media,
+        .calendar,
+      ]
     )
   }
 
