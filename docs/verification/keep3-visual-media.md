@@ -19,11 +19,24 @@ Status: Code gates pass; live provider and UI session gates are documented
 - Compact and expanded media presentations include normalized metadata,
   capability-gated controls, progress, artwork treatments, waveform preference,
   Quick Peek, and manual expansion.
-- Precise vertical two-finger gestures dispatch one previous/next command only
-  at the end of the physical gesture. Momentum and horizontal intent are
-  rejected.
-- A success haptic is emitted only after Keep3 observes a newer track identity
-  for the same active session and capability revision.
+- Precise horizontal two-finger gestures dispatch one previous/next command
+  only at the end of the physical gesture. Momentum and vertical intent are
+  rejected for track navigation.
+- Confirmed track metadata uses a continuously rounded 68-point shelf below the
+  hardware notch with separate title and artist lines and no metadata in the
+  artwork or waveform wings. Next keeps the left edge and left wing fixed;
+  Previous keeps the right edge and right wing fixed. Floating placement uses
+  the same hierarchy in a rounded capsule.
+- Regular, notched-compact, and expanded waveforms use a readable accent derived
+  and cached from the current confirmed cover, with a deterministic readable
+  fallback for missing or unusable artwork.
+- From expanded Media, Up returns to compact Media without changing component;
+  Down and expanded non-media gestures retain component navigation. The
+  equivalent activated accessibility action is named "Return to normal player",
+  focuses compact Media, and announces the resulting state once.
+- One haptic is emitted when a supported track gesture first crosses its lock
+  threshold, before gesture-end command dispatch. A newer matching track
+  identity controls the metadata peek and does not emit a second haptic.
 
 ## Safety boundary
 
@@ -42,7 +55,7 @@ an explicit personal-build exception and is not Mac App Store compatible.
 |---|---|---|
 | Format and lint | Pass | Recursive `swift-format`; zero lint findings |
 | Debug build | Pass | `xcodebuild build`, arm64 |
-| Unit tests | Pass | 146/146 after rebase, including helper integration |
+| Unit tests | Pass | 206 executed, 205 passed, 1 live-environment test skipped, 0 failed |
 | Media interaction | Pass | Gesture, command confirmation, haptic, Quick Peek, source policy, lifecycle, and surface ownership tests |
 | Static analysis | Pass | Debug `xcodebuild analyze` |
 | Release build | Pass | Optimized arm64 app and embedded XPC service |
@@ -50,6 +63,19 @@ an explicit personal-build exception and is not Mac App Store compatible.
 | Binary boundary | Pass | `otool -L` and `nm -u` show no static MediaRemote dependency or undefined MediaRemote symbols; the helper contains the expected dynamic symbol strings |
 | UI test source | Pass | The new media-first fixture scenario compiles into `Keep3UITests` |
 | UI execution | Session-state exception | The macOS UI test runner was rejected before test launch because system authentication/loginwindow was active (`LocalAuthentication Code=-4`) |
+
+## Installed Release correction checklist
+
+| Scenario | Status | Required observation |
+|---|---|---|
+| Notched, normal motion | Pending — blocking | Use real two-finger Next and Previous gestures. Next leaves the left side unchanged, Previous leaves the right side unchanged, and slow-motion frame capture shows no angular corner during pending, confirmation, or retraction |
+| Notched, Reduce Motion | Pending — blocking | The fixed side remains invariant; the rounded 68-point metadata shelf appears by crossfade below the notch and restores the persistent frame without directional travel |
+| Floating placement | Pending | Real Next and Previous gestures preserve the mirrored fixed sides, keep the title/artist hierarchy outside waveform content, and retain a continuous rounded capsule |
+| Valid bright artwork | Pending | Every waveform style changes to a readable accent derived from the current cover |
+| Valid dark artwork | Pending | The derived accent remains readable against the black surface |
+| Missing or invalid artwork | Pending | Every waveform style uses the deterministic readable fallback without stale cover color |
+| Expanded Media Up | Pending | One real upward two-finger gesture and the equivalent keyboard/VoiceOver action return to compact Media, keep Media selected, focus the compact player, and announce the result once |
+| Regression directions | Pending | Expanded Media Down and expanded non-media Up/Down continue component navigation without dispatching media commands |
 
 The XPC integration test starts the embedded Alcove-style helper, resolves the
 macOS 15.5 MediaRemote symbols, establishes the versioned client/service

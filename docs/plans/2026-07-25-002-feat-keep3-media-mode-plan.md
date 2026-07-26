@@ -20,6 +20,10 @@ execution: code
 - **Execution:** Code, with deterministic state/adapter tests before UI integration and signed runtime compatibility proof before MediaRemote-dependent work proceeds.
 - **Stop condition:** Stop media implementation if the required MediaRemote symbol set cannot load atomically, a supported OS cannot cleanly disable the adapter, or the direct notarized build cannot be validated; visual/focus work remains independently shippable.
 - **Tail ownership:** The active shipping workflow owns simplification, review, release verification, commit, PR, and CI follow-through.
+- **Superseding interaction note (2026-07-26):** The event-surface plan replaces
+  this plan's success-confirmation haptic timing. Current builds emit one
+  recognition haptic as the active two-finger gesture crosses its lock
+  threshold and emit no completion haptic.
 
 ---
 
