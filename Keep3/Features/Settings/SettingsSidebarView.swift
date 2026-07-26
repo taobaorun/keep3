@@ -7,6 +7,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Sendable {
   case interaction
   case accessibility
   case media
+  case calendar
 
   var id: String { rawValue }
 
@@ -18,6 +19,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Sendable {
     case .interaction: "交互"
     case .accessibility: "辅助功能"
     case .media: "Media"
+    case .calendar: "Calendar"
     }
   }
 
@@ -29,6 +31,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Sendable {
     case .interaction: "hand.tap"
     case .accessibility: "accessibility"
     case .media: "music.note"
+    case .calendar: "calendar"
     }
   }
 }

@@ -215,6 +215,33 @@ final class TopSurfaceInteractionTests: XCTestCase {
     XCTAssertEqual(recorder.openedIDs, [currentID])
   }
 
+  func testUnifiedExpansionEnablesBrowsingAndCollapseResetsFocus() {
+    let currentID = UUID()
+    let secondaryID = UUID()
+    let recorder = InteractionRecorder()
+    let coordinator = makeCoordinator(
+      scheduler: ManualInteractionTimerScheduler(),
+      recorder: recorder
+    )
+    coordinator.update(
+      itemIDs: [currentID, secondaryID],
+      currentFocusID: currentID
+    )
+
+    coordinator.synchronizeUnifiedExpansion(true)
+    coordinator.browse(.next)
+
+    XCTAssertEqual(recorder.pauseCount, 1)
+    XCTAssertEqual(recorder.presentations.last?.visibleItemID, secondaryID)
+    XCTAssertEqual(recorder.presentations.last?.isExpanded, true)
+
+    coordinator.synchronizeUnifiedExpansion(false)
+
+    XCTAssertEqual(recorder.resumeCount, 1)
+    XCTAssertEqual(recorder.presentations.last?.visibleItemID, currentID)
+    XCTAssertEqual(recorder.presentations.last?.isExpanded, false)
+  }
+
   func testSuspendingCancelsPendingInteractionAndAllowsFreshHover() {
     let currentID = UUID()
     let scheduler = ManualInteractionTimerScheduler()

@@ -1,3 +1,4 @@
+import EventKit
 import SwiftUI
 
 @main
@@ -16,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let appModel = AppDelegate.makeAppModel()
   private let preferences = AppDelegate.makePreferences()
   private let mediaPreferences = AppDelegate.makeMediaPreferences()
+  private let calendarPreferences = AppDelegate.makeCalendarPreferences()
   private let launchAtLoginController = LaunchAtLoginController.live()
   private let topSurfaceController = TopSurfaceController()
   private var state = Keep3State()
@@ -25,18 +27,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var mediaLifecycleGeneration: UInt64 = 0
   private var isMediaSubscriptionStarting = false
   private let mediaLifecycleQueue = SerialMediaLifecycleQueue()
-  private var mediaGestureRecognizer = MediaGestureRecognizer()
+  private var surfaceGestureRecognizer = SurfaceGestureRecognizer()
   private var isMediaOwningSurface = false
+  private var sourceFocusPayload: FocusSurfacePayload?
+  private var sourceMediaPayload: MediaSurfacePayload?
+  private var calendarState: CalendarSessionState = .disabled
+  private var calendarRevision: UInt64 = 0
+  private var calendarStoreObserver: NSObjectProtocol?
   private lazy var editorWindowController = EditorWindowController(
     model: appModel,
     preferences: preferences,
     mediaPreferences: mediaPreferences,
+    calendarPreferences: calendarPreferences,
+    calendarCoordinator: calendarSessionCoordinator,
     launchAtLoginController: launchAtLoginController
   )
 
   private lazy var interactionModel = TopSurfaceInteractionModel(
     onIntent: { [weak self] intent in
-      self?.surfaceModeCoordinator.handleInteraction(intent)
+      self?.handleFocusInteraction(intent)
     },
     onPauseRotation: { [weak self] in
       self?.pauseRotation()
@@ -79,10 +88,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
   private lazy var surfaceModeCoordinator = SurfaceModeCoordinator(
     onPresentation: { [weak self] presentation in
-      self?.render(presentation)
-    },
-    onMediaOwnershipChange: { [weak self] ownsSurface in
-      self?.handleMediaOwnershipChange(ownsSurface)
+      self?.handleSourcePresentation(presentation)
+    }
+  )
+  private lazy var surfaceNavigationCoordinator =
+    SurfaceNavigationCoordinator { [weak self] state in
+      self?.handleNavigationState(state)
+    }
+  private lazy var calendarSessionCoordinator = CalendarSessionCoordinator(
+    provider: EventKitCalendarAdapter(),
+    onStateChange: { [weak self] state in
+      self?.handleCalendarState(state)
     }
   )
   private lazy var workspaceApplicationObserver =
@@ -110,17 +126,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     displayLifecycleObserver.start()
     workspaceApplicationObserver.start()
+    calendarStoreObserver = NotificationCenter.default.addObserver(
+      forName: .EKEventStoreChanged,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated {
+        self?.calendarSessionCoordinator.refresh()
+      }
+    }
     preferences.onChange = { [weak self] in
       self?.applyPreferences()
     }
     mediaPreferences.onChange = { [weak self] in
       self?.applyMediaPreferences()
     }
+    calendarPreferences.onChange = { [weak self] in
+      self?.applyCalendarPreferences()
+    }
     appModel.onStateChange = { [weak self] state in
       self?.update(state)
     }
     update(appModel.state)
     applyMediaPreferences()
+    applyCalendarPreferences()
     editorWindowController.showEditor()
   }
 
@@ -142,7 +171,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationWillTerminate(_ notification: Notification) {
     displayLifecycleObserver.stop()
     workspaceApplicationObserver.stop()
+    if let calendarStoreObserver {
+      NotificationCenter.default.removeObserver(calendarStoreObserver)
+      self.calendarStoreObserver = nil
+    }
+    calendarSessionCoordinator.invalidateAndClear()
     stopMediaSubscription()
+    surfaceNavigationCoordinator.setSurfaceAvailable(false)
     surfaceModeCoordinator.setSurfaceAvailable(false)
     interactionModel.suspend()
     rotationCoordinator.pause()
@@ -199,6 +234,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
+  private func applyCalendarPreferences() {
+    calendarSessionCoordinator.setEnabled(calendarPreferences.isEnabled)
+    if calendarPreferences.isEnabled,
+      calendarSessionCoordinator.state == .disabled
+    {
+      calendarSessionCoordinator.refresh()
+    }
+  }
+
   private func handleDisplayLifecycleEvent(_ event: DisplayLifecycleEvent) {
     displayLifecycleCoordinator.handle(event)
   }
@@ -215,7 +259,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return
     }
     isSurfaceAvailable = false
+    surfaceNavigationCoordinator.setSurfaceAvailable(false)
     surfaceModeCoordinator.setSurfaceAvailable(false)
+    calendarSessionCoordinator.invalidateAndClear()
+    surfaceGestureRecognizer.cancel()
     interactionModel.suspend()
     rotationCoordinator.pause()
     stopMediaSubscription()
@@ -228,8 +275,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     isSurfaceAvailable = true
     resetSurfaceToCurrentFocus()
+    surfaceNavigationCoordinator.setSurfaceAvailable(true)
     surfaceModeCoordinator.setSurfaceAvailable(true)
+    surfaceNavigationCoordinator.reconcileAfterAvailability()
     surfaceModeCoordinator.reconcileAfterAvailability()
+    if calendarPreferences.isEnabled {
+      calendarSessionCoordinator.refresh()
+    }
     if mediaPreferences.isMediaFirstEnabled {
       startMediaSubscription()
     }
@@ -247,16 +299,142 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     interactionModel.showRotatedItem(itemID)
   }
 
-  private func render(_ presentation: TopSurfacePresentation) {
+  private func handleFocusInteraction(
+    _ intent: TopSurfaceInteractionIntent
+  ) {
+    surfaceModeCoordinator.handleInteraction(intent)
+    sourceFocusPayload =
+      surfaceModeCoordinator.currentFocusPayload ?? sourceFocusPayload
+    renderSelectedSurface()
+  }
+
+  private func handleSourcePresentation(
+    _ presentation: TopSurfacePresentation
+  ) {
     switch presentation {
     case .hidden:
+      sourceFocusPayload = nil
+      sourceMediaPayload = nil
       topSurfaceController.remove()
-    case .media(let payload):
-      renderMedia(payload)
     case .focus(let payload):
-      renderFocus(payload)
-    case .calendar(let payload):
-      topSurfaceController.showCalendarOnPrimaryDisplay(payload: payload)
+      let mediaSessionID = sourceMediaPayload?.sessionID
+      sourceFocusPayload = payload
+      sourceMediaPayload = nil
+      if let mediaSessionID {
+        surfaceNavigationCoordinator.endMediaSession(mediaSessionID)
+      } else {
+        renderSelectedSurface()
+      }
+    case .media(let payload):
+      let isNewSession = sourceMediaPayload?.sessionID != payload.sessionID
+      sourceFocusPayload =
+        surfaceModeCoordinator.currentFocusPayload ?? sourceFocusPayload
+      sourceMediaPayload = payload
+      if isNewSession {
+        surfaceNavigationCoordinator.beginMediaSession(payload.sessionID)
+      } else {
+        surfaceNavigationCoordinator.setAvailability(true, for: .media)
+        surfaceNavigationCoordinator.refreshMediaSession(payload.sessionID)
+        renderSelectedSurface()
+      }
+    case .calendar:
+      break
+    }
+  }
+
+  private func handleCalendarState(_ state: CalendarSessionState) {
+    calendarState = state
+    calendarRevision &+= 1
+    surfaceNavigationCoordinator.setAvailability(
+      state.isComponentAvailable,
+      for: .calendar
+    )
+    renderSelectedSurface()
+  }
+
+  private func handleNavigationState(_ state: SurfaceNavigationState) {
+    if state.selectedComponent == .priorities {
+      interactionModel.synchronizeUnifiedExpansion(
+        state.level == .expanded
+      )
+    } else {
+      interactionModel.synchronizeToCurrentFocusWithoutPresentation()
+    }
+    surfaceGestureRecognizer.updateContext(
+      state.isPresented
+        ? SurfaceGestureContext(
+          component: state.selectedComponent,
+          level: state.level,
+          generation: state.generation,
+          mediaSessionID:
+            state.selectedComponent == .media
+            ? sourceMediaPayload?.sessionID : nil
+        ) : nil
+    )
+    handleMediaOwnershipChange(
+      state.isPresented
+        && state.selectedComponent == .media
+        && sourceMediaPayload != nil
+    )
+    renderSelectedSurface()
+  }
+
+  private func renderSelectedSurface() {
+    let navigation = surfaceNavigationCoordinator.state
+    guard isSurfaceAvailable, navigation.isPresented else {
+      topSurfaceController.remove()
+      return
+    }
+
+    let level = navigation.effectiveLevel
+    switch navigation.selectedComponent {
+    case .priorities:
+      guard let sourceFocusPayload else {
+        topSurfaceController.remove()
+        return
+      }
+      renderFocus(
+        FocusSurfacePayload(
+          visibleItemID: sourceFocusPayload.visibleItemID,
+          isExpanded: level == .expanded,
+          level: level,
+          revision: sourceFocusPayload.revision,
+          expansionReason:
+            navigation.isHoverPreviewed
+            ? .hover : level == .expanded ? .manual : .none
+        )
+      )
+    case .media:
+      guard let sourceMediaPayload else {
+        topSurfaceController.remove()
+        return
+      }
+      renderMedia(
+        MediaSurfacePayload(
+          sessionID: sourceMediaPayload.sessionID,
+          contentRevision: sourceMediaPayload.contentRevision,
+          isExpanded: level == .expanded,
+          level: level,
+          areControlsEnabled: sourceMediaPayload.areControlsEnabled,
+          session: sourceMediaPayload.session,
+          playbackState: sourceMediaPayload.playbackState,
+          capabilityRevision: sourceMediaPayload.capabilityRevision,
+          expansionReason:
+            navigation.isHoverPreviewed
+            ? .hover : level == .expanded ? .manual : .none,
+          appearance: sourceMediaPayload.appearance,
+          trackChangeDirection: sourceMediaPayload.trackChangeDirection,
+          trackPeek: sourceMediaPayload.trackPeek
+        )
+      )
+    case .calendar:
+      renderCalendar(
+        CalendarSurfacePayload(
+          state: calendarState,
+          level: level,
+          revision: calendarRevision
+        )
+      )
     }
   }
 
@@ -284,33 +462,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       content: content,
       metrics: surfaceMetrics,
       onHoverChanged: { [weak self] isInside in
-        if isInside {
-          self?.interactionModel.pointerEntered()
-        } else {
-          self?.interactionModel.pointerExited()
-        }
+        self?.surfaceNavigationCoordinator.setHovering(isInside)
       },
       onScroll: { [weak self] event in
-        guard event.momentumPhase == .none else {
-          return
-        }
-        let delta =
-          event.isPrecise
-          ? event.focusNavigationDelta
-          : event.focusNavigationDelta * 20
-        self?.interactionModel.scroll(
-          delta: delta,
-          phase: event.physicalPhase
-        )
+        self?.handleSurfaceScroll(event)
       },
       onActivateSurface: { [weak self] in
-        self?.interactionModel.activateSurface()
+        self?.surfaceNavigationCoordinator.setLevel(.expanded)
       },
       onRequestKeyboardNavigation: { [weak self] in
         self?.topSurfaceController.beginKeyboardNavigation()
       },
       onDismiss: { [weak self] in
-        self?.interactionModel.dismissExpandedSurface()
+        self?.surfaceNavigationCoordinator.setLevel(.compact)
       },
       onNavigate: { [weak self] direction in
         self?.interactionModel.browse(direction)
@@ -329,20 +493,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     topSurfaceController.showMediaOnPrimaryDisplay(
       payload: payload,
       onHoverChanged: { [weak self] isInside in
-        if isInside {
-          self?.mediaSurfaceInteractionModel.pointerEntered()
-        } else {
-          self?.mediaSurfaceInteractionModel.pointerExited()
-        }
+        self?.surfaceNavigationCoordinator.setHovering(isInside)
       },
       onScroll: { [weak self] event in
-        self?.handleMediaScroll(event)
+        self?.handleSurfaceScroll(event)
       },
       onActivateSurface: { [weak self] in
-        self?.mediaSurfaceInteractionModel.activateSurface()
+        self?.surfaceNavigationCoordinator.setLevel(.expanded)
       },
       onAction: { [weak self] action in
         self?.handleMediaAction(action)
+      }
+    )
+  }
+
+  private func renderCalendar(_ payload: CalendarSurfacePayload) {
+    guard isSurfaceAvailable else {
+      topSurfaceController.remove()
+      return
+    }
+    topSurfaceController.showCalendarOnPrimaryDisplay(
+      payload: payload,
+      metrics: surfaceMetrics,
+      onHoverChanged: { [weak self] isInside in
+        self?.surfaceNavigationCoordinator.setHovering(isInside)
+      },
+      onScroll: { [weak self] event in
+        self?.handleSurfaceScroll(event)
+      },
+      onActivateSurface: { [weak self] in
+        self?.surfaceNavigationCoordinator.setLevel(.expanded)
       }
     )
   }
@@ -364,13 +544,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func handleMediaOwnershipChange(_ ownsSurface: Bool) {
+    guard isMediaOwningSurface != ownsSurface else {
+      return
+    }
     isMediaOwningSurface = ownsSurface
     if ownsSurface {
       pauseRotation()
       if let currentMediaSnapshot {
-        mediaGestureRecognizer.updateSession(
-          currentMediaSnapshot.session.sessionID
-        )
         mediaCommandCoordinator.updateContext(
           snapshot: currentMediaSnapshot,
           isMediaActive: true
@@ -379,7 +559,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     } else {
       interactionModel.synchronizeToCurrentFocusWithoutPresentation()
       rotationCoordinator.resumeAfterCurrentFocusWasPresented()
-      mediaGestureRecognizer.cancel()
       mediaCommandCoordinator.updateContext(
         snapshot: currentMediaSnapshot,
         isMediaActive: false
@@ -387,13 +566,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
-  private func handleMediaScroll(_ event: SurfaceScrollEvent) {
-    guard isMediaOwningSurface,
-      let direction = mediaGestureRecognizer.handle(event)
-    else {
+  private func handleSurfaceScroll(_ event: SurfaceScrollEvent) {
+    guard let intent = surfaceGestureRecognizer.handle(event) else {
       return
     }
-    handleMediaAction(direction.action)
+    switch intent {
+    case .previousTrack:
+      handleMediaAction(.previous)
+    case .nextTrack:
+      handleMediaAction(.next)
+    case .advanceDepth, .retreatDepth, .previousComponent, .nextComponent:
+      surfaceNavigationCoordinator.apply(intent)
+    }
   }
 
   private func handleMediaAction(_ action: MediaSurfaceAction) {
@@ -454,7 +638,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let epoch = activeMediaEpoch
     activeMediaEpoch = nil
     currentMediaSnapshot = nil
-    mediaGestureRecognizer.cancel()
     mediaSurfaceInteractionModel.reset()
     mediaCommandCoordinator.cancel()
     if let epoch {
@@ -495,7 +678,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     surfaceModeCoordinator.receiveMediaSnapshot(snapshot)
 
     guard let snapshot else {
-      mediaGestureRecognizer.cancel()
       mediaCommandCoordinator.updateContext(
         snapshot: nil,
         isMediaActive: false
@@ -506,9 +688,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     mediaCommandCoordinator.updateContext(
       snapshot: snapshot,
       isMediaActive: isMediaOwningSurface
-    )
-    mediaGestureRecognizer.updateSession(
-      isMediaOwningSurface ? snapshot.session.sessionID : nil
     )
   }
 
@@ -577,5 +756,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return MediaPreferences.live()
     }
     return MediaPreferences(defaults: defaults)
+  }
+
+  private static func makeCalendarPreferences() -> CalendarPreferences {
+    let environment = ProcessInfo.processInfo.environment
+    guard
+      let suiteName = environment["KEEP3_UI_TEST_DEFAULTS_SUITE"],
+      !suiteName.isEmpty,
+      let defaults = UserDefaults(suiteName: suiteName)
+    else {
+      return CalendarPreferences.live()
+    }
+    return CalendarPreferences(defaults: defaults)
   }
 }

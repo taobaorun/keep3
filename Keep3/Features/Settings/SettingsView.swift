@@ -3,6 +3,8 @@ import SwiftUI
 struct SettingsView: View {
   @ObservedObject var preferences: AppPreferences
   @ObservedObject var mediaPreferences: MediaPreferences
+  @ObservedObject var calendarPreferences: CalendarPreferences
+  @ObservedObject var calendarCoordinator: CalendarSessionCoordinator
   @ObservedObject var launchAtLoginController: LaunchAtLoginController
   @State private var selection: SettingsCategory = .general
 
@@ -39,6 +41,11 @@ struct SettingsView: View {
       accessibilitySettings
     case .media:
       MediaSettingsView(preferences: mediaPreferences)
+    case .calendar:
+      CalendarSettingsView(
+        preferences: calendarPreferences,
+        coordinator: calendarCoordinator
+      )
     }
   }
 
@@ -103,19 +110,13 @@ struct SettingsView: View {
   }
 
   private var interactionSettings: some View {
-    GroupBox("展开") {
-      Picker(
-        "展开方式",
-        selection: Binding(
-          get: { preferences.expansionTrigger },
-          set: { preferences.setExpansionTrigger($0) }
-        )
-      ) {
-        Text("悬停").tag(SurfaceExpansionTrigger.hover)
-        Text("点击").tag(SurfaceExpansionTrigger.click)
+    GroupBox("顶部表面") {
+      VStack(alignment: .leading, spacing: 10) {
+        Label("悬停：从硬件状态轻量预览", systemImage: "cursorarrow.motionlines")
+        Label("点击：展开当前组件", systemImage: "hand.tap")
+        Label("上下双指：改变层级并切换组件", systemImage: "arrow.up.arrow.down")
+        Label("左右双指：播放器切歌", systemImage: "arrow.left.arrow.right")
       }
-      .pickerStyle(.segmented)
-      .accessibilityIdentifier("settings.expansionTrigger")
     }
   }
 

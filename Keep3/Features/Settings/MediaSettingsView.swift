@@ -16,7 +16,7 @@ struct MediaSettingsView: View {
     GroupBox("播放接管") {
       VStack(alignment: .leading, spacing: 12) {
         Toggle(
-          "播放时由媒体接管顶部胶囊",
+          "在顶部表面显示正在播放",
           isOn: binding(
             get: { preferences.isMediaFirstEnabled },
             set: preferences.setMediaFirstEnabled
@@ -25,7 +25,7 @@ struct MediaSettingsView: View {
         .accessibilityIdentifier("settings.media.enabled")
 
         Toggle(
-          "快速展开",
+          "切歌时显示歌曲信息",
           isOn: binding(
             get: { preferences.isQuickPeekEnabled },
             set: preferences.setQuickPeekEnabled
@@ -56,20 +56,7 @@ struct MediaSettingsView: View {
           .accessibilityIdentifier("settings.media.quickPeekDuration")
         }
 
-        Picker(
-          "手动展开",
-          selection: binding(
-            get: { preferences.expansionTrigger },
-            set: preferences.setExpansionTrigger
-          )
-        ) {
-          Text("悬停").tag(SurfaceExpansionTrigger.hover)
-          Text("点击").tag(SurfaceExpansionTrigger.click)
-        }
-        .pickerStyle(.segmented)
-        .accessibilityIdentifier("settings.media.expansionTrigger")
-
-        Text("快速展开只负责临时预览；手动展开会一直保留到你主动收起。")
+        Text("左右双指滑动切歌；确认成功后以轻量提示显示歌名和歌手，不会打断当前工作。")
           .font(.caption)
           .foregroundStyle(.secondary)
       }

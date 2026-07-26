@@ -107,6 +107,7 @@
 		A42000000000000000000007 /* CalendarPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41000000000000000000007 /* CalendarPreferencesTests.swift */; };
 		A42000000000000000000008 /* CalendarSurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41000000000000000000009 /* CalendarSurfaceView.swift */; };
 		A42000000000000000000009 /* CalendarSurfacePresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4100000000000000000000A /* CalendarSurfacePresentationTests.swift */; };
+		A4200000000000000000000A /* CalendarSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4100000000000000000000B /* CalendarSettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -248,6 +249,7 @@
 		A41000000000000000000008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A41000000000000000000009 /* CalendarSurfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSurfaceView.swift; sourceTree = "<group>"; };
 		A4100000000000000000000A /* CalendarSurfacePresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSurfacePresentationTests.swift; sourceTree = "<group>"; };
+		A4100000000000000000000B /* CalendarSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -507,6 +509,7 @@
 				200000000000000000000047 /* FocusSurfaceSettingsView.swift */,
 				200000000000000000000048 /* SurfacePreview.swift */,
 				20000000000000000000006E /* MediaSettingsView.swift */,
+				A4100000000000000000000B /* CalendarSettingsView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -799,6 +802,7 @@
 				A42000000000000000000004 /* CalendarSessionCoordinator.swift in Sources */,
 				A42000000000000000000005 /* CalendarPreferences.swift in Sources */,
 				A42000000000000000000008 /* CalendarSurfaceView.swift in Sources */,
+				A4200000000000000000000A /* CalendarSettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

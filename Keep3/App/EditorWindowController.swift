@@ -7,6 +7,10 @@ final class EditorWindowController: NSWindowController {
     model: AppModel,
     preferences: AppPreferences,
     mediaPreferences: MediaPreferences = MediaPreferences.live(),
+    calendarPreferences: CalendarPreferences = CalendarPreferences.live(),
+    calendarCoordinator: CalendarSessionCoordinator = CalendarSessionCoordinator(
+      provider: EventKitCalendarAdapter()
+    ),
     launchAtLoginController: LaunchAtLoginController =
       LaunchAtLoginController.live()
   ) {
@@ -25,6 +29,8 @@ final class EditorWindowController: NSWindowController {
         model: model,
         preferences: preferences,
         mediaPreferences: mediaPreferences,
+        calendarPreferences: calendarPreferences,
+        calendarCoordinator: calendarCoordinator,
         launchAtLoginController: launchAtLoginController
       )
     )

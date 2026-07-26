@@ -33,6 +33,10 @@ final class SurfaceModeCoordinator {
     currentDesignatedFocusID
   }
 
+  var currentFocusPayload: FocusSurfacePayload? {
+    focusPayload
+  }
+
   init(
     scheduler: any AppTimerScheduling = TaskAppTimerScheduler(),
     onPresentation: @escaping (TopSurfacePresentation) -> Void,
