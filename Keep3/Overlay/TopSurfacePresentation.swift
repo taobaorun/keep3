@@ -128,10 +128,21 @@ struct MediaSurfacePayload: Equatable, Sendable {
   }
 }
 
+struct CalendarSurfacePayload: Equatable, Sendable {
+  let state: CalendarSessionState
+  let level: SurfaceLevel
+  let revision: UInt64
+
+  var isExpanded: Bool {
+    level == .expanded
+  }
+}
+
 enum TopSurfacePresentation: Equatable, Sendable {
   case hidden
   case focus(FocusSurfacePayload)
   case media(MediaSurfacePayload)
+  case calendar(CalendarSurfacePayload)
 }
 
 extension TopSurfacePresentation {
@@ -143,6 +154,8 @@ extension TopSurfacePresentation {
       .priorities
     case .media:
       .media
+    case .calendar:
+      .calendar
     }
   }
 }

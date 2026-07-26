@@ -146,7 +146,9 @@ struct MediaSurfaceView: View {
     let artwork = MediaArtworkDecoder.decode(presentation.artworkData)
 
     Group {
-      if presentation.isExpanded {
+      if payload.level == .hardware && presentation.trackPeek == nil {
+        Color.clear
+      } else if presentation.isExpanded {
         expandedContent(artwork: artwork)
       } else if let trackPeek = presentation.trackPeek {
         trackPeekContent(trackPeek, artwork: artwork)

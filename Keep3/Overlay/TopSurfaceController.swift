@@ -68,6 +68,31 @@ final class TopSurfaceController {
     )
   }
 
+  func showCalendarOnPrimaryDisplay(
+    payload: CalendarSurfacePayload,
+    metrics: SurfaceMetrics = .standard,
+    onHoverChanged: @escaping (Bool) -> Void = { _ in },
+    onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
+    onActivateSurface: @escaping () -> Void = {}
+  ) {
+    guard let screen = NSScreen.screens.first else {
+      remove()
+      return
+    }
+
+    let geometry = DisplayGeometry(
+      descriptor: DisplayDescriptor(screen: screen),
+      metrics: metrics
+    )
+    showCalendar(
+      layout: geometry.layout(level: payload.level),
+      payload: payload,
+      onHoverChanged: onHoverChanged,
+      onScroll: onScroll,
+      onActivateSurface: onActivateSurface
+    )
+  }
+
   func show(
     layout: SurfaceLayout,
     content: TopSurfaceContent,
@@ -148,6 +173,46 @@ final class TopSurfaceController {
       display: true,
       animate: hadTransientFeedback || hasTransientFeedback
     )
+    surfacePanel.orderFrontRegardless()
+  }
+
+  func showCalendar(
+    layout: SurfaceLayout,
+    payload: CalendarSurfacePayload,
+    onHoverChanged: @escaping (Bool) -> Void = { _ in },
+    onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
+    onActivateSurface: @escaping () -> Void = {}
+  ) {
+    let presentationStyle =
+      layout.obstructionSize.map {
+        TopSurfacePresentationStyle.notchAttached(notchSize: $0)
+      } ?? .floatingCapsule
+
+    let surfacePanel: TopSurfacePanel
+    if let panel {
+      surfacePanel = panel
+    } else {
+      surfacePanel = TopSurfacePanel(
+        contentRect: layout.panelFrame,
+        surfaceFrameInPanel: layout.surfaceFrameInPanel,
+        calendarPayload: payload,
+        presentationStyle: presentationStyle,
+        onHoverChanged: onHoverChanged,
+        onScroll: onScroll,
+        onActivateSurface: onActivateSurface
+      )
+      panel = surfacePanel
+    }
+
+    surfacePanel.update(
+      calendarPayload: payload,
+      presentationStyle: presentationStyle,
+      surfaceFrameInPanel: layout.surfaceFrameInPanel,
+      onHoverChanged: onHoverChanged,
+      onScroll: onScroll,
+      onActivateSurface: onActivateSurface
+    )
+    surfacePanel.setFrame(layout.panelFrame, display: true)
     surfacePanel.orderFrontRegardless()
   }
 

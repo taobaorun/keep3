@@ -255,6 +255,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       renderMedia(payload)
     case .focus(let payload):
       renderFocus(payload)
+    case .calendar(let payload):
+      topSurfaceController.showCalendarOnPrimaryDisplay(payload: payload)
     }
   }
 

@@ -279,7 +279,9 @@ struct TopSurfaceView: View {
 
   private var surfaceBody: some View {
     Group {
-      if content.isExpanded {
+      if content.level == .hardware {
+        Color.clear
+      } else if content.isExpanded {
         expandedContent
           .transition(surfaceTransition)
       } else {
