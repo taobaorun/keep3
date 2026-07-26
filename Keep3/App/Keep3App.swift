@@ -59,12 +59,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   )
   private lazy var mediaSurfaceInteractionModel =
     MediaSurfaceInteractionModel(
-      onExpansion: { [weak self] isExpanded, reason in
-        self?.surfaceModeCoordinator.updateMediaExpansion(
-          isExpanded: isExpanded,
-          reason: reason
-        )
-      },
       onTrackPeek: { [weak self] peek in
         self?.surfaceModeCoordinator.updateMediaTrackPeek(peek)
       }
@@ -132,7 +126,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       queue: .main
     ) { [weak self] _ in
       MainActor.assumeIsolated {
-        self?.calendarSessionCoordinator.refresh()
+        guard let self, self.isSurfaceAvailable,
+          self.calendarPreferences.isEnabled
+        else {
+          return
+        }
+        self.calendarSessionCoordinator.refresh()
       }
     }
     preferences.onChange = { [weak self] in
@@ -150,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     update(appModel.state)
     applyMediaPreferences()
     applyCalendarPreferences()
+    applyUITestSurfaceLevel()
     editorWindowController.showEditor()
   }
 
@@ -195,15 +195,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func resetSurfaceToCurrentFocus() {
     interactionModel.setExpansionTrigger(preferences.expansionTrigger)
     surfaceModeCoordinator.updateDesignatedFocusID(state.currentFocusID)
+    let itemIDs = state.items.map(\.id)
     interactionModel.update(
-      itemIDs: state.items.map(\.id),
+      itemIDs: itemIDs,
       currentFocusID: state.currentFocusID
+    )
+    let navigation = surfaceNavigationCoordinator.state
+    interactionModel.synchronizeUnifiedExpansion(
+      navigation.selectedComponent == .priorities
+        && navigation.level == .expanded
     )
     rotationCoordinator.setRotationEnabled(
       preferences.isAutomaticRotationEnabled
     )
     rotationCoordinator.update(
-      itemIDs: state.items.map(\.id),
+      itemIDs: itemIDs,
       currentFocusID: state.currentFocusID,
       durations: preferences.rotationDurations
     )
@@ -220,7 +226,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     surfaceModeCoordinator.updateMediaPolicy(mediaPreferences.sourcePolicy)
     surfaceModeCoordinator.updateMediaAppearance(mediaPreferences.appearance)
     mediaSurfaceInteractionModel.updatePreferences(
-      expansionTrigger: mediaPreferences.expansionTrigger,
       isQuickPeekEnabled: mediaPreferences.isQuickPeekEnabled,
       quickPeekDuration: mediaPreferences.quickPeekDuration
     )
@@ -236,11 +241,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func applyCalendarPreferences() {
     calendarSessionCoordinator.setEnabled(calendarPreferences.isEnabled)
-    if calendarPreferences.isEnabled,
-      calendarSessionCoordinator.state == .disabled
-    {
-      calendarSessionCoordinator.refresh()
-    }
   }
 
   private func handleDisplayLifecycleEvent(_ event: DisplayLifecycleEvent) {
@@ -303,9 +303,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     _ intent: TopSurfaceInteractionIntent
   ) {
     surfaceModeCoordinator.handleInteraction(intent)
-    sourceFocusPayload =
-      surfaceModeCoordinator.currentFocusPayload ?? sourceFocusPayload
-    renderSelectedSurface()
   }
 
   private func handleSourcePresentation(
@@ -345,11 +342,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func handleCalendarState(_ state: CalendarSessionState) {
     calendarState = state
     calendarRevision &+= 1
+    let availabilityChanged =
+      surfaceNavigationCoordinator.isAvailable(.calendar)
+      != state.isComponentAvailable
     surfaceNavigationCoordinator.setAvailability(
       state.isComponentAvailable,
       for: .calendar
     )
-    renderSelectedSurface()
+    if !availabilityChanged {
+      renderSelectedSurface()
+    }
   }
 
   private func handleNavigationState(_ state: SurfaceNavigationState) {
@@ -748,14 +750,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private static func makeMediaPreferences() -> MediaPreferences {
     let environment = ProcessInfo.processInfo.environment
-    guard
-      let suiteName = environment["KEEP3_UI_TEST_DEFAULTS_SUITE"],
+    let preferences: MediaPreferences
+    if let suiteName = environment["KEEP3_UI_TEST_DEFAULTS_SUITE"],
       !suiteName.isEmpty,
       let defaults = UserDefaults(suiteName: suiteName)
-    else {
-      return MediaPreferences.live()
+    {
+      preferences = MediaPreferences(defaults: defaults)
+    } else {
+      preferences = MediaPreferences.live()
     }
-    return MediaPreferences(defaults: defaults)
+    #if DEBUG
+      if let rawValue = environment["KEEP3_UI_TEST_MEDIA_ENABLED"],
+        let isEnabled = Bool(rawValue)
+      {
+        preferences.setMediaFirstEnabled(isEnabled)
+      }
+    #endif
+    return preferences
   }
 
   private static func makeCalendarPreferences() -> CalendarPreferences {
@@ -768,5 +779,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return CalendarPreferences.live()
     }
     return CalendarPreferences(defaults: defaults)
+  }
+
+  private func applyUITestSurfaceLevel() {
+    #if DEBUG
+      guard
+        let rawLevel = ProcessInfo.processInfo.environment[
+          "KEEP3_UI_TEST_SURFACE_LEVEL"
+        ],
+        let level = SurfaceLevel(rawValue: rawLevel)
+      else {
+        return
+      }
+      surfaceNavigationCoordinator.setLevel(level)
+    #endif
   }
 }

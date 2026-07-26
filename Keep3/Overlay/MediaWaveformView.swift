@@ -45,18 +45,20 @@ struct MediaWaveformStyle: Equatable {
 }
 
 struct MediaWaveformView: View {
-  let seed: String
   let isPlaying: Bool
   let style: MediaWaveformStyle
+  private let scalarSeed: Int
 
   init(
     seed: String,
     isPlaying: Bool,
     style: MediaWaveformStyle = .regular
   ) {
-    self.seed = seed
     self.isPlaying = isPlaying
     self.style = style
+    scalarSeed = seed.utf8.reduce(0) {
+      (($0 &* 31) &+ Int($1)) & 0x7FFF
+    }
   }
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -91,9 +93,6 @@ struct MediaWaveformView: View {
     date: Date,
     animated: Bool
   ) -> CGFloat {
-    let scalarSeed = seed.utf8.reduce(0) {
-      (($0 &* 31) &+ Int($1)) & 0x7FFF
-    }
     let baseline = Double((scalarSeed + (index * 17)) % 9) / 8
     guard animated else {
       return style.minimumHeight

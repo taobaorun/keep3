@@ -140,6 +140,15 @@ final class TopSurfaceController {
     let previousMediaPayload = panel?.renderedMediaPayload
     if let panel {
       surfacePanel = panel
+      surfacePanel.update(
+        mediaPayload: payload,
+        presentationStyle: presentationStyle,
+        surfaceFrameInPanel: layout.surfaceFrameInPanel,
+        onHoverChanged: onHoverChanged,
+        onScroll: onScroll,
+        onActivateSurface: onActivateSurface,
+        onMediaAction: onAction
+      )
     } else {
       surfacePanel = TopSurfacePanel(
         contentRect: layout.panelFrame,
@@ -153,16 +162,6 @@ final class TopSurfaceController {
       )
       panel = surfacePanel
     }
-
-    surfacePanel.update(
-      mediaPayload: payload,
-      presentationStyle: presentationStyle,
-      surfaceFrameInPanel: layout.surfaceFrameInPanel,
-      onHoverChanged: onHoverChanged,
-      onScroll: onScroll,
-      onActivateSurface: onActivateSurface,
-      onMediaAction: onAction
-    )
     let hadTransientFeedback =
       previousMediaPayload?.trackChangeDirection != nil
       || previousMediaPayload?.trackPeek != nil
@@ -191,6 +190,14 @@ final class TopSurfaceController {
     let surfacePanel: TopSurfacePanel
     if let panel {
       surfacePanel = panel
+      surfacePanel.update(
+        calendarPayload: payload,
+        presentationStyle: presentationStyle,
+        surfaceFrameInPanel: layout.surfaceFrameInPanel,
+        onHoverChanged: onHoverChanged,
+        onScroll: onScroll,
+        onActivateSurface: onActivateSurface
+      )
     } else {
       surfacePanel = TopSurfacePanel(
         contentRect: layout.panelFrame,
@@ -203,15 +210,6 @@ final class TopSurfaceController {
       )
       panel = surfacePanel
     }
-
-    surfacePanel.update(
-      calendarPayload: payload,
-      presentationStyle: presentationStyle,
-      surfaceFrameInPanel: layout.surfaceFrameInPanel,
-      onHoverChanged: onHoverChanged,
-      onScroll: onScroll,
-      onActivateSurface: onActivateSurface
-    )
     surfacePanel.setFrame(layout.panelFrame, display: true)
     surfacePanel.orderFrontRegardless()
   }
@@ -269,6 +267,18 @@ final class TopSurfaceController {
 
     if let panel {
       surfacePanel = panel
+      surfacePanel.update(
+        content: content,
+        presentationStyle: presentationStyle,
+        surfaceFrameInPanel: layout.surfaceFrameInPanel,
+        onHoverChanged: onHoverChanged,
+        onScroll: onScroll,
+        onActivateSurface: onActivateSurface,
+        onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+        onDismiss: onDismiss,
+        onNavigate: onNavigate,
+        onOpenItem: onOpenItem
+      )
     } else {
       surfacePanel = TopSurfacePanel(
         contentRect: layout.panelFrame,
@@ -285,19 +295,6 @@ final class TopSurfaceController {
       )
       panel = surfacePanel
     }
-
-    surfacePanel.update(
-      content: content,
-      presentationStyle: presentationStyle,
-      surfaceFrameInPanel: layout.surfaceFrameInPanel,
-      onHoverChanged: onHoverChanged,
-      onScroll: onScroll,
-      onActivateSurface: onActivateSurface,
-      onRequestKeyboardNavigation: onRequestKeyboardNavigation,
-      onDismiss: onDismiss,
-      onNavigate: onNavigate,
-      onOpenItem: onOpenItem
-    )
     surfacePanel.setFrame(layout.panelFrame, display: true)
     surfacePanel.orderFrontRegardless()
   }

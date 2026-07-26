@@ -3,13 +3,10 @@ import Foundation
 @MainActor
 final class MediaSurfaceInteractionModel {
   private let scheduler: any AppTimerScheduling
-  private let onExpansion: (Bool, SurfaceExpansionReason) -> Void
   private let onTrackPeek: (MediaTrackPeek?) -> Void
 
-  private var expansionTrigger: SurfaceExpansionTrigger = .hover
   private var isQuickPeekEnabled = true
   private var quickPeekDuration: TimeInterval = 2
-  private var expansionReason: SurfaceExpansionReason = .none
   private var trackPeekTimer: (any AppTimerCancellation)?
   private var trackPeek: MediaTrackPeek?
   private var contentIdentity: ContentIdentity?
@@ -17,30 +14,16 @@ final class MediaSurfaceInteractionModel {
   init(
     scheduler: any AppTimerScheduling =
       TaskAppTimerScheduler(),
-    onExpansion: @escaping (Bool, SurfaceExpansionReason) -> Void
+    onTrackPeek: @escaping (MediaTrackPeek?) -> Void = { _ in }
   ) {
     self.scheduler = scheduler
-    self.onExpansion = onExpansion
-    onTrackPeek = { _ in }
-  }
-
-  init(
-    scheduler: any AppTimerScheduling =
-      TaskAppTimerScheduler(),
-    onExpansion: @escaping (Bool, SurfaceExpansionReason) -> Void,
-    onTrackPeek: @escaping (MediaTrackPeek?) -> Void
-  ) {
-    self.scheduler = scheduler
-    self.onExpansion = onExpansion
     self.onTrackPeek = onTrackPeek
   }
 
   func updatePreferences(
-    expansionTrigger: SurfaceExpansionTrigger,
     isQuickPeekEnabled: Bool,
     quickPeekDuration: TimeInterval
   ) {
-    self.expansionTrigger = expansionTrigger
     self.quickPeekDuration = quickPeekDuration
     guard self.isQuickPeekEnabled != isQuickPeekEnabled else {
       return
@@ -66,7 +49,7 @@ final class MediaSurfaceInteractionModel {
       return
     }
     contentIdentity = identity
-    guard isQuickPeekEnabled, expansionReason == .none else {
+    guard isQuickPeekEnabled else {
       return
     }
     beginTrackPeek(
@@ -77,41 +60,9 @@ final class MediaSurfaceInteractionModel {
     )
   }
 
-  func pointerEntered() {
-    guard expansionTrigger == .hover else {
-      return
-    }
-    clearTrackPeek()
-    expand(reason: .hover)
-  }
-
-  func pointerExited() {
-    guard expansionTrigger == .hover, expansionReason == .hover else {
-      return
-    }
-    collapse()
-  }
-
-  func activateSurface() {
-    guard expansionTrigger == .click else {
-      return
-    }
-    if expansionReason == .manual || expansionReason == .click {
-      collapse()
-    } else {
-      clearTrackPeek()
-      expand(reason: .click)
-    }
-  }
-
-  func dismiss() {
-    collapse()
-  }
-
   func reset() {
     contentIdentity = nil
     clearTrackPeek()
-    collapse()
   }
 
   private func beginTrackPeek(_ peek: MediaTrackPeek) {
@@ -128,22 +79,6 @@ final class MediaSurfaceInteractionModel {
       self.trackPeek = nil
       self.onTrackPeek(nil)
     }
-  }
-
-  private func expand(reason: SurfaceExpansionReason) {
-    guard expansionReason != reason else {
-      return
-    }
-    expansionReason = reason
-    onExpansion(true, reason)
-  }
-
-  private func collapse() {
-    guard expansionReason != .none else {
-      return
-    }
-    expansionReason = .none
-    onExpansion(false, .none)
   }
 
   private func clearTrackPeek() {

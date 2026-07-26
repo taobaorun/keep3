@@ -75,7 +75,7 @@ final class EventKitCalendarAdapter: CalendarEventProviding {
       return nil
     }
     return CalendarEvent(
-      id: input.identifier ?? UUID().uuidString,
+      id: input.identifier ?? "",
       title: input.title ?? "",
       startDate: input.startDate,
       endDate: input.endDate,

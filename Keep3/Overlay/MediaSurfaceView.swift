@@ -412,7 +412,6 @@ struct MediaSurfaceView: View {
     }
     .padding(.top, 14)
     .padding(.bottom, metrics.bottomInset)
-    .accessibilityIdentifier("media.expanded")
   }
 
   private func expandedArtwork(artwork: CGImage?) -> some View {
@@ -533,6 +532,7 @@ struct MediaSurfaceView: View {
     }
     .buttonStyle(.plain)
     .disabled(!presentation.areControlsEnabled)
+    .accessibilityElement(children: .ignore)
     .accessibilityLabel(label(for: action))
     .accessibilityIdentifier("media.action.\(identifier(for: action))")
   }
