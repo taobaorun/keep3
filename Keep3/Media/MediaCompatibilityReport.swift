@@ -35,7 +35,7 @@ struct MediaCompatibilityReport: Equatable, Sendable {
   init?(propertyList: NSDictionary) {
     guard
       let protocolVersion = propertyList["protocolVersion"] as? NSNumber,
-      protocolVersion.intValue == Self.protocolVersion,
+      protocolVersion.exactUInt64 == UInt64(Self.protocolVersion),
       let statusValue = propertyList["status"] as? String,
       let status = MediaAdapterStatus(rawValue: statusValue),
       let missingMandatorySymbols = propertyList["missingMandatorySymbols"] as? [String],

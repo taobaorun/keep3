@@ -256,9 +256,7 @@ final class TopSurfacePanel: NSPanel {
       onOpenItem: {},
       onMediaAction: onMediaAction
     )
-    if !mediaPayload.isExpanded {
-      setKeyboardNavigationEnabled(false)
-    }
+    setKeyboardNavigationEnabled(false)
   }
 
   private static func rootView(

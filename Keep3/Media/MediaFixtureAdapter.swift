@@ -28,9 +28,12 @@ import Foundation
 
     func send(
       _ action: MediaSurfaceAction,
-      to sessionID: String
+      to sessionID: String,
+      capabilityRevision: UInt64
     ) async -> MediaCommandDispatchResult {
-      guard isStarted, sessionID == "fixture:netease" else {
+      guard isStarted, sessionID == "fixture:netease",
+        capabilityRevision == 1
+      else {
         return .rejected
       }
       if action == .next || action == .previous {

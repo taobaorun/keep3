@@ -42,6 +42,7 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
       onMediaOwnershipChange: { mediaOwnership.append($0) }
     )
     coordinator.updateFocus(focus(firstFocusID, revision: 1))
+    coordinator.updateDesignatedFocusID(firstFocusID)
     let media = MediaSurfacePayload(
       sessionID: "session-1",
       contentRevision: 1,
@@ -49,6 +50,7 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
       areControlsEnabled: true
     )
     coordinator.updateMedia(media)
+    coordinator.updateDesignatedFocusID(latestFocusID)
     coordinator.updateFocus(focus(latestFocusID, revision: 2))
 
     coordinator.updateMedia(nil)
@@ -70,6 +72,52 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
 
     XCTAssertEqual(presentations.last, .focus(focus(latestFocusID, revision: 2)))
     XCTAssertEqual(mediaOwnership, [true, false])
+  }
+
+  func testMediaExitReturnsDesignatedFocusInsteadOfRotatedSecondary() {
+    let currentFocusID = UUID()
+    let rotatedSecondaryID = UUID()
+    let scheduler = ManualSurfaceModeTimerScheduler()
+    var presentations: [TopSurfacePresentation] = []
+    var presentationAtOwnershipRelease: TopSurfacePresentation?
+    let coordinator = SurfaceModeCoordinator(
+      scheduler: scheduler,
+      onPresentation: { presentations.append($0) },
+      onMediaOwnershipChange: { ownsSurface in
+        if !ownsSurface {
+          presentationAtOwnershipRelease = presentations.last
+        }
+      }
+    )
+    coordinator.updateDesignatedFocusID(currentFocusID)
+    coordinator.updateFocus(focus(currentFocusID, revision: 1))
+    coordinator.updateMedia(
+      .init(
+        sessionID: "session-1",
+        contentRevision: 1,
+        isExpanded: false,
+        areControlsEnabled: true
+      )
+    )
+    coordinator.updateFocus(
+      .init(
+        visibleItemID: rotatedSecondaryID,
+        isExpanded: true,
+        revision: 2,
+        expansionReason: .manual
+      )
+    )
+
+    coordinator.updateMedia(nil)
+    scheduler.fireNext()
+
+    guard case .focus(let focusPayload) = presentations.last else {
+      return XCTFail("Media exit should return to focus")
+    }
+    XCTAssertEqual(focusPayload.visibleItemID, currentFocusID)
+    XCTAssertFalse(focusPayload.isExpanded)
+    XCTAssertEqual(focusPayload.expansionReason, .none)
+    XCTAssertEqual(presentationAtOwnershipRelease, presentations.last)
   }
 
   func testFocusUpdateDuringHandoffGraceDoesNotRevealFocusEarly() {

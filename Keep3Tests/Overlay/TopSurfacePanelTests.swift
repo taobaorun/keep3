@@ -31,6 +31,33 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertFalse(panel.canBecomeKey)
   }
 
+  func testMediaTakeoverAlwaysEndsFocusKeyboardNavigation() throws {
+    let frame = CGRect(x: 100, y: 100, width: 360, height: 216)
+    let panel = TopSurfacePanel(
+      contentRect: frame,
+      content: try makeContent(title: "当前重点", isExpanded: true)
+    )
+    panel.setKeyboardNavigationEnabled(true, activateApplication: false)
+    XCTAssertTrue(panel.canBecomeKey)
+
+    panel.update(
+      mediaPayload: MediaSurfacePayload(
+        sessionID: "session-1",
+        contentRevision: 1,
+        isExpanded: true,
+        areControlsEnabled: true
+      ),
+      presentationStyle: .floatingCapsule,
+      surfaceFrameInPanel: CGRect(origin: .zero, size: frame.size),
+      onHoverChanged: { _ in },
+      onScroll: { _ in },
+      onActivateSurface: {},
+      onMediaAction: { _ in }
+    )
+
+    XCTAssertFalse(panel.canBecomeKey)
+  }
+
   func testKeyboardCommandsAcceptOnlyUnmodifiedNavigationKeys() {
     XCTAssertEqual(
       TopSurfaceKeyboardCommand(keyCode: 123, modifiers: []),

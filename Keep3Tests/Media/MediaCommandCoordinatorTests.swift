@@ -65,6 +65,54 @@ final class MediaCommandCoordinatorTests: XCTestCase {
     XCTAssertEqual(haptic.count, 0)
   }
 
+  func testSnapshotArrivingBeforeRejectedReplyNeverHaptics() async {
+    let sender = SuspendedCommandSender()
+    let haptic = HapticRecorder()
+    let coordinator = MediaCommandCoordinator(
+      sender: sender,
+      haptic: haptic,
+      scheduler: ManualCommandTimerScheduler()
+    )
+    coordinator.updateContext(snapshot: snapshot(revision: 1), isMediaActive: true)
+
+    let dispatch = Task { await coordinator.perform(.next) }
+    await sender.waitUntilSent()
+    coordinator.receive(snapshot(revision: 2))
+
+    XCTAssertEqual(haptic.count, 0)
+    XCTAssertEqual(coordinator.pendingAction, .next)
+
+    await sender.complete(with: .rejected)
+
+    let result = await dispatch.value
+    XCTAssertFalse(result)
+    XCTAssertEqual(haptic.count, 0)
+    XCTAssertNil(coordinator.pendingAction)
+  }
+
+  func testSnapshotArrivingBeforeAcceptedReplyConfirmsAfterAcceptance() async {
+    let sender = SuspendedCommandSender()
+    let haptic = HapticRecorder()
+    let coordinator = MediaCommandCoordinator(
+      sender: sender,
+      haptic: haptic,
+      scheduler: ManualCommandTimerScheduler()
+    )
+    coordinator.updateContext(snapshot: snapshot(revision: 1), isMediaActive: true)
+
+    let dispatch = Task { await coordinator.perform(.previous) }
+    await sender.waitUntilSent()
+    coordinator.receive(snapshot(revision: 2))
+    XCTAssertEqual(haptic.count, 0)
+
+    await sender.complete(with: .accepted)
+
+    let result = await dispatch.value
+    XCTAssertTrue(result)
+    XCTAssertEqual(haptic.count, 1)
+    XCTAssertNil(coordinator.pendingAction)
+  }
+
   func testSecondTrackActionAndUnsupportedCapabilityAreRejected() async {
     let sender = CommandSender(result: .accepted)
     let coordinator = MediaCommandCoordinator(
@@ -119,7 +167,8 @@ private actor CommandSender: MediaCommandSending {
 
   func send(
     _ action: MediaSurfaceAction,
-    to _: String
+    to _: String,
+    capabilityRevision _: UInt64
   ) -> MediaCommandDispatchResult {
     actions.append(action)
     return result
@@ -127,6 +176,39 @@ private actor CommandSender: MediaCommandSending {
 
   func recordedActions() -> [MediaSurfaceAction] {
     actions
+  }
+}
+
+private actor SuspendedCommandSender: MediaCommandSending {
+  private var resultContinuation: CheckedContinuation<MediaCommandDispatchResult, Never>?
+  private var sentContinuation: CheckedContinuation<Void, Never>?
+  private var hasSent = false
+
+  func send(
+    _: MediaSurfaceAction,
+    to _: String,
+    capabilityRevision _: UInt64
+  ) async -> MediaCommandDispatchResult {
+    hasSent = true
+    sentContinuation?.resume()
+    sentContinuation = nil
+    return await withCheckedContinuation { continuation in
+      resultContinuation = continuation
+    }
+  }
+
+  func waitUntilSent() async {
+    guard !hasSent else {
+      return
+    }
+    await withCheckedContinuation { continuation in
+      sentContinuation = continuation
+    }
+  }
+
+  func complete(with result: MediaCommandDispatchResult) {
+    resultContinuation?.resume(returning: result)
+    resultContinuation = nil
   }
 }
 

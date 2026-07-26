@@ -16,9 +16,14 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
   private var runtime: MediaRemoteRuntime?
   private var observerTokens: [NSObjectProtocol] = []
   private var pendingRefresh: DispatchWorkItem?
+  private var monitoringGeneration: UInt64 = 0
   private var contentRevision: UInt64 = 0
   private var currentSessionID: String?
   private var currentContentIdentity: ContentIdentity?
+  private var currentCapabilities: Set<MediaCapability> = []
+  private var currentCapabilityRevision: UInt64 = 0
+  private var currentArtworkData: Data?
+  private var currentArtworkMIMEType: String?
 
   func attach(client: any MediaRemoteClientProtocol) {
     self.client = client
@@ -47,9 +52,10 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
       }
 
       self.runtime = runtime
+      let generation = self.monitoringGeneration
       runtime.registerNotifications(on: self.queue)
-      self.installObservers()
-      self.refresh()
+      self.installObservers(generation: generation)
+      self.refresh(generation: generation)
       reply(true)
     }
   }
@@ -63,12 +69,15 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
   func sendCommand(
     _ action: String,
     sessionID: String,
+    capabilityRevision: NSNumber,
     value: NSNumber?,
     reply: @escaping @Sendable (Bool) -> Void
   ) {
     queue.async { [weak self] in
       guard let self, self.currentSessionID == sessionID,
-        let command = MediaRemoteCommandName(rawValue: action)
+        let command = MediaRemoteCommandName(rawValue: action),
+        capabilityRevision.exactUInt64 == self.currentCapabilityRevision,
+        self.currentCapabilities.contains(command.requiredCapability)
       else {
         reply(false)
         return
@@ -94,7 +103,7 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     }
   }
 
-  private func installObservers() {
+  private func installObservers(generation: UInt64) {
     let names = [
       "kMRMediaRemoteNowPlayingInfoDidChangeNotification",
       "kMRMediaRemoteNowPlayingApplicationDidChangeNotification",
@@ -106,50 +115,68 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
         object: nil,
         queue: nil
       ) { [weak self] _ in
-        self?.scheduleRefresh()
+        self?.scheduleRefresh(generation: generation)
       }
     }
   }
 
-  private func scheduleRefresh() {
+  private func scheduleRefresh(generation: UInt64) {
     queue.async { [weak self] in
-      guard let self else {
+      guard let self, generation == self.monitoringGeneration else {
         return
       }
       self.pendingRefresh?.cancel()
       let work = DispatchWorkItem { [weak self] in
-        self?.refresh()
+        self?.refresh(generation: generation)
       }
       self.pendingRefresh = work
       self.queue.asyncAfter(deadline: .now() + 0.1, execute: work)
     }
   }
 
-  private func refresh() {
-    guard let runtime else {
-      publishUnavailable()
+  private func refresh(generation: UInt64) {
+    guard generation == monitoringGeneration, let runtime else {
+      publishUnavailable(generation: generation)
       return
     }
 
     runtime.getNowPlayingInfo(on: queue) { [weak self] information in
-      guard let self else {
+      guard let self,
+        self.isCurrent(runtime: runtime, generation: generation)
+      else {
         return
       }
       guard let information, information.count > 0 else {
-        self.publishUnavailable()
+        self.publishUnavailable(generation: generation)
         return
       }
       runtime.getIsPlaying(on: self.queue) { [weak self] isPlaying in
-        guard let self else {
+        guard let self,
+          self.isCurrent(runtime: runtime, generation: generation)
+        else {
           return
         }
         runtime.getApplicationPID(on: self.queue) { [weak self] pid in
-          self?.publish(
-            information: information,
-            isPlaying: isPlaying,
-            processIdentifier: pid,
-            runtime: runtime
-          )
+          guard let self,
+            self.isCurrent(runtime: runtime, generation: generation)
+          else {
+            return
+          }
+          runtime.getSupportedCapabilities(on: self.queue) {
+            [weak self] capabilities in
+            guard let self,
+              self.isCurrent(runtime: runtime, generation: generation)
+            else {
+              return
+            }
+            self.publish(
+              information: information,
+              isPlaying: isPlaying,
+              processIdentifier: pid,
+              capabilities: capabilities,
+              generation: generation
+            )
+          }
         }
       }
     }
@@ -159,38 +186,66 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     information: NSDictionary,
     isPlaying: Bool,
     processIdentifier: Int32,
-    runtime: MediaRemoteRuntime
+    capabilities: Set<MediaCapability>,
+    generation: UInt64
   ) {
+    guard generation == monitoringGeneration else {
+      return
+    }
     let application =
       processIdentifier > 0
       ? NSRunningApplication(
         processIdentifier: pid_t(processIdentifier)
       ) : nil
-    let bundleIdentifier = application?.bundleIdentifier
-    let uniqueIdentifier =
+    let bundleIdentifier = MediaSession.bounded(
+      application?.bundleIdentifier,
+      maximum: MediaSession.maximumBundleIdentifierBytes
+    )
+    let uniqueIdentifier = MediaSession.bounded(
       information[
         "kMRMediaRemoteNowPlayingInfoUniqueIdentifier"
-      ] as? String
-    let sessionID =
+      ] as? String,
+      maximum: MediaSession.maximumMetadataBytes
+    )
+    let sessionCandidate =
       bundleIdentifier.map {
         "\($0):\(processIdentifier)"
       } ?? uniqueIdentifier.map { "media:\($0)" }
       ?? "media:global"
+    guard
+      let sessionID = MediaSession.bounded(
+        sessionCandidate,
+        maximum: MediaSession.maximumSessionIDBytes
+      )
+    else {
+      publishUnavailable(generation: generation)
+      return
+    }
+    let title = boundedMetadataString(
+      information["kMRMediaRemoteNowPlayingInfoTitle"]
+    )
+    let artist = boundedMetadataString(
+      information["kMRMediaRemoteNowPlayingInfoArtist"]
+    )
+    let album = boundedMetadataString(
+      information["kMRMediaRemoteNowPlayingInfoAlbum"]
+    )
     let contentIdentity = ContentIdentity(
       sessionID: sessionID,
       uniqueIdentifier: uniqueIdentifier,
-      title:
-        information["kMRMediaRemoteNowPlayingInfoTitle"] as? String,
-      artist:
-        information["kMRMediaRemoteNowPlayingInfoArtist"] as? String,
-      album:
-        information["kMRMediaRemoteNowPlayingInfoAlbum"] as? String
+      title: title,
+      artist: artist,
+      album: album
     )
     if currentContentIdentity != contentIdentity {
       contentRevision &+= 1
       currentContentIdentity = contentIdentity
     }
     currentSessionID = sessionID
+    if capabilities != currentCapabilities {
+      currentCapabilities = capabilities
+      currentCapabilityRevision &+= 1
+    }
 
     var propertyList: [String: Any] = [
       "protocolVersion": NSNumber(
@@ -202,66 +257,48 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
         isPlaying
         ? MediaPlaybackState.playing.rawValue
         : MediaPlaybackState.paused.rawValue,
-      "capabilityRevision": NSNumber(value: 1),
+      "capabilityRevision": NSNumber(value: currentCapabilityRevision),
       "contentRevision": NSNumber(value: contentRevision),
-      "capabilities": runtime.capabilities.map(\.rawValue).sorted(),
+      "capabilities": currentCapabilities.map(\.rawValue).sorted(),
     ]
-    copy(
-      "kMRMediaRemoteNowPlayingInfoTitle",
-      from: information,
-      to: "title",
-      in: &propertyList
+    propertyList["title"] = title
+    propertyList["artist"] = artist
+    propertyList["album"] = album
+    propertyList["duration"] = nonnegativeFiniteNumber(
+      information["kMRMediaRemoteNowPlayingInfoDuration"]
     )
-    copy(
-      "kMRMediaRemoteNowPlayingInfoArtist",
-      from: information,
-      to: "artist",
-      in: &propertyList
+    propertyList["progress"] = nonnegativeFiniteNumber(
+      information["kMRMediaRemoteNowPlayingInfoElapsedTime"]
     )
-    copy(
-      "kMRMediaRemoteNowPlayingInfoAlbum",
-      from: information,
-      to: "album",
-      in: &propertyList
-    )
-    copy(
-      "kMRMediaRemoteNowPlayingInfoDuration",
-      from: information,
-      to: "duration",
-      in: &propertyList
-    )
-    copy(
-      "kMRMediaRemoteNowPlayingInfoElapsedTime",
-      from: information,
-      to: "progress",
-      in: &propertyList
-    )
-    copy(
-      "kMRMediaRemoteNowPlayingInfoArtworkMIMEType",
-      from: information,
-      to: "artworkMIMEType",
-      in: &propertyList
-    )
-    if let artwork =
-      information[
-        "kMRMediaRemoteNowPlayingInfoArtworkData"
-      ] as? Data,
-      artwork.count <= MediaSession.maximumArtworkBytes
-    {
-      propertyList["artworkData"] = artwork
-    }
     if let bundleIdentifier {
       propertyList["sourceBundleIdentifier"] = bundleIdentifier
     }
-    if let name = application?.localizedName {
+    if let name = MediaSession.bounded(
+      application?.localizedName,
+      maximum: MediaSession.maximumApplicationNameBytes
+    ) {
       propertyList["applicationName"] = name
     }
+    if let shareURL = MediaSession.bounded(
+      information[
+        "kMRMediaRemoteNowPlayingInfoExternalContentIdentifier"
+      ] as? String,
+      maximum: 2_048
+    ) {
+      propertyList["publicShareURL"] = shareURL
+    }
+    appendArtworkUpdate(from: information, to: &propertyList)
+    propertyList = propertyList.compactMapValues { $0 }
     client?.mediaRemoteDidUpdate(propertyList as NSDictionary)
   }
 
-  private func publishUnavailable() {
+  private func publishUnavailable(generation: UInt64) {
+    guard generation == monitoringGeneration else {
+      return
+    }
     currentSessionID = nil
     currentContentIdentity = nil
+    currentCapabilities = []
     client?.mediaRemoteDidUpdate([
       "protocolVersion": NSNumber(
         value: MediaCompatibilityReport.protocolVersion
@@ -271,19 +308,62 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     ])
   }
 
-  private func copy(
-    _ sourceKey: String,
-    from source: NSDictionary,
-    to destinationKey: String,
-    in destination: inout [String: Any]
+  private func boundedMetadataString(_ value: Any?) -> String? {
+    MediaSession.bounded(
+      value as? String,
+      maximum: MediaSession.maximumMetadataBytes
+    )
+  }
+
+  private func nonnegativeFiniteNumber(_ value: Any?) -> NSNumber? {
+    guard let number = value as? NSNumber,
+      let double = number.finiteDoubleExcludingBoolean,
+      double >= 0
+    else {
+      return nil
+    }
+    return NSNumber(value: double)
+  }
+
+  private func appendArtworkUpdate(
+    from information: NSDictionary,
+    to propertyList: inout [String: Any]
   ) {
-    guard let value = source[sourceKey], !(value is NSNull) else {
+    let artwork =
+      (information[
+        "kMRMediaRemoteNowPlayingInfoArtworkData"
+      ] as? Data).flatMap {
+        $0.isEmpty || $0.count > MediaSession.maximumArtworkBytes ? nil : $0
+      }
+    let mimeType = MediaSession.bounded(
+      information[
+        "kMRMediaRemoteNowPlayingInfoArtworkMIMEType"
+      ] as? String,
+      maximum: MediaSession.maximumMimeTypeBytes
+    )
+    guard let artwork else {
+      propertyList["artworkUpdate"] =
+        currentArtworkData == nil
+        ? MediaArtworkWireUpdate.unchanged.rawValue
+        : MediaArtworkWireUpdate.clear.rawValue
+      currentArtworkData = nil
+      currentArtworkMIMEType = nil
       return
     }
-    destination[destinationKey] = value
+    guard artwork != currentArtworkData || mimeType != currentArtworkMIMEType else {
+      propertyList["artworkUpdate"] =
+        MediaArtworkWireUpdate.unchanged.rawValue
+      return
+    }
+    currentArtworkData = artwork
+    currentArtworkMIMEType = mimeType
+    propertyList["artworkUpdate"] = MediaArtworkWireUpdate.replace.rawValue
+    propertyList["artworkData"] = artwork
+    propertyList["artworkMIMEType"] = mimeType
   }
 
   private func stopMonitoringOnQueue() {
+    monitoringGeneration &+= 1
     pendingRefresh?.cancel()
     pendingRefresh = nil
     observerTokens.forEach(NotificationCenter.default.removeObserver)
@@ -292,6 +372,17 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     runtime = nil
     currentSessionID = nil
     currentContentIdentity = nil
+    currentCapabilities = []
+    currentCapabilityRevision = 0
+    currentArtworkData = nil
+    currentArtworkMIMEType = nil
+  }
+
+  private func isCurrent(
+    runtime: MediaRemoteRuntime,
+    generation: UInt64
+  ) -> Bool {
+    generation == monitoringGeneration && self.runtime === runtime
   }
 }
 
@@ -323,8 +414,6 @@ private final class MediaRemoteRuntime {
   private typealias PIDFunction =
     @convention(c) (DispatchQueue, PIDCompletion) -> Void
 
-  let capabilities: Set<MediaCapability>
-
   private let handle: UnsafeMutableRawPointer
   private let sendCommandFunction: SendCommandFunction
   private let registerFunction: RegisterFunction
@@ -333,6 +422,7 @@ private final class MediaRemoteRuntime {
   private let playingFunction: PlayingFunction
   private let pidFunction: PIDFunction
   private let setElapsedTimeFunction: SetElapsedTimeFunction?
+  private let supportedCommands: SupportedCommandsRuntime?
 
   init?(frameworkPath: String) {
     guard
@@ -387,16 +477,7 @@ private final class MediaRemoteRuntime {
     )
     setElapsedTimeFunction = elapsed
 
-    let report = MediaRemoteSymbolResolver.resolve {
-      dlsym(handle, $0)
-    }
-    var resolvedCapabilities: Set<MediaCapability> = [
-      .playPause,
-      .previous,
-      .next,
-    ]
-    resolvedCapabilities.formUnion(report.optionalCapabilities)
-    capabilities = resolvedCapabilities
+    supportedCommands = SupportedCommandsRuntime(handle: handle)
   }
 
   deinit {
@@ -439,6 +520,17 @@ private final class MediaRemoteRuntime {
     pidFunction(queue, block)
   }
 
+  func getSupportedCapabilities(
+    on queue: DispatchQueue,
+    completion: @escaping (Set<MediaCapability>) -> Void
+  ) {
+    guard let supportedCommands else {
+      completion([])
+      return
+    }
+    supportedCommands.getCapabilities(on: queue, completion: completion)
+  }
+
   func send(command: MediaRemoteCommandName, value: NSNumber?) -> Bool {
     switch command {
     case .togglePlayPause:
@@ -470,5 +562,97 @@ private final class MediaRemoteRuntime {
       return nil
     }
     return unsafeBitCast(pointer, to: Function.self)
+  }
+}
+
+private final class SupportedCommandsRuntime {
+  private typealias GetLocalOriginFunction =
+    @convention(c) () -> UnsafeRawPointer?
+  private typealias CommandsCompletion =
+    @convention(block) (NSArray?) -> Void
+  private typealias CopySupportedCommandsFunction =
+    @convention(c) (UnsafeRawPointer?, CommandsCompletion) -> Void
+  private typealias CommandInfoGetCommandFunction =
+    @convention(c) (UnsafeRawPointer) -> Int32
+  private typealias CommandInfoGetEnabledFunction =
+    @convention(c) (UnsafeRawPointer) -> UInt8
+
+  private let getLocalOrigin: GetLocalOriginFunction
+  private let copySupportedCommands: CopySupportedCommandsFunction
+  private let getCommand: CommandInfoGetCommandFunction
+  private let getEnabled: CommandInfoGetEnabledFunction
+
+  init?(handle: UnsafeMutableRawPointer) {
+    guard
+      let getLocalOrigin: GetLocalOriginFunction = Self.resolve(
+        "MRMediaRemoteGetLocalOrigin",
+        in: handle
+      ),
+      let copySupportedCommands: CopySupportedCommandsFunction = Self.resolve(
+        "MRMediaRemoteCopySupportedCommands",
+        in: handle
+      ),
+      let getCommand: CommandInfoGetCommandFunction = Self.resolve(
+        "MRMediaRemoteCommandInfoGetCommand",
+        in: handle
+      ),
+      let getEnabled: CommandInfoGetEnabledFunction = Self.resolve(
+        "MRMediaRemoteCommandInfoGetEnabled",
+        in: handle
+      )
+    else {
+      return nil
+    }
+    self.getLocalOrigin = getLocalOrigin
+    self.copySupportedCommands = copySupportedCommands
+    self.getCommand = getCommand
+    self.getEnabled = getEnabled
+  }
+
+  func getCapabilities(
+    on queue: DispatchQueue,
+    completion: @escaping (Set<MediaCapability>) -> Void
+  ) {
+    let getCommand = getCommand
+    let getEnabled = getEnabled
+    let completion = UncheckedClosure(completion)
+    let block: CommandsCompletion = { commands in
+      let capabilities = Set<MediaCapability>(
+        (commands as? [AnyObject] ?? []).compactMap { commandInfo in
+          let pointer = Unmanaged.passUnretained(commandInfo).toOpaque()
+          guard getEnabled(pointer) != 0 else {
+            return nil
+          }
+          return MediaRemoteCapabilityPolicy.capability(
+            forEnabledCommand: getCommand(pointer)
+          )
+        })
+      queue.async {
+        completion.call(capabilities)
+      }
+    }
+    copySupportedCommands(getLocalOrigin(), block)
+  }
+
+  private static func resolve<Function>(
+    _ symbol: String,
+    in handle: UnsafeMutableRawPointer
+  ) -> Function? {
+    guard let pointer = dlsym(handle, symbol) else {
+      return nil
+    }
+    return unsafeBitCast(pointer, to: Function.self)
+  }
+}
+
+private final class UncheckedClosure<Input>: @unchecked Sendable {
+  private let body: (Input) -> Void
+
+  init(_ body: @escaping (Input) -> Void) {
+    self.body = body
+  }
+
+  func call(_ input: Input) {
+    body(input)
   }
 }

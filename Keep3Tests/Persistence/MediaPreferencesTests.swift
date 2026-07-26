@@ -15,6 +15,8 @@ final class MediaPreferencesTests: XCTestCase {
     XCTAssertEqual(preferences.expansionTrigger, .hover)
     XCTAssertEqual(preferences.artworkTreatment, .artwork)
     XCTAssertTrue(preferences.showsWaveform)
+    XCTAssertFalse(preferences.showsArtworkFlip)
+    XCTAssertFalse(preferences.showsMediaTitleExtras)
     XCTAssertEqual(preferences.secondaryAction, .none)
     XCTAssertEqual(preferences.backgroundOpacity, 0.94)
     XCTAssertEqual(preferences.automationPermissionPosture, .notRequested)
@@ -47,14 +49,18 @@ final class MediaPreferencesTests: XCTestCase {
     preferences.setExpansionTrigger(.click)
     preferences.setArtworkTreatment(.monochrome)
     preferences.setShowsWaveform(false)
-    preferences.setSecondaryAction(.repeatMode)
+    preferences.setShowsArtworkFlip(true)
+    preferences.setShowsMediaTitleExtras(true)
+    preferences.setSecondaryAction(.repeatOne)
     preferences.setBackgroundOpacity(9)
 
     let relaunched = MediaPreferences(defaults: defaults)
     XCTAssertEqual(relaunched.expansionTrigger, .click)
     XCTAssertEqual(relaunched.artworkTreatment, .monochrome)
     XCTAssertFalse(relaunched.showsWaveform)
-    XCTAssertEqual(relaunched.secondaryAction, .repeatMode)
+    XCTAssertTrue(relaunched.showsArtworkFlip)
+    XCTAssertTrue(relaunched.showsMediaTitleExtras)
+    XCTAssertEqual(relaunched.secondaryAction, .repeatOne)
     XCTAssertEqual(
       relaunched.backgroundOpacity,
       MediaPreferences.backgroundOpacityRange.upperBound
@@ -64,7 +70,9 @@ final class MediaPreferencesTests: XCTestCase {
       MediaSurfaceAppearance(
         artworkTreatment: .monochrome,
         showsWaveform: false,
-        secondaryAction: .repeatMode,
+        showsArtworkFlip: true,
+        showsMediaTitleExtras: true,
+        secondaryAction: .repeatOne,
         backgroundOpacity: 1
       )
     )

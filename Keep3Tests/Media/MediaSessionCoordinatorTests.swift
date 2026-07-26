@@ -4,6 +4,47 @@ import XCTest
 
 @MainActor
 final class MediaSessionCoordinatorTests: XCTestCase {
+  func testLifecycleOperationsRemainOrderedAcrossStopAndRestart() async {
+    let queue = SerialMediaLifecycleQueue()
+    let gate = SuspendedLifecycleOperation()
+    var events: [String] = []
+
+    queue.enqueue {
+      events.append("old-stop-started")
+      await gate.wait()
+      events.append("old-stop-finished")
+    }
+    queue.enqueue {
+      events.append("new-start")
+    }
+
+    await Task.yield()
+    XCTAssertEqual(events, ["old-stop-started"])
+
+    await gate.resume()
+    await queue.waitUntilIdle()
+
+    XCTAssertEqual(
+      events,
+      ["old-stop-started", "old-stop-finished", "new-start"]
+    )
+  }
+
+  func testConnectionGenerationRejectsCallbacksAfterStopOrRestart() {
+    var generation = MediaAdapterConnectionGeneration()
+    let firstConnection = generation.advance()
+
+    generation.invalidate()
+    let secondConnection = generation.advance()
+
+    XCTAssertFalse(generation.accepts(firstConnection))
+    XCTAssertTrue(generation.accepts(secondConnection))
+
+    generation.invalidate()
+
+    XCTAssertFalse(generation.accepts(secondConnection))
+  }
+
   func testRejectsOldEpochAndRegressingRevisions() async {
     var deliveries: [MediaSessionSnapshot?] = []
     let coordinator = MediaSessionCoordinator {
@@ -92,6 +133,26 @@ final class MediaSessionCoordinatorTests: XCTestCase {
       capabilityRevision: capabilityRevision,
       contentRevision: contentRevision
     )
+  }
+}
+
+private actor SuspendedLifecycleOperation {
+  private var continuation: CheckedContinuation<Void, Never>?
+  private var isResumed = false
+
+  func wait() async {
+    guard !isResumed else {
+      return
+    }
+    await withCheckedContinuation { continuation in
+      self.continuation = continuation
+    }
+  }
+
+  func resume() {
+    isResumed = true
+    continuation?.resume()
+    continuation = nil
   }
 }
 

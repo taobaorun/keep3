@@ -9,7 +9,8 @@ enum MediaCommandDispatchResult: Equatable, Sendable {
 protocol MediaCommandSending: Sendable {
   func send(
     _ action: MediaSurfaceAction,
-    to sessionID: String
+    to sessionID: String,
+    capabilityRevision: UInt64
   ) async -> MediaCommandDispatchResult
 }
 
@@ -24,6 +25,8 @@ final class MediaCommandCoordinator {
     let subscriptionEpoch: UInt64
     let capabilityRevision: UInt64
     let contentRevisionBeforeDispatch: UInt64
+    var hasBeenAccepted = false
+    var candidateContentRevision: UInt64?
 
     var requiresTrackConfirmation: Bool {
       action == .previous || action == .next
@@ -103,7 +106,8 @@ final class MediaCommandCoordinator {
 
     let result = await sender.send(
       action,
-      to: snapshot.session.sessionID
+      to: snapshot.session.sessionID,
+      capabilityRevision: snapshot.capabilityRevision
     )
     guard pending?.token == command.token else {
       return lastCompletedToken == command.token
@@ -119,6 +123,11 @@ final class MediaCommandCoordinator {
     case .accepted:
       guard command.requiresTrackConfirmation else {
         clearPending()
+        return true
+      }
+      pending?.hasBeenAccepted = true
+      if pending?.candidateContentRevision != nil {
+        complete(command)
         return true
       }
       scheduleTimeout(for: command)
@@ -149,6 +158,10 @@ final class MediaCommandCoordinator {
       return
     }
 
+    guard pending.hasBeenAccepted else {
+      self.pending?.candidateContentRevision = snapshot.contentRevision
+      return
+    }
     complete(pending)
   }
 
@@ -172,11 +185,15 @@ final class MediaCommandCoordinator {
       requiredCapability = .next
     case .seek:
       requiredCapability = .seek
+    case .favorite:
+      requiredCapability = .favorite
     case .shuffle:
       requiredCapability = .shuffle
     case .repeatMode:
       requiredCapability = .repeatMode
-    case .hideSource:
+    case .repeatOne:
+      requiredCapability = .repeatOne
+    case .hideSource, .copySource:
       return false
     }
     return requiredCapability.map(session.capabilities.contains) ?? false

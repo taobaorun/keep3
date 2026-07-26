@@ -122,6 +122,31 @@ final class RotationScheduleTests: XCTestCase {
     XCTAssertEqual(scheduler.activeDelays, [30])
   }
 
+  func testMediaResumeRestartsFullCurrentFocusDeadlineWithoutRepublishing() {
+    let currentID = UUID()
+    let secondaryID = UUID()
+    let scheduler = ManualRotationTimerScheduler()
+    var visibleIDs: [UUID?] = []
+    let coordinator = RotationCoordinator(scheduler: scheduler) {
+      visibleIDs.append($0)
+    }
+    coordinator.update(
+      itemIDs: [currentID, secondaryID],
+      currentFocusID: currentID
+    )
+    scheduler.fireNext()
+    coordinator.pause()
+    let publicationCountBeforeResume = visibleIDs.count
+
+    coordinator.resumeAfterCurrentFocusWasPresented()
+
+    XCTAssertEqual(visibleIDs.count, publicationCountBeforeResume)
+    XCTAssertEqual(scheduler.activeDelays, [30])
+
+    scheduler.fireNext()
+    XCTAssertEqual(visibleIDs.last!, secondaryID)
+  }
+
   func testDisablingRotationLeavesCurrentFocusVisibleWithoutTimer() {
     let currentID = UUID()
     let secondaryID = UUID()

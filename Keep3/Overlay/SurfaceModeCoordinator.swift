@@ -9,6 +9,7 @@ final class SurfaceModeCoordinator {
   private let onMediaOwnershipChange: (Bool) -> Void
 
   private var focusPayload: FocusSurfacePayload?
+  private var currentDesignatedFocusID: UUID?
   private var mediaPayload: MediaSurfacePayload?
   private var renderedPresentation: TopSurfacePresentation?
   private var generation: UInt64 = 0
@@ -27,7 +28,7 @@ final class SurfaceModeCoordinator {
   private var frontmostBundleIdentifier: String?
 
   var designatedFocusID: UUID? {
-    focusPayload?.visibleItemID
+    currentDesignatedFocusID
   }
 
   init(
@@ -55,9 +56,16 @@ final class SurfaceModeCoordinator {
   }
 
   func updateFocus(_ payload: FocusSurfacePayload) {
+    if currentDesignatedFocusID == nil {
+      currentDesignatedFocusID = payload.visibleItemID
+    }
     focusPayload = payload
     generation &+= 1
     reconcile()
+  }
+
+  func updateDesignatedFocusID(_ focusID: UUID?) {
+    currentDesignatedFocusID = focusID
   }
 
   func updateMedia(_ payload: MediaSurfacePayload?) {
@@ -72,6 +80,7 @@ final class SurfaceModeCoordinator {
     isInHandoffGrace = false
 
     guard let payload else {
+      prepareDesignatedFocusForMediaExit()
       mediaPayload = nil
       beginHandoffGraceIfNeeded()
       return
@@ -268,8 +277,34 @@ final class SurfaceModeCoordinator {
     handoffTimer?.cancel()
     handoffTimer = nil
     isInHandoffGrace = false
+    prepareDesignatedFocusForMediaExit()
     mediaPayload = nil
     reconcile()
+  }
+
+  private func prepareDesignatedFocusForMediaExit() {
+    guard
+      mediaPayload != nil || renderedPresentation?.isMedia == true
+    else {
+      return
+    }
+    guard let currentDesignatedFocusID else {
+      focusPayload = nil
+      return
+    }
+    if let focusPayload,
+      focusPayload.visibleItemID == currentDesignatedFocusID,
+      !focusPayload.isExpanded,
+      focusPayload.expansionReason == .none
+    {
+      return
+    }
+    focusPayload = FocusSurfacePayload(
+      visibleItemID: currentDesignatedFocusID,
+      isExpanded: false,
+      revision: nextGeneration(),
+      expansionReason: .none
+    )
   }
 
   private func reconcile() {

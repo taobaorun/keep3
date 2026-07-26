@@ -23,8 +23,11 @@ enum MediaArtworkTreatment: String, CaseIterable, Codable, Equatable, Sendable {
 
 enum MediaSecondaryAction: String, CaseIterable, Codable, Equatable, Sendable {
   case none
+  case favorite
   case shuffle
   case repeatMode
+  case repeatOne
+  case copySource
 }
 
 enum MediaSurfaceAction: Equatable, Sendable {
@@ -33,19 +36,26 @@ enum MediaSurfaceAction: Equatable, Sendable {
   case next
   case seek(to: TimeInterval)
   case hideSource
+  case favorite
   case shuffle
   case repeatMode
+  case repeatOne
+  case copySource(URL)
 }
 
 struct MediaSurfaceAppearance: Equatable, Sendable {
   let artworkTreatment: MediaArtworkTreatment
   let showsWaveform: Bool
+  let showsArtworkFlip: Bool
+  let showsMediaTitleExtras: Bool
   let secondaryAction: MediaSecondaryAction
   let backgroundOpacity: Double
 
   static let standard = MediaSurfaceAppearance(
     artworkTreatment: .artwork,
     showsWaveform: true,
+    showsArtworkFlip: false,
+    showsMediaTitleExtras: false,
     secondaryAction: .none,
     backgroundOpacity: 0.94
   )
