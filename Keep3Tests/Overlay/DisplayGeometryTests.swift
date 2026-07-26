@@ -49,7 +49,7 @@ final class DisplayGeometryTests: XCTestCase {
     XCTAssertEqual(DisplayGeometry(descriptor: descriptor).placement, .floating)
   }
 
-  func testNotchedLayoutUsesOneFixedTopAlignedCanvasForBothStates() {
+  func testNotchedLayoutRightSizesPanelForEverySurfaceLevel() {
     let descriptor = DisplayDescriptor(
       frame: CGRect(x: 0, y: 0, width: 1_728, height: 1_117),
       visibleFrame: CGRect(x: 0, y: 0, width: 1_728, height: 1_079),
@@ -59,21 +59,29 @@ final class DisplayGeometryTests: XCTestCase {
     )
     let geometry = DisplayGeometry(descriptor: descriptor)
 
-    let compact = geometry.layout(isExpanded: false)
-    let expanded = geometry.layout(isExpanded: true)
+    let hardware = geometry.layout(level: .hardware)
+    let compact = geometry.layout(level: .compact)
+    let expanded = geometry.layout(level: .expanded)
 
-    XCTAssertEqual(compact.panelFrame, expanded.panelFrame)
+    XCTAssertEqual(
+      hardware.panelFrame,
+      CGRect(x: 771, y: 1_085, width: 185, height: 32)
+    )
     XCTAssertEqual(compact.panelFrame.maxY, descriptor.frame.maxY, accuracy: 0.001)
-    XCTAssertEqual(compact.panelFrame.height, 216, accuracy: 0.001)
-    XCTAssertEqual(compact.surfaceFrameInPanel.maxY, compact.panelFrame.height)
+    XCTAssertEqual(compact.panelFrame.height, 32, accuracy: 0.001)
+    XCTAssertNotEqual(compact.panelFrame, expanded.panelFrame)
     XCTAssertEqual(compact.surfaceFrameInPanel.height, 32, accuracy: 0.001)
     XCTAssertGreaterThanOrEqual(
       compact.surfaceFrameInPanel.width,
       185 + (2 * 96)
     )
     XCTAssertEqual(
-      expanded.surfaceFrameInPanel,
+      compact.surfaceFrameInPanel,
       CGRect(origin: .zero, size: compact.panelFrame.size)
+    )
+    XCTAssertEqual(
+      expanded.surfaceFrameInPanel,
+      CGRect(origin: .zero, size: expanded.panelFrame.size)
     )
     XCTAssertEqual(compact.obstructionSize, CGSize(width: 185, height: 32))
   }
@@ -209,6 +217,32 @@ final class DisplayGeometryTests: XCTestCase {
       accuracy: 0.001
     )
     XCTAssertEqual(geometry.compactFrame.size, CGSize(width: 310, height: 44))
-    XCTAssertEqual(geometry.expandedFrame.size, CGSize(width: 380, height: 240))
+    XCTAssertEqual(geometry.expandedFrame.size, CGSize(width: 344, height: 170))
+  }
+
+  func testNotchedMediaUsesArtworkAndWaveformSizedWings() {
+    let descriptor = DisplayDescriptor(
+      frame: CGRect(x: 0, y: 0, width: 1_728, height: 1_117),
+      visibleFrame: CGRect(x: 0, y: 0, width: 1_728, height: 1_079),
+      safeAreaInsets: DisplayInsets(top: 32, left: 0, bottom: 0, right: 0),
+      auxiliaryTopLeftArea: CGRect(x: 0, y: 1_085, width: 771, height: 32),
+      auxiliaryTopRightArea: CGRect(x: 956, y: 1_085, width: 772, height: 32)
+    )
+    let geometry = DisplayGeometry(descriptor: descriptor, metrics: .media)
+
+    let compact = geometry.layout(isExpanded: false)
+    let expanded = geometry.layout(isExpanded: true)
+
+    XCTAssertEqual(compact.panelFrame.size, CGSize(width: 259, height: 32))
+    XCTAssertEqual(
+      compact.surfaceFrameInPanel.size,
+      CGSize(width: 259, height: 32)
+    )
+    XCTAssertEqual(compact.surfaceFrameInPanel.origin, .zero)
+    XCTAssertEqual(expanded.panelFrame.size, CGSize(width: 344, height: 170))
+    XCTAssertEqual(
+      expanded.surfaceFrameInPanel,
+      CGRect(origin: .zero, size: CGSize(width: 344, height: 170))
+    )
   }
 }

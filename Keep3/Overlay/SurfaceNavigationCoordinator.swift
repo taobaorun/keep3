@@ -9,6 +9,7 @@ final class SurfaceNavigationCoordinator {
   private var selectedComponent: SurfaceComponentID = .priorities
   private var selectionSource: SurfaceSelectionSource = .fallback
   private var level: SurfaceLevel = .hardware
+  private var isHoverPreviewed = false
   private var mediaSessionID: String?
   private var isSurfaceAvailable = true
   private var isAwaitingReconciliation = false
@@ -19,6 +20,7 @@ final class SurfaceNavigationCoordinator {
       selectedComponent: selectedComponent,
       selectionSource: selectionSource,
       level: level,
+      isHoverPreviewed: isHoverPreviewed,
       isPresented: isSurfaceAvailable && !isAwaitingReconciliation,
       generation: generation
     )
@@ -75,9 +77,17 @@ final class SurfaceNavigationCoordinator {
   }
 
   func navigate(_ direction: SurfaceNavigationDirection) {
-    guard let selectedIndex = index(of: selectedComponent) else {
-      selectFallback(after: .priorities)
+    guard moveSelection(direction) else {
       return
+    }
+    publish()
+  }
+
+  private func moveSelection(_ direction: SurfaceNavigationDirection) -> Bool {
+    guard let selectedIndex = index(of: selectedComponent) else {
+      selectedComponent = .priorities
+      selectionSource = .fallback
+      return true
     }
 
     let step = direction == .next ? 1 : -1
@@ -89,10 +99,10 @@ final class SurfaceNavigationCoordinator {
       if isAvailable(candidate) {
         selectedComponent = candidate
         selectionSource = .manual
-        publish()
-        return
+        return true
       }
     }
+    return false
   }
 
   func setLevel(_ level: SurfaceLevel) {
@@ -101,6 +111,68 @@ final class SurfaceNavigationCoordinator {
     }
     self.level = level
     publish()
+  }
+
+  func setHovering(_ isHovering: Bool) {
+    let shouldPreview = isHovering && level == .hardware
+    guard isHoverPreviewed != shouldPreview else {
+      return
+    }
+    isHoverPreviewed = shouldPreview
+    publish()
+  }
+
+  func apply(_ intent: SurfaceGestureIntent) {
+    var didChange = isHoverPreviewed
+    isHoverPreviewed = false
+    switch intent {
+    case .advanceDepth:
+      switch level {
+      case .hardware:
+        level = .compact
+        didChange = true
+      case .compact:
+        level = .expanded
+        didChange = true
+      case .expanded:
+        didChange = moveSelection(.next)
+        if level != .compact {
+          level = .compact
+          didChange = true
+        }
+      }
+    case .retreatDepth:
+      switch level {
+      case .hardware:
+        break
+      case .compact:
+        level = .hardware
+        didChange = true
+      case .expanded:
+        didChange = moveSelection(.previous)
+        if level != .compact {
+          level = .compact
+          didChange = true
+        }
+      }
+    case .previousComponent:
+      didChange = moveSelection(.previous)
+      if level != .compact {
+        level = .compact
+        didChange = true
+      }
+    case .nextComponent:
+      didChange = moveSelection(.next)
+      if level != .compact {
+        level = .compact
+        didChange = true
+      }
+    case .previousTrack, .nextTrack:
+      break
+    }
+    if didChange {
+      publish()
+    }
   }
 
   func beginMediaSession(_ sessionID: String) {

@@ -64,20 +64,68 @@ enum SurfacePlacement: Equatable {
 }
 
 struct SurfaceMetrics: Equatable {
+  enum NotchedCompactSizing: Equatable {
+    case flexible(minimumWingWidth: CGFloat)
+    case fixedWingWidth(CGFloat)
+
+    func width(
+      obstructionWidth: CGFloat,
+      preferredWidth: CGFloat,
+      maximumWidth: CGFloat
+    ) -> CGFloat {
+      let wingWidth: CGFloat
+      let includesPreferredWidth: Bool
+
+      switch self {
+      case .flexible(let minimumWingWidth):
+        wingWidth = minimumWingWidth
+        includesPreferredWidth = true
+      case .fixedWingWidth(let fixedWingWidth):
+        wingWidth = fixedWingWidth
+        includesPreferredWidth = false
+      }
+
+      let contentWidth = obstructionWidth + (2 * max(0, wingWidth))
+      return min(
+        includesPreferredWidth
+          ? max(preferredWidth, contentWidth)
+          : contentWidth,
+        maximumWidth
+      )
+    }
+  }
+
   let compactSize: CGSize
   let expandedSize: CGSize
   let floatingTopSpacing: CGFloat
+  let notchedCompactSizing: NotchedCompactSizing
+
+  init(
+    compactSize: CGSize,
+    expandedSize: CGSize,
+    floatingTopSpacing: CGFloat,
+    notchedCompactSizing: NotchedCompactSizing = .flexible(
+      minimumWingWidth: 96
+    )
+  ) {
+    self.compactSize = compactSize
+    self.expandedSize = expandedSize
+    self.floatingTopSpacing = floatingTopSpacing
+    self.notchedCompactSizing = notchedCompactSizing
+  }
 
   static let standard = SurfaceMetrics(
     compactSize: CGSize(width: 280, height: 44),
     expandedSize: CGSize(width: 360, height: 216),
-    floatingTopSpacing: 8
+    floatingTopSpacing: 8,
+    notchedCompactSizing: .flexible(minimumWingWidth: 96)
   )
 
   static let media = SurfaceMetrics(
     compactSize: CGSize(width: 310, height: 44),
-    expandedSize: CGSize(width: 380, height: 240),
-    floatingTopSpacing: 8
+    expandedSize: CGSize(width: 344, height: 170),
+    floatingTopSpacing: 8,
+    notchedCompactSizing: .fixedWingWidth(37)
   )
 }
 
@@ -95,8 +143,6 @@ struct SurfaceLayout: Equatable {
 }
 
 struct DisplayGeometry: Equatable {
-  private static let minimumNotchWingWidth: CGFloat = 96
-
   let descriptor: DisplayDescriptor
   let metrics: SurfaceMetrics
 
@@ -114,18 +160,38 @@ struct DisplayGeometry: Equatable {
   }
 
   var compactFrame: CGRect {
-    layout(isExpanded: false).surfaceFrameInScreen
+    layout(level: .compact).surfaceFrameInScreen
   }
 
   var expandedFrame: CGRect {
-    layout(isExpanded: true).surfaceFrameInScreen
+    layout(level: .expanded).surfaceFrameInScreen
+  }
+
+  var hardwareFrame: CGRect {
+    layout(level: .hardware).surfaceFrameInScreen
   }
 
   func layout(isExpanded: Bool) -> SurfaceLayout {
+    layout(level: isExpanded ? .expanded : .compact)
+  }
+
+  func layout(level: SurfaceLevel) -> SurfaceLayout {
     switch placement {
     case .floating:
+      let requestedSize: CGSize
+      switch level {
+      case .hardware:
+        requestedSize = CGSize(
+          width: min(metrics.compactSize.width, 160),
+          height: min(metrics.compactSize.height, 8)
+        )
+      case .compact:
+        requestedSize = metrics.compactSize
+      case .expanded:
+        requestedSize = metrics.expandedSize
+      }
       let panelFrame = floatingSurfaceFrame(
-        for: isExpanded ? metrics.expandedSize : metrics.compactSize
+        for: requestedSize
       )
       return SurfaceLayout(
         panelFrame: panelFrame,
@@ -136,7 +202,7 @@ struct DisplayGeometry: Equatable {
     case .notched(let obstructionFrame):
       return notchedLayout(
         obstructionFrame: obstructionFrame,
-        isExpanded: isExpanded
+        level: level
       )
     }
   }
@@ -184,44 +250,44 @@ struct DisplayGeometry: Equatable {
 
   private func notchedLayout(
     obstructionFrame: CGRect,
-    isExpanded: Bool
+    level: SurfaceLevel
   ) -> SurfaceLayout {
     let screenFrame = descriptor.frame.standardized
-    let minimumCompactWidth =
-      obstructionFrame.width + (2 * Self.minimumNotchWingWidth)
-    let compactWidth = min(
-      max(metrics.compactSize.width, minimumCompactWidth),
-      screenFrame.width
+    let compactWidth = metrics.notchedCompactSizing.width(
+      obstructionWidth: obstructionFrame.width,
+      preferredWidth: metrics.compactSize.width,
+      maximumWidth: screenFrame.width
     )
-    let panelSize = CGSize(
-      width: min(
-        max(metrics.expandedSize.width, compactWidth),
-        screenFrame.width
-      ),
-      height: min(
-        max(metrics.expandedSize.height, obstructionFrame.height),
-        screenFrame.height
+    let panelSize: CGSize
+    switch level {
+    case .hardware:
+      panelSize = obstructionFrame.size
+    case .compact:
+      panelSize = CGSize(
+        width: compactWidth,
+        height: obstructionFrame.height
       )
-    )
+    case .expanded:
+      panelSize = CGSize(
+        width: min(
+          max(metrics.expandedSize.width, obstructionFrame.width),
+          screenFrame.width
+        ),
+        height: min(
+          max(metrics.expandedSize.height, obstructionFrame.height),
+          screenFrame.height
+        )
+      )
+    }
     let panelFrame = topAlignedFrame(
       size: panelSize,
       anchorX: obstructionFrame.midX,
       bounds: screenFrame
     )
-    let surfaceSize =
-      isExpanded
-      ? panelSize
-      : CGSize(width: compactWidth, height: obstructionFrame.height)
-    let surfaceFrameInPanel = CGRect(
-      x: (panelSize.width - surfaceSize.width) / 2,
-      y: panelSize.height - surfaceSize.height,
-      width: surfaceSize.width,
-      height: surfaceSize.height
-    )
 
     return SurfaceLayout(
       panelFrame: panelFrame,
-      surfaceFrameInPanel: surfaceFrameInPanel,
+      surfaceFrameInPanel: CGRect(origin: .zero, size: panelSize),
       obstructionSize: obstructionFrame.size
     )
   }

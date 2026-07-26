@@ -180,17 +180,18 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertFalse(originalPanel.isVisible)
   }
 
-  func testControllerKeepsNotchedPanelFrameWhileSurfaceExpandsInsideIt() throws {
+  func testControllerReusesAndRightSizesNotchedPanelAcrossLevels() throws {
     let controller = TopSurfaceController()
-    let panelFrame = CGRect(x: 675, y: 901, width: 377, height: 216)
+    let compactPanelFrame = CGRect(x: 675, y: 1_085, width: 377, height: 32)
+    let expandedPanelFrame = CGRect(x: 683, y: 901, width: 360, height: 216)
     let compactLayout = SurfaceLayout(
-      panelFrame: panelFrame,
-      surfaceFrameInPanel: CGRect(x: 0, y: 184, width: 377, height: 32),
+      panelFrame: compactPanelFrame,
+      surfaceFrameInPanel: CGRect(origin: .zero, size: compactPanelFrame.size),
       obstructionSize: CGSize(width: 185, height: 32)
     )
     let expandedLayout = SurfaceLayout(
-      panelFrame: panelFrame,
-      surfaceFrameInPanel: CGRect(x: 0, y: 0, width: 377, height: 216),
+      panelFrame: expandedPanelFrame,
+      surfaceFrameInPanel: CGRect(origin: .zero, size: expandedPanelFrame.size),
       obstructionSize: CGSize(width: 185, height: 32)
     )
     defer { controller.remove() }
@@ -206,7 +207,7 @@ final class TopSurfacePanelTests: XCTestCase {
       content: try makeContent(title: "写 Keep3", isExpanded: true)
     )
 
-    XCTAssertEqual(panel.frame, panelFrame)
+    XCTAssertEqual(panel.frame, expandedPanelFrame)
     XCTAssertEqual(
       panel.renderedSurfaceFrameInPanel,
       expandedLayout.surfaceFrameInPanel
