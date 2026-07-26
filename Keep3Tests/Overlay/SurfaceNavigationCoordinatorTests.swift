@@ -43,6 +43,50 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
     XCTAssertEqual(coordinator.state.selectedComponent, .priorities)
   }
 
+  func testManualNavigationPublishesMirroredTransitionDirections() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .priorities)
+    coordinator.setAvailability(true, for: .media)
+    coordinator.setAvailability(true, for: .calendar)
+
+    coordinator.navigate(.next)
+
+    XCTAssertEqual(coordinator.state.transitionIntent, .manualComponent(.next))
+
+    coordinator.navigate(.previous)
+
+    XCTAssertEqual(
+      coordinator.state.transitionIntent,
+      .manualComponent(.previous)
+    )
+  }
+
+  func testDepthChangesPublishExpansionAndCollapseIntents() {
+    let coordinator = SurfaceNavigationCoordinator()
+
+    coordinator.setLevel(.compact)
+    XCTAssertEqual(coordinator.state.transitionIntent, .expansion)
+
+    coordinator.setLevel(.hardware)
+    XCTAssertEqual(coordinator.state.transitionIntent, .collapse)
+  }
+
+  func testAutomaticAndLifecycleChangesPublishNeutralIntents() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .priorities)
+
+    coordinator.beginMediaSession("session-1")
+    XCTAssertEqual(coordinator.state.transitionIntent, .automaticComponent)
+
+    coordinator.setSurfaceAvailable(false)
+    XCTAssertEqual(coordinator.state.transitionIntent, .lifecycleHide)
+
+    coordinator.setSurfaceAvailable(true)
+    coordinator.reconcileAfterAvailability()
+
+    XCTAssertEqual(coordinator.state.transitionIntent, .lifecycleRestore)
+  }
+
   func testSelectedUnavailableFallsForwardThenUltimatelyReturnsPriorities() {
     let coordinator = SurfaceNavigationCoordinator()
     coordinator.setAvailability(true, for: .priorities)

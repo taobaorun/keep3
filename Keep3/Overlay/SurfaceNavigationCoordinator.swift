@@ -16,6 +16,7 @@ final class SurfaceNavigationCoordinator {
   private var isSurfaceAvailable = true
   private var isAwaitingReconciliation = false
   private var generation: UInt64 = 0
+  private var transitionIntent = SurfaceTransitionIntent.initial
 
   var state: SurfaceNavigationState {
     SurfaceNavigationState(
@@ -25,7 +26,8 @@ final class SurfaceNavigationCoordinator {
       isHovering: isHovering,
       isHoverPreviewed: isHoverPreviewed,
       isPresented: isSurfaceAvailable && !isAwaitingReconciliation,
-      generation: generation
+      generation: generation,
+      transitionIntent: transitionIntent
     )
   }
 
@@ -76,14 +78,14 @@ final class SurfaceNavigationCoordinator {
     selectedComponent = component
     selectionSource = .manual
     recordManualMediaSelection()
-    publish()
+    publish(intent: .manualSelection)
   }
 
   func navigate(_ direction: SurfaceNavigationDirection) {
     guard moveSelection(direction) else {
       return
     }
-    publish()
+    publish(intent: .manualComponent(direction))
   }
 
   private func moveSelection(_ direction: SurfaceNavigationDirection) -> Bool {
@@ -113,11 +115,14 @@ final class SurfaceNavigationCoordinator {
     guard self.level != level else {
       return
     }
+    let intent: SurfaceTransitionIntent =
+      level.depth > self.level.depth ? .expansion : .collapse
     self.level = level
-    publish()
+    publish(intent: intent)
   }
 
   func setHovering(_ isHovering: Bool) {
+    let previousEffectiveLevel = state.effectiveLevel
     let didHoverChange = self.isHovering != isHovering
     self.isHovering = isHovering
 
@@ -127,7 +132,7 @@ final class SurfaceNavigationCoordinator {
     {
       isHoverPreviewed = false
       level = .compact
-      publish()
+      publish(intent: .collapse)
       return
     }
 
@@ -136,7 +141,12 @@ final class SurfaceNavigationCoordinator {
       return
     }
     isHoverPreviewed = shouldPreview
-    publish()
+    publish(
+      intent: transitionIntent(
+        from: previousEffectiveLevel,
+        to: state.effectiveLevel
+      )
+    )
   }
 
   func apply(_ intent: SurfaceGestureIntent) {
@@ -147,6 +157,8 @@ final class SurfaceNavigationCoordinator {
       break
     }
 
+    let previousComponent = selectedComponent
+    let previousLevel = state.effectiveLevel
     var didChange = isHoverPreviewed
     isHoverPreviewed = false
     switch intent {
@@ -192,7 +204,18 @@ final class SurfaceNavigationCoordinator {
       return
     }
     if didChange {
-      publish()
+      let publicationIntent: SurfaceTransitionIntent
+      if selectedComponent != previousComponent {
+        let direction: SurfaceNavigationDirection =
+          intent == .previousComponent ? .previous : .next
+        publicationIntent = .manualComponent(direction)
+      } else {
+        publicationIntent = transitionIntent(
+          from: previousLevel,
+          to: state.effectiveLevel
+        )
+      }
+      publish(intent: publicationIntent)
     }
   }
 
@@ -207,13 +230,13 @@ final class SurfaceNavigationCoordinator {
     availability[.media] = true
     if preservesManualSelection {
       selectionSource = .manual
-      publish()
+      publish(intent: .automaticComponent)
       return
     }
     manuallyDismissedMediaSessionID = nil
     selectedComponent = .media
     selectionSource = .automaticMedia
-    publish()
+    publish(intent: .automaticComponent)
   }
 
   func refreshMediaSession(_ sessionID: String) {
@@ -238,7 +261,7 @@ final class SurfaceNavigationCoordinator {
     selectionSource = .mediaExit
     isHoverPreviewed = false
     level = .compact
-    publish()
+    publish(intent: .automaticComponent)
   }
 
   private func recordManualMediaSelection() {
@@ -255,7 +278,7 @@ final class SurfaceNavigationCoordinator {
     }
     isSurfaceAvailable = isAvailable
     isAwaitingReconciliation = true
-    publish()
+    publish(intent: .lifecycleHide)
   }
 
   func reconcileAfterAvailability() {
@@ -263,13 +286,13 @@ final class SurfaceNavigationCoordinator {
       return
     }
     isAwaitingReconciliation = false
-    publish()
+    publish(intent: .lifecycleRestore)
   }
 
   private func selectFallback(after component: SurfaceComponentID) {
     selectedComponent = firstAvailableComponent(after: component) ?? .priorities
     selectionSource = .fallback
-    publish()
+    publish(intent: .automaticComponent)
   }
 
   private func firstAvailableComponent(
@@ -293,7 +316,21 @@ final class SurfaceNavigationCoordinator {
     orderedComponents.firstIndex(where: { $0.id == component })
   }
 
-  private func publish() {
+  private func transitionIntent(
+    from source: SurfaceLevel,
+    to target: SurfaceLevel
+  ) -> SurfaceTransitionIntent {
+    if target.depth > source.depth {
+      return .expansion
+    }
+    if target.depth < source.depth {
+      return .collapse
+    }
+    return .content
+  }
+
+  private func publish(intent: SurfaceTransitionIntent = .content) {
+    transitionIntent = intent
     generation &+= 1
     onStateChange(state)
   }

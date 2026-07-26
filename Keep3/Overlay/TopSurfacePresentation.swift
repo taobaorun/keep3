@@ -178,8 +178,207 @@ extension TopSurfacePresentation {
       .calendar
     }
   }
+
+  var level: SurfaceLevel? {
+    switch self {
+    case .hidden:
+      nil
+    case .focus(let payload):
+      payload.level
+    case .media(let payload):
+      payload.level
+    case .calendar(let payload):
+      payload.level
+    }
+  }
+
+  func sharesSurfaceIdentity(
+    with other: TopSurfacePresentation
+  ) -> Bool {
+    guard componentID != nil else {
+      return false
+    }
+    return componentID == other.componentID && level == other.level
+  }
 }
 
 enum TopSurfaceInteractionIntent: Equatable, Sendable {
   case focus(visibleItemID: UUID?, isExpanded: Bool)
+}
+
+enum SurfaceTransitionPhase: Equatable, Sendable {
+  case hidden
+  case transitioning
+  case settled
+}
+
+struct SurfaceTransitionContext: Equatable, Sendable {
+  let source: TopSurfacePresentation
+  let target: TopSurfacePresentation
+  let trigger: SurfaceTransitionTrigger
+  let direction: SurfaceTransitionDirection
+  let phase: SurfaceTransitionPhase
+  let generation: UInt64
+  let motion: SignatureSurfaceTransition
+}
+
+@MainActor
+final class SurfaceTransitionCoordinator {
+  private(set) var context: SurfaceTransitionContext
+  private var generation: UInt64 = 0
+
+  init(
+    initialTarget: TopSurfacePresentation = .hidden,
+    reduceMotion: Bool = false
+  ) {
+    context = SurfaceTransitionContext(
+      source: initialTarget,
+      target: initialTarget,
+      trigger: .initial,
+      direction: .neutral,
+      phase: initialTarget == .hidden ? .hidden : .settled,
+      generation: generation,
+      motion: Self.resolveMotion(
+        intent: .initial,
+        reduceMotion: reduceMotion
+      )
+    )
+  }
+
+  @discardableResult
+  func transition(
+    to target: TopSurfacePresentation,
+    intent: SurfaceTransitionIntent,
+    reduceMotion: Bool
+  ) -> SurfaceTransitionContext {
+    guard target != context.target else {
+      return context
+    }
+
+    generation &+= 1
+
+    if context.phase == .transitioning,
+      context.target.sharesSurfaceIdentity(with: target)
+    {
+      let resolvedMotion =
+        context.motion.motionPolicy == (reduceMotion ? .crossfade : .standard)
+        ? context.motion
+        : Self.resolveMotion(
+          intent: SurfaceTransitionIntent(
+            trigger: context.trigger,
+            direction: context.direction
+          ),
+          reduceMotion: reduceMotion
+        )
+      context = SurfaceTransitionContext(
+        source: context.source,
+        target: target,
+        trigger: context.trigger,
+        direction: context.direction,
+        phase: .transitioning,
+        generation: generation,
+        motion: resolvedMotion
+      )
+      return context
+    }
+
+    let isContentUpdate = context.target.sharesSurfaceIdentity(with: target)
+    let resolvedIntent = isContentUpdate ? .content : intent
+    let source = context.target
+    let phase: SurfaceTransitionPhase
+    if target == .hidden {
+      phase = .hidden
+    } else if source == .hidden {
+      phase = .settled
+    } else {
+      phase = .transitioning
+    }
+    context = SurfaceTransitionContext(
+      source: source,
+      target: target,
+      trigger: resolvedIntent.trigger,
+      direction: resolvedIntent.direction,
+      phase: phase,
+      generation: generation,
+      motion: Self.resolveMotion(
+        intent: resolvedIntent,
+        reduceMotion: reduceMotion
+      )
+    )
+    return context
+  }
+
+  @discardableResult
+  func complete(generation: UInt64) -> Bool {
+    guard context.phase == .transitioning,
+      context.generation == generation
+    else {
+      return false
+    }
+    context = SurfaceTransitionContext(
+      source: context.target,
+      target: context.target,
+      trigger: context.trigger,
+      direction: context.direction,
+      phase: .settled,
+      generation: generation,
+      motion: context.motion
+    )
+    return true
+  }
+
+  @discardableResult
+  func cancelForLifecycle() -> SurfaceTransitionContext {
+    generation &+= 1
+    let intent = SurfaceTransitionIntent.lifecycleHide
+    let reduceMotion = context.motion.motionPolicy == .crossfade
+    context = SurfaceTransitionContext(
+      source: context.target,
+      target: .hidden,
+      trigger: intent.trigger,
+      direction: intent.direction,
+      phase: .hidden,
+      generation: generation,
+      motion: Self.resolveMotion(
+        intent: intent,
+        reduceMotion: reduceMotion
+      )
+    )
+    return context
+  }
+
+  @discardableResult
+  func reconcile(
+    to target: TopSurfacePresentation,
+    reduceMotion: Bool
+  ) -> SurfaceTransitionContext {
+    generation &+= 1
+    let intent = SurfaceTransitionIntent.lifecycleRestore
+    context = SurfaceTransitionContext(
+      source: target,
+      target: target,
+      trigger: intent.trigger,
+      direction: intent.direction,
+      phase: target == .hidden ? .hidden : .settled,
+      generation: generation,
+      motion: Self.resolveMotion(
+        intent: intent,
+        reduceMotion: reduceMotion
+      )
+    )
+    return context
+  }
+
+  private static func resolveMotion(
+    intent: SurfaceTransitionIntent,
+    reduceMotion: Bool
+  ) -> SignatureSurfaceTransition {
+    SignatureSurfaceTransition.resolve(
+      intent: intent,
+      reduceMotion: reduceMotion,
+      reduceTransparency: false,
+      increaseContrast: false,
+      differentiateWithoutColor: false
+    )
+  }
 }

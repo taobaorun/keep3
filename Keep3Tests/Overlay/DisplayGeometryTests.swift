@@ -373,6 +373,81 @@ final class DisplayGeometryTests: XCTestCase {
     )
   }
 
+  func testSharedEnvelopeContainsEveryExistingSurfaceGeometry() {
+    let descriptors = [
+      DisplayDescriptor(
+        frame: CGRect(x: 0, y: 0, width: 1_728, height: 1_117),
+        visibleFrame: CGRect(x: 0, y: 0, width: 1_728, height: 1_079),
+        safeAreaInsets: DisplayInsets(top: 32, left: 0, bottom: 0, right: 0),
+        auxiliaryTopLeftArea: CGRect(x: 0, y: 1_085, width: 771, height: 32),
+        auxiliaryTopRightArea: CGRect(x: 956, y: 1_085, width: 772, height: 32)
+      ),
+      DisplayDescriptor(
+        frame: CGRect(x: 1_512, y: 0, width: 1_920, height: 1_080),
+        visibleFrame: CGRect(x: 1_512, y: 0, width: 1_920, height: 1_055),
+        safeAreaInsets: .zero,
+        auxiliaryTopLeftArea: nil,
+        auxiliaryTopRightArea: nil
+      ),
+      DisplayDescriptor(
+        frame: CGRect(x: -320, y: 0, width: 320, height: 180),
+        visibleFrame: CGRect(x: -320, y: 20, width: 320, height: 160),
+        safeAreaInsets: .zero,
+        auxiliaryTopLeftArea: nil,
+        auxiliaryTopRightArea: nil
+      ),
+    ]
+
+    for descriptor in descriptors {
+      let standardGeometry = DisplayGeometry(descriptor: descriptor)
+      for component in [SurfaceComponentID.priorities, .calendar] {
+        for level in SurfaceLevel.allCases {
+          let active = standardGeometry.layout(level: level)
+          let envelope = standardGeometry.sharedEnvelopeLayout(
+            containing: active,
+            companionMetrics: .media
+          )
+          assertEnvelope(
+            envelope,
+            contains: active,
+            label: "\(component.rawValue)-\(level.rawValue)"
+          )
+        }
+      }
+
+      let mediaGeometry = DisplayGeometry(
+        descriptor: descriptor,
+        metrics: .media
+      )
+      for level in SurfaceLevel.allCases {
+        let variants: [(MediaTrackDirection?, Bool)] = [
+          (nil, false),
+          (.previous, false),
+          (.next, false),
+          (.previous, true),
+          (.next, true),
+        ]
+        for (direction, showsTrackPeek) in variants {
+          let active = mediaGeometry.mediaLayout(
+            level: level,
+            trackChangeDirection: direction,
+            showsTrackPeek: showsTrackPeek
+          )
+          let envelope = mediaGeometry.sharedEnvelopeLayout(
+            containing: active,
+            companionMetrics: .standard
+          )
+          assertEnvelope(
+            envelope,
+            contains: active,
+            label:
+              "media-\(level.rawValue)-\(String(describing: direction))-peek:\(showsTrackPeek)"
+          )
+        }
+      }
+    }
+  }
+
   func testConstrainedMediaPeekShrinksChangingSideWithoutMovingStableEdge() {
     let descriptor = DisplayDescriptor(
       frame: CGRect(x: -320, y: 0, width: 320, height: 180),
@@ -413,5 +488,27 @@ final class DisplayGeometryTests: XCTestCase {
     )
     XCTAssertTrue(descriptor.visibleFrame.contains(next.panelFrame))
     XCTAssertTrue(descriptor.visibleFrame.contains(previous.panelFrame))
+  }
+
+  private func assertEnvelope(
+    _ envelope: SurfaceLayout,
+    contains active: SurfaceLayout,
+    label: String,
+    file: StaticString = #filePath,
+    line: UInt = #line
+  ) {
+    XCTAssertTrue(
+      envelope.panelFrame.contains(active.surfaceFrameInScreen),
+      "\(label): \(active.surfaceFrameInScreen) escaped \(envelope.panelFrame)",
+      file: file,
+      line: line
+    )
+    XCTAssertEqual(
+      envelope.surfaceFrameInScreen,
+      active.surfaceFrameInScreen,
+      "\(label): active frame changed inside the envelope",
+      file: file,
+      line: line
+    )
   }
 }

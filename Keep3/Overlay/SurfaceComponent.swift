@@ -10,6 +10,17 @@ enum SurfaceLevel: String, CaseIterable, Codable, Hashable, Sendable {
   case hardware
   case compact
   case expanded
+
+  var depth: Int {
+    switch self {
+    case .hardware:
+      0
+    case .compact:
+      1
+    case .expanded:
+      2
+    }
+  }
 }
 
 enum SurfaceComponentAction: Hashable, Sendable {
@@ -61,6 +72,70 @@ enum SurfaceNavigationDirection: Equatable, Sendable {
   case next
 }
 
+enum SurfaceTransitionTrigger: Equatable, Sendable {
+  case initial
+  case manualComponent
+  case automaticComponent
+  case expansion
+  case collapse
+  case content
+  case lifecycleHide
+  case lifecycleRestore
+}
+
+enum SurfaceTransitionDirection: Equatable, Sendable {
+  case previous
+  case neutral
+  case next
+}
+
+struct SurfaceTransitionIntent: Equatable, Sendable {
+  let trigger: SurfaceTransitionTrigger
+  let direction: SurfaceTransitionDirection
+
+  static let initial = SurfaceTransitionIntent(
+    trigger: .initial,
+    direction: .neutral
+  )
+  static let manualSelection = SurfaceTransitionIntent(
+    trigger: .manualComponent,
+    direction: .neutral
+  )
+  static let automaticComponent = SurfaceTransitionIntent(
+    trigger: .automaticComponent,
+    direction: .neutral
+  )
+  static let expansion = SurfaceTransitionIntent(
+    trigger: .expansion,
+    direction: .neutral
+  )
+  static let collapse = SurfaceTransitionIntent(
+    trigger: .collapse,
+    direction: .neutral
+  )
+  static let content = SurfaceTransitionIntent(
+    trigger: .content,
+    direction: .neutral
+  )
+  static let lifecycleHide = SurfaceTransitionIntent(
+    trigger: .lifecycleHide,
+    direction: .neutral
+  )
+  static let lifecycleRestore = SurfaceTransitionIntent(
+    trigger: .lifecycleRestore,
+    direction: .neutral
+  )
+
+  static func manualComponent(
+    _ direction: SurfaceNavigationDirection
+  ) -> SurfaceTransitionIntent {
+    SurfaceTransitionIntent(
+      trigger: .manualComponent,
+      direction: direction == .previous ? .previous : .next
+    )
+  }
+}
+
 enum SurfaceSelectionSource: Equatable, Sendable {
   case fallback
   case automaticMedia
@@ -76,6 +151,7 @@ struct SurfaceNavigationState: Equatable, Sendable {
   let isHoverPreviewed: Bool
   let isPresented: Bool
   let generation: UInt64
+  let transitionIntent: SurfaceTransitionIntent
 
   var effectiveLevel: SurfaceLevel {
     level == .hardware && isHoverPreviewed ? .compact : level

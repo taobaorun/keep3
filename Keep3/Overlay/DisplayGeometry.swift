@@ -66,6 +66,7 @@ enum SurfacePlacement: Equatable {
 struct SurfaceMetrics: Equatable {
   static let mediaNotchedWingWidth: CGFloat = 44
   static let mediaQuickPeekAdditionalHeight: CGFloat = 32
+  static let mediaTrackFeedbackAdditionalWidth: CGFloat = 28
 
   enum NotchedCompactSizing: Equatable {
     case flexible(minimumWingWidth: CGFloat)
@@ -247,7 +248,11 @@ struct DisplayGeometry: Equatable {
       )
     } else if let trackChangeDirection {
       let bounds = placementBounds
-      let extendedWidth = min(base.panelFrame.width + 28, bounds.width)
+      let extendedWidth = min(
+        base.panelFrame.width
+          + SurfaceMetrics.mediaTrackFeedbackAdditionalWidth,
+        bounds.width
+      )
       let frame = horizontallyExtendedFrame(
         from: base.panelFrame,
         to: CGSize(
@@ -284,9 +289,21 @@ struct DisplayGeometry: Equatable {
       ]
     }
     let bounds = placementBounds
+    let mediaCompactWidth = DisplayGeometry(
+      descriptor: descriptor,
+      metrics: .media
+    ).layout(level: .compact).panelFrame.width
+    let directionalMediaEnvelopeWidth = min(
+      mediaCompactWidth
+        + (2 * SurfaceMetrics.mediaTrackFeedbackAdditionalWidth),
+      bounds.width
+    )
     let envelopeSize = CGSize(
       width: min(
-        envelopeLayouts.map(\.panelFrame.width).max() ?? 0,
+        max(
+          envelopeLayouts.map(\.panelFrame.width).max() ?? 0,
+          directionalMediaEnvelopeWidth
+        ),
         bounds.width
       ),
       height: min(
