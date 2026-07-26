@@ -1,0 +1,1592 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keep3 · 顶部表面连续切换原型</title>
+  <style>
+    :root {
+      --ivory: #faf9f5;
+      --paper: #ffffff;
+      --slate: #141413;
+      --clay: #d97757;
+      --clay-soft: #fbf1ec;
+      --oat: #e3dacc;
+      --olive: #788c5d;
+      --rust: #b04a3f;
+      --gray-100: #f0eee6;
+      --gray-200: #e5e2d9;
+      --gray-300: #d1cfc5;
+      --gray-500: #87867f;
+      --gray-700: #3d3d3a;
+      --serif: ui-serif, Georgia, "Times New Roman", serif;
+      --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+      --shell-ms: 240ms;
+      --content-ms: 160ms;
+      --ease: cubic-bezier(.2, .82, .24, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--ivory);
+      color: var(--slate);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    button, input { font: inherit; }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 2px solid var(--clay);
+      outline-offset: 2px;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 42px 0 64px;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 32px;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      font-family: var(--mono);
+      color: var(--gray-500);
+      font-size: 11px;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 5px 0 5px;
+      font-family: var(--serif);
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.08;
+      font-weight: 500;
+      letter-spacing: -.025em;
+    }
+
+    .lede {
+      max-width: 690px;
+      margin: 0;
+      color: var(--gray-500);
+      font-size: 15px;
+    }
+
+    .design-thesis {
+      width: 270px;
+      padding-left: 18px;
+      border-left: 2px solid var(--clay);
+      color: var(--gray-700);
+      font-size: 13px;
+    }
+
+    .design-thesis strong {
+      display: block;
+      color: var(--slate);
+      margin-bottom: 3px;
+    }
+
+    .workbench {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--paper);
+      border: 1.5px solid var(--gray-300);
+      border-radius: 14px;
+    }
+
+    .stage-card { overflow: hidden; }
+
+    .stage-toolbar {
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 9px 14px;
+      border-bottom: 1.5px solid var(--gray-200);
+    }
+
+    .segmented {
+      display: inline-flex;
+      padding: 3px;
+      gap: 2px;
+      border: 1px solid var(--gray-300);
+      background: var(--gray-100);
+      border-radius: 9px;
+    }
+
+    .segmented button {
+      border: 0;
+      border-radius: 6px;
+      padding: 6px 10px;
+      background: transparent;
+      color: var(--gray-500);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .segmented button[aria-pressed="true"] {
+      color: var(--slate);
+      background: var(--paper);
+      box-shadow: 0 1px 4px rgba(20, 20, 19, .08);
+    }
+
+    .mode-caption {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--gray-500);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .mode-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--olive);
+    }
+
+    [data-experience="current"] .mode-dot { background: var(--rust); }
+
+    .desktop {
+      position: relative;
+      min-height: 535px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 76% 18%, rgba(176, 122, 224, .38), transparent 28%),
+        radial-gradient(circle at 30% 72%, rgba(65, 136, 178, .42), transparent 36%),
+        linear-gradient(145deg, #2e344c 0%, #222a39 44%, #18252d 100%);
+      color: white;
+      isolation: isolate;
+    }
+
+    .desktop::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(115deg, transparent 0 50%, rgba(255, 255, 255, .045) 50.2%, transparent 51%),
+        linear-gradient(30deg, transparent 0 67%, rgba(255, 255, 255, .04) 67.2%, transparent 68%);
+      pointer-events: none;
+    }
+
+    .menu-bar {
+      position: absolute;
+      z-index: 2;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      color: rgba(255, 255, 255, .72);
+      background: rgba(22, 25, 31, .42);
+      backdrop-filter: blur(18px);
+      font-size: 11px;
+    }
+
+    .menu-left, .menu-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .window-mock {
+      position: absolute;
+      width: 59%;
+      height: 52%;
+      left: 8%;
+      bottom: 7%;
+      border: 1px solid rgba(255, 255, 255, .13);
+      border-radius: 12px;
+      background: rgba(16, 19, 27, .58);
+      box-shadow: 0 28px 80px rgba(0, 0, 0, .3);
+      backdrop-filter: blur(24px);
+      overflow: hidden;
+    }
+
+    .window-titlebar {
+      height: 34px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+    }
+
+    .traffic {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .24);
+    }
+
+    .ghost-lines {
+      padding: 26px;
+      display: grid;
+      gap: 13px;
+    }
+
+    .ghost-lines i {
+      display: block;
+      height: 8px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, .07);
+    }
+
+    .ghost-lines i:nth-child(2) { width: 72%; }
+    .ghost-lines i:nth-child(3) { width: 88%; }
+    .ghost-lines i:nth-child(4) { width: 54%; }
+
+    .instruction {
+      position: absolute;
+      right: 18px;
+      bottom: 17px;
+      width: 218px;
+      padding: 12px 14px;
+      border: 1px solid rgba(255, 255, 255, .13);
+      border-radius: 10px;
+      color: rgba(255, 255, 255, .6);
+      background: rgba(13, 16, 22, .5);
+      backdrop-filter: blur(18px);
+      font-size: 11px;
+    }
+
+    .instruction strong {
+      display: block;
+      color: rgba(255, 255, 255, .9);
+      margin-bottom: 3px;
+    }
+
+    .sr-live {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .surface-shell {
+      --shell-width: 410px;
+      --shell-height: 52px;
+      position: absolute;
+      z-index: 10;
+      top: 0;
+      left: 50%;
+      width: var(--shell-width);
+      height: var(--shell-height);
+      transform: translateX(-50%);
+      overflow: hidden;
+      border-radius: 0 0 23px 23px;
+      background: #050505;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, .26);
+      transition:
+        width var(--shell-ms) var(--ease),
+        height var(--shell-ms) var(--ease),
+        border-radius var(--shell-ms) var(--ease),
+        opacity 100ms linear;
+      contain: layout paint;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .surface-shell[data-level="hardware"] {
+      border-radius: 0 0 11px 11px;
+      box-shadow: none;
+    }
+
+    .notch-hardware {
+      position: absolute;
+      z-index: 20;
+      width: 178px;
+      height: 29px;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      border-radius: 0 0 11px 11px;
+      background: #020202;
+      pointer-events: none;
+    }
+
+    .camera-dot {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      top: 9px;
+      left: 50%;
+      margin-left: -2.5px;
+      border-radius: 50%;
+      background: #101214;
+      box-shadow: inset 0 0 0 1px #0b0e15, 0 0 5px rgba(43, 74, 105, .25);
+    }
+
+    .surface-layers {
+      position: absolute;
+      inset: 0;
+    }
+
+    .surface-layer {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transform: translate3d(var(--enter-x, 0), 0, 0);
+      filter: blur(1.5px);
+      transition:
+        opacity var(--content-ms) ease-out,
+        transform var(--content-ms) var(--ease),
+        filter var(--content-ms) ease-out;
+      pointer-events: none;
+    }
+
+    .surface-layer.is-active {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+      filter: blur(0);
+      pointer-events: auto;
+    }
+
+    .surface-layer.is-outgoing {
+      opacity: 0;
+      transform: translate3d(var(--exit-x, 0), 0, 0);
+      filter: blur(1px);
+      pointer-events: none;
+    }
+
+    [data-experience="current"] .surface-shell {
+      transition: opacity 75ms linear;
+    }
+
+    [data-experience="current"] .surface-layer {
+      transition: opacity 90ms linear;
+      transform: none;
+      filter: none;
+    }
+
+    [data-experience="current"] .surface-shell.is-replacing {
+      opacity: .08;
+    }
+
+    [data-reduce-motion="true"] .surface-shell {
+      transition: none;
+    }
+
+    [data-reduce-motion="true"] .surface-layer {
+      transform: none !important;
+      filter: none !important;
+      transition: opacity 120ms linear;
+    }
+
+    .compact-layout {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: 1fr 178px 1fr;
+      align-items: center;
+      padding-top: 1px;
+      color: white;
+    }
+
+    .compact-wing {
+      height: 100%;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+      overflow: hidden;
+    }
+
+    .compact-wing.right { justify-content: flex-start; }
+
+    .focus-pill {
+      width: 17px;
+      height: 6px;
+      border-radius: 4px;
+      background: #f4f4f3;
+      box-shadow: 0 0 12px rgba(255, 255, 255, .16);
+    }
+
+    .compact-title {
+      overflow: hidden;
+      color: rgba(255, 255, 255, .86);
+      font-size: 12px;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .album-art {
+      width: 23px;
+      height: 23px;
+      flex: 0 0 auto;
+      border-radius: 6px;
+      background:
+        radial-gradient(circle at 68% 30%, #ef9f72, transparent 24%),
+        linear-gradient(140deg, #596ad7, #6b2e78 55%, #1c243b);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14);
+    }
+
+    .wave {
+      height: 18px;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .wave i {
+      display: block;
+      width: 2px;
+      height: var(--bar, 8px);
+      border-radius: 2px;
+      background: #b5a7ee;
+      opacity: .9;
+      animation: wave 900ms ease-in-out infinite alternate;
+      animation-delay: var(--delay, 0ms);
+    }
+
+    @keyframes wave {
+      to { height: calc(var(--bar, 8px) * .45 + 3px); opacity: .58; }
+    }
+
+    .calendar-mark {
+      width: 18px;
+      height: 18px;
+      border: 1px solid rgba(255, 255, 255, .68);
+      border-radius: 5px;
+      display: grid;
+      place-items: center;
+      color: rgba(255, 255, 255, .76);
+      font: 700 8px/1 var(--mono);
+    }
+
+    .calendar-time {
+      margin-left: 6px;
+      color: rgba(255, 255, 255, .72);
+      font: 650 10px/1 var(--mono);
+    }
+
+    .expanded-layout {
+      position: absolute;
+      inset: 0;
+      padding: 42px 22px 17px;
+      color: white;
+    }
+
+    .surface-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+      color: rgba(255, 255, 255, .5);
+      font-size: 10px;
+      font-weight: 650;
+    }
+
+    .meta-kind {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: rgba(255, 255, 255, .72);
+    }
+
+    .meta-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #f1f0ee;
+    }
+
+    .expanded-title {
+      margin: 0 0 9px;
+      overflow: hidden;
+      font-size: 18px;
+      line-height: 1.25;
+      letter-spacing: -.01em;
+      font-weight: 670;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .focus-note {
+      height: 83px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, .07);
+      border-radius: 11px;
+      color: rgba(255, 255, 255, .66);
+      background: rgba(255, 255, 255, .045);
+      font-size: 11px;
+    }
+
+    .focus-note ul {
+      display: grid;
+      gap: 3px;
+      margin: 5px 0 0;
+      padding-left: 16px;
+    }
+
+    .surface-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      padding-top: 9px;
+      border-top: 1px solid rgba(255, 255, 255, .08);
+      color: rgba(255, 255, 255, .5);
+      font-size: 10px;
+    }
+
+    .key-hint {
+      padding: 4px 8px;
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .05);
+      font-family: var(--mono);
+    }
+
+    .media-header {
+      display: grid;
+      grid-template-columns: 56px 1fr auto;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .album-art.large {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+    }
+
+    .media-copy h3 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 680;
+    }
+
+    .media-copy p {
+      margin: 1px 0 4px;
+      color: rgba(255, 255, 255, .55);
+      font-size: 12px;
+    }
+
+    .progress-row {
+      display: grid;
+      grid-template-columns: 32px 1fr 35px;
+      gap: 9px;
+      align-items: center;
+      margin-top: 16px;
+      color: rgba(255, 255, 255, .42);
+      font: 9px/1 var(--mono);
+    }
+
+    .progress-track {
+      height: 3px;
+      overflow: hidden;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, .16);
+    }
+
+    .progress-track i {
+      display: block;
+      width: 38%;
+      height: 100%;
+      border-radius: inherit;
+      background: rgba(255, 255, 255, .65);
+    }
+
+    .media-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 26px;
+      margin-top: 17px;
+    }
+
+    .media-control {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: rgba(255, 255, 255, .8);
+      background: rgba(255, 255, 255, .06);
+      font-size: 10px;
+    }
+
+    .media-control.primary {
+      width: 34px;
+      height: 34px;
+      color: #080808;
+      background: rgba(255, 255, 255, .9);
+      font-size: 11px;
+    }
+
+    .calendar-list {
+      display: grid;
+      margin-top: 8px;
+    }
+
+    .calendar-row {
+      display: grid;
+      grid-template-columns: 82px 1fr;
+      gap: 10px;
+      align-items: center;
+      height: 31px;
+      border-bottom: 1px solid rgba(255, 255, 255, .06);
+    }
+
+    .calendar-row time {
+      color: rgba(255, 255, 255, .44);
+      font: 10px/1 var(--mono);
+    }
+
+    .calendar-row:first-child time { color: #e6a16f; }
+
+    .calendar-row span {
+      overflow: hidden;
+      color: rgba(255, 255, 255, .8);
+      font-size: 11px;
+      font-weight: 580;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .state-chip {
+      position: absolute;
+      z-index: 3;
+      top: 44px;
+      left: 16px;
+      display: flex;
+      gap: 9px;
+      align-items: center;
+      padding: 7px 10px;
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, .56);
+      background: rgba(15, 18, 24, .45);
+      backdrop-filter: blur(14px);
+      font: 10px/1 var(--mono);
+    }
+
+    .state-chip b {
+      color: rgba(255, 255, 255, .9);
+      font-weight: 650;
+    }
+
+    .controls {
+      padding: 16px;
+      display: grid;
+      gap: 17px;
+    }
+
+    .control-section {
+      display: grid;
+      gap: 9px;
+    }
+
+    .section-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .section-label small {
+      color: var(--gray-500);
+      font: 10px var(--mono);
+      font-weight: 400;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .control-button,
+    .action-button,
+    .preset-button,
+    .export-button {
+      min-height: 34px;
+      border: 1px solid var(--gray-300);
+      border-radius: 9px;
+      color: var(--gray-700);
+      background: var(--paper);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .control-button:hover,
+    .action-button:hover,
+    .preset-button:hover {
+      border-color: var(--gray-500);
+    }
+
+    .control-button[aria-pressed="true"] {
+      color: var(--slate);
+      border-color: var(--clay);
+      background: var(--clay-soft);
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .action-button.accent {
+      color: #fff;
+      border-color: var(--clay);
+      background: var(--clay);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 34px;
+      gap: 14px;
+      color: var(--gray-700);
+      font-size: 12px;
+    }
+
+    .switch {
+      position: relative;
+      width: 36px;
+      height: 21px;
+      flex: 0 0 auto;
+    }
+
+    .switch input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .switch span {
+      position: absolute;
+      inset: 0;
+      border: 1px solid var(--gray-300);
+      border-radius: 20px;
+      background: var(--gray-200);
+      cursor: pointer;
+      transition: 140ms ease;
+    }
+
+    .switch span::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .16);
+      transition: 140ms var(--ease);
+    }
+
+    .switch input:checked + span {
+      border-color: var(--olive);
+      background: var(--olive);
+    }
+
+    .switch input:checked + span::after {
+      transform: translateX(15px);
+    }
+
+    .range-control { display: grid; gap: 5px; }
+
+    .range-head {
+      display: flex;
+      justify-content: space-between;
+      color: var(--gray-500);
+      font-size: 11px;
+    }
+
+    .range-head output {
+      color: var(--slate);
+      font-family: var(--mono);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      accent-color: var(--clay);
+      cursor: pointer;
+    }
+
+    .preset-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .preset-button {
+      min-height: 30px;
+      font-size: 11px;
+    }
+
+    .export-button {
+      color: #fff;
+      border-color: var(--gray-700);
+      background: var(--gray-700);
+    }
+
+    .export-status {
+      min-height: 16px;
+      color: var(--olive);
+      font-size: 10px;
+      text-align: center;
+    }
+
+    .principles {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .principle {
+      min-height: 128px;
+      padding: 16px;
+    }
+
+    .principle-index {
+      color: var(--clay);
+      font: 10px var(--mono);
+    }
+
+    .principle h2 {
+      margin: 11px 0 5px;
+      font-family: var(--serif);
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .principle p {
+      margin: 0;
+      color: var(--gray-500);
+      font-size: 12px;
+    }
+
+    .decision-bar {
+      margin-top: 10px;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      background: var(--oat);
+    }
+
+    .decision-copy strong {
+      display: block;
+      font-family: var(--serif);
+      font-size: 17px;
+      font-weight: 500;
+    }
+
+    .decision-copy span {
+      color: var(--gray-700);
+      font-size: 12px;
+    }
+
+    .feedback {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .feedback button {
+      border: 1px solid rgba(20, 20, 19, .18);
+      border-radius: 8px;
+      padding: 7px 11px;
+      color: var(--gray-700);
+      background: rgba(255, 255, 255, .48);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .feedback button[aria-pressed="true"] {
+      color: #fff;
+      border-color: var(--olive);
+      background: var(--olive);
+    }
+
+    @media (max-width: 940px) {
+      .page-header { align-items: start; }
+      .design-thesis { display: none; }
+      .workbench { grid-template-columns: 1fr; }
+      .controls { grid-template-columns: repeat(2, 1fr); }
+      .controls > .control-section:last-child { grid-column: 1 / -1; }
+      .principles { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 640px) {
+      .page { width: min(100% - 24px, 1180px); padding-top: 24px; }
+      .page-header { margin-bottom: 16px; }
+      .stage-toolbar { align-items: flex-start; flex-direction: column; }
+      .desktop { min-height: 440px; }
+      .surface-shell { max-width: calc(100% - 20px); }
+      .instruction { display: none; }
+      .controls { grid-template-columns: 1fr; }
+      .principles { grid-template-columns: 1fr; }
+      .decision-bar { align-items: flex-start; flex-direction: column; }
+      .feedback { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body data-experience="continuous" data-reduce-motion="false">
+  <main class="page">
+    <header class="page-header">
+      <div>
+        <div class="eyebrow">Keep3 / transition study / interactive prototype</div>
+        <h1>它不是三个视图，是同一个顶部物体。</h1>
+        <p class="lede">
+          这份原型只验证切换体验：顶部外壳始终贴着刘海，尺寸与内容各自连续过渡；
+          快速输入不排队，最后一次意图直接接管。
+        </p>
+      </div>
+      <div class="design-thesis">
+        <strong>判断标准</strong>
+        切换时眼睛应该追踪同一个物体，而不是看见旧页面消失、新页面重新出现。
+      </div>
+    </header>
+
+    <section class="workbench">
+      <div class="card stage-card">
+        <div class="stage-toolbar">
+          <div class="segmented" aria-label="体验版本">
+            <button type="button" data-experience-choice="continuous" aria-pressed="true">建议 · 连续外壳</button>
+            <button type="button" data-experience-choice="current" aria-pressed="false">当前 · 根视图替换</button>
+          </div>
+          <div class="mode-caption">
+            <span class="mode-dot"></span>
+            <span id="modeCaption">persistent shell · latest wins</span>
+          </div>
+        </div>
+
+        <div class="desktop" id="desktop" tabindex="0" aria-label="Keep3 顶部表面交互演示">
+          <div class="menu-bar" aria-hidden="true">
+            <div class="menu-left"><strong>Keep3</strong><span>文件</span><span>窗口</span></div>
+            <div class="menu-right"><span>9:41</span><span>100%</span></div>
+          </div>
+
+          <div class="state-chip" aria-hidden="true">
+            <span>STATE</span>
+            <b id="stateLabel">优先事项 · 紧凑</b>
+            <span id="generationLabel">g1</span>
+          </div>
+
+          <div
+            class="surface-shell"
+            id="surfaceShell"
+            data-level="compact"
+            role="button"
+            tabindex="0"
+            aria-label="展开 Keep3 表面"
+          >
+            <div class="surface-layers" id="surfaceLayers"></div>
+            <div class="notch-hardware" aria-hidden="true"><span class="camera-dot"></span></div>
+          </div>
+
+          <div class="window-mock" aria-hidden="true">
+            <div class="window-titlebar"><i class="traffic"></i><i class="traffic"></i><i class="traffic"></i></div>
+            <div class="ghost-lines"><i></i><i></i><i></i><i></i></div>
+          </div>
+
+          <div class="instruction">
+            <strong>直接操作顶部黑色表面</strong>
+            点击展开 / 收起；键盘 ← → 切换组件，Enter 改变深度，Esc 返回紧凑。
+          </div>
+          <div class="sr-live" id="liveRegion" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <aside class="card controls" aria-label="原型控制器">
+        <section class="control-section">
+          <div class="section-label"><span>组件</span><small>direct switch</small></div>
+          <div class="control-grid">
+            <button class="control-button" data-component="focus" aria-pressed="true">优先事项</button>
+            <button class="control-button" data-component="media" aria-pressed="false">媒体</button>
+            <button class="control-button" data-component="calendar" aria-pressed="false">日历</button>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <div class="section-label"><span>深度</span><small>top anchored</small></div>
+          <div class="control-grid">
+            <button class="control-button" data-level-choice="hardware" aria-pressed="false">刘海</button>
+            <button class="control-button" data-level-choice="compact" aria-pressed="true">紧凑</button>
+            <button class="control-button" data-level-choice="expanded" aria-pressed="false">展开</button>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <div class="section-label"><span>压力测试</span><small>interruptible</small></div>
+          <div class="action-row">
+            <button class="action-button accent" id="rapidSwitch">快速连切 5 次</button>
+            <button class="action-button" id="autoTakeover">模拟媒体接管</button>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <div class="section-label"><span>辅助功能</span><small>system policy</small></div>
+          <label class="toggle-row">
+            <span>Reduce Motion</span>
+            <span class="switch">
+              <input type="checkbox" id="reduceMotion">
+              <span aria-hidden="true"></span>
+            </span>
+          </label>
+        </section>
+
+        <section class="control-section">
+          <div class="section-label"><span>动效参数</span><small>live tuning</small></div>
+          <label class="range-control">
+            <span class="range-head"><span>外壳尺寸</span><output id="shellDurationValue">240ms</output></span>
+            <input id="shellDuration" type="range" min="160" max="360" step="10" value="240">
+          </label>
+          <label class="range-control">
+            <span class="range-head"><span>内容换手</span><output id="contentDurationValue">160ms</output></span>
+            <input id="contentDuration" type="range" min="90" max="240" step="10" value="160">
+          </label>
+          <div class="preset-row">
+            <button class="preset-button" data-preset="snappy">更快</button>
+            <button class="preset-button" data-preset="balanced">建议</button>
+            <button class="preset-button" data-preset="soft">更柔</button>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <button class="export-button" id="exportButton">复制方案 JSON</button>
+          <div class="export-status" id="exportStatus" aria-live="polite"></div>
+        </section>
+      </aside>
+    </section>
+
+    <section class="principles" aria-label="体验原则">
+      <article class="card principle">
+        <span class="principle-index">01 / identity</span>
+        <h2>外壳不消失</h2>
+        <p>一个持久的顶部外壳负责形状、背景和尺寸；切组件只替换内部内容。</p>
+      </article>
+      <article class="card principle">
+        <span class="principle-index">02 / direction</span>
+        <h2>手动才有方向</h2>
+        <p>左右导航保留 10px 方向提示；自动媒体接管使用中性淡入，不伪造手势。</p>
+      </article>
+      <article class="card principle">
+        <span class="principle-index">03 / interruption</span>
+        <h2>最后意图获胜</h2>
+        <p>快速连切不会排队播放旧动画；每次输入从当前呈现状态直接改投新目标。</p>
+      </article>
+      <article class="card principle">
+        <span class="principle-index">04 / restraint</span>
+        <h2>静止时安静</h2>
+        <p>没有呼吸、闪烁或环境动画。动效只解释真实状态变化，并服从 Reduce Motion。</p>
+      </article>
+    </section>
+
+    <section class="card decision-bar">
+      <div class="decision-copy">
+        <strong>这个方向对吗？</strong>
+        <span>先判断整体节奏；细节参数可以在确认方向后继续收敛。</span>
+      </div>
+      <div class="feedback" id="feedback">
+        <button type="button" data-feedback="too-fast" aria-pressed="false">再慢一点</button>
+        <button type="button" data-feedback="right" aria-pressed="false">方向正确</button>
+        <button type="button" data-feedback="too-soft" aria-pressed="false">更利落一点</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var root = document.documentElement;
+      var body = document.body;
+      var shell = document.getElementById("surfaceShell");
+      var layers = document.getElementById("surfaceLayers");
+      var desktop = document.getElementById("desktop");
+      var liveRegion = document.getElementById("liveRegion");
+      var stateLabel = document.getElementById("stateLabel");
+      var generationLabel = document.getElementById("generationLabel");
+      var modeCaption = document.getElementById("modeCaption");
+      var exportStatus = document.getElementById("exportStatus");
+
+      var state = {
+        component: "focus",
+        level: "compact",
+        experience: "continuous",
+        reduceMotion: false,
+        shellDuration: 240,
+        contentDuration: 160,
+        generation: 1,
+        feedback: null
+      };
+
+      var componentOrder = ["focus", "media", "calendar"];
+      var componentNames = {
+        focus: "优先事项",
+        media: "媒体",
+        calendar: "日历"
+      };
+      var levelNames = {
+        hardware: "刘海",
+        compact: "紧凑",
+        expanded: "展开"
+      };
+      var transitionTimer = null;
+      var cleanupTimer = null;
+
+      var sizes = {
+        focus: {
+          hardware: [178, 29],
+          compact: [410, 52],
+          expanded: [460, 230]
+        },
+        media: {
+          hardware: [178, 29],
+          compact: [330, 52],
+          expanded: [440, 210]
+        },
+        calendar: {
+          hardware: [178, 29],
+          compact: [400, 52],
+          expanded: [450, 230]
+        }
+      };
+
+      function waveBars() {
+        var heights = [6, 11, 16, 9, 14, 7, 12];
+        return heights.map(function (height, index) {
+          return '<i style="--bar:' + height + 'px;--delay:' + (index * -90) + 'ms"></i>';
+        }).join("");
+      }
+
+      function compactTemplate(component) {
+        if (component === "media") {
+          return [
+            '<div class="compact-layout">',
+            '<div class="compact-wing"><span class="album-art"></span></div>',
+            '<div aria-hidden="true"></div>',
+            '<div class="compact-wing right"><span class="wave">', waveBars(), "</span></div>",
+            "</div>"
+          ].join("");
+        }
+        if (component === "calendar") {
+          return [
+            '<div class="compact-layout">',
+            '<div class="compact-wing"><span class="calendar-mark">27</span><span class="calendar-time">09:30</span></div>',
+            '<div aria-hidden="true"></div>',
+            '<div class="compact-wing right"><span class="compact-title">产品体验评审</span></div>',
+            "</div>"
+          ].join("");
+        }
+        return [
+          '<div class="compact-layout">',
+          '<div class="compact-wing"><span class="focus-pill"></span></div>',
+          '<div aria-hidden="true"></div>',
+          '<div class="compact-wing right"><span class="compact-title">完善 Keep3 的切换体验</span></div>',
+          "</div>"
+        ].join("");
+      }
+
+      function expandedTemplate(component) {
+        if (component === "media") {
+          return [
+            '<div class="expanded-layout">',
+            '<div class="media-header">',
+            '<span class="album-art large"></span>',
+            '<div class="media-copy"><h3>Night Drive</h3><p>Sora · After Hours</p></div>',
+            '<span class="wave">', waveBars(), "</span>",
+            "</div>",
+            '<div class="progress-row"><span>1:28</span><span class="progress-track"><i></i></span><span>-2:14</span></div>',
+            '<div class="media-controls">',
+            '<span class="media-control">Ⅰ◀</span>',
+            '<span class="media-control primary">Ⅱ</span>',
+            '<span class="media-control">▶Ⅰ</span>',
+            "</div>",
+            "</div>"
+          ].join("");
+        }
+        if (component === "calendar") {
+          return [
+            '<div class="expanded-layout">',
+            '<div class="surface-meta"><span class="meta-kind"><span class="calendar-mark">27</span>接下来</span><span>未来 24 小时</span></div>',
+            '<h3 class="expanded-title">今天的安排</h3>',
+            '<div class="calendar-list">',
+            '<div class="calendar-row"><time>进行中</time><span>产品体验评审</span></div>',
+            '<div class="calendar-row"><time>11:00</time><span>过渡动效验收</span></div>',
+            '<div class="calendar-row"><time>14:30</time><span>Release 构建检查</span></div>',
+            '<div class="calendar-row"><time>16:00</time><span>本周复盘</span></div>',
+            "</div>",
+            '<div class="surface-footer"><span>日历已刷新</span><span class="key-hint">esc</span></div>',
+            "</div>"
+          ].join("");
+        }
+        return [
+          '<div class="expanded-layout">',
+          '<div class="surface-meta"><span class="meta-kind"><span class="meta-dot"></span>当前重点</span><span>1 / 3</span></div>',
+          '<h3 class="expanded-title">完善 Keep3 的切换体验</h3>',
+          '<div class="focus-note">让切换看起来像同一个物体在改变，而不是三张卡片互相替换。<ul><li>保留顶部锚点与外壳身份</li><li>快速输入只落到最后目标</li></ul></div>',
+          '<div class="surface-footer"><span>← 上一个&nbsp;&nbsp; 下一个 →</span><span class="key-hint">enter</span></div>',
+          "</div>"
+        ].join("");
+      }
+
+      function renderTemplate(component, level) {
+        if (level === "hardware") return "";
+        return level === "expanded"
+          ? expandedTemplate(component)
+          : compactTemplate(component);
+      }
+
+      function resolvedDirection(nextComponent, trigger) {
+        if (trigger === "automatic") return 0;
+        var from = componentOrder.indexOf(state.component);
+        var to = componentOrder.indexOf(nextComponent);
+        if (from === to) return 0;
+        if (from === 0 && to === 2) return -1;
+        if (from === 2 && to === 0) return 1;
+        return to > from ? 1 : -1;
+      }
+
+      function setShellSize(component, level) {
+        var size = sizes[component][level];
+        shell.style.setProperty("--shell-width", size[0] + "px");
+        shell.style.setProperty("--shell-height", size[1] + "px");
+        shell.dataset.level = level;
+        shell.setAttribute(
+          "aria-label",
+          level === "expanded" ? "收起 Keep3 表面" : "展开 Keep3 表面"
+        );
+      }
+
+      function buildLayer(component, level, direction) {
+        var layer = document.createElement("div");
+        layer.className = "surface-layer";
+        layer.dataset.component = component;
+        layer.dataset.level = level;
+        layer.style.setProperty("--enter-x", (direction * 10) + "px");
+        layer.style.setProperty("--exit-x", (direction * -8) + "px");
+        layer.innerHTML = renderTemplate(component, level);
+        return layer;
+      }
+
+      function clearOldLayers(activeLayer) {
+        Array.prototype.slice.call(layers.children).forEach(function (node) {
+          if (node !== activeLayer) node.remove();
+        });
+      }
+
+      function updateLabels() {
+        stateLabel.textContent = componentNames[state.component] + " · " + levelNames[state.level];
+        generationLabel.textContent = "g" + state.generation;
+        liveRegion.textContent = componentNames[state.component] + "，" + levelNames[state.level];
+
+        document.querySelectorAll("[data-component]").forEach(function (button) {
+          button.setAttribute("aria-pressed", String(button.dataset.component === state.component));
+        });
+        document.querySelectorAll("[data-level-choice]").forEach(function (button) {
+          button.setAttribute("aria-pressed", String(button.dataset.levelChoice === state.level));
+        });
+      }
+
+      function commitState(nextComponent, nextLevel, options) {
+        options = options || {};
+        var direction = resolvedDirection(nextComponent, options.trigger || "manual");
+        var isSame = nextComponent === state.component && nextLevel === state.level;
+        if (isSame && !options.force) return;
+
+        state.generation += 1;
+        var generation = state.generation;
+        var nextLayer = buildLayer(nextComponent, nextLevel, direction);
+
+        if (transitionTimer) window.clearTimeout(transitionTimer);
+        if (cleanupTimer) window.clearTimeout(cleanupTimer);
+
+        if (state.experience === "current") {
+          shell.classList.add("is-replacing");
+          transitionTimer = window.setTimeout(function () {
+            if (generation !== state.generation) return;
+            state.component = nextComponent;
+            state.level = nextLevel;
+            setShellSize(nextComponent, nextLevel);
+            layers.replaceChildren(nextLayer);
+            nextLayer.classList.add("is-active");
+            shell.classList.remove("is-replacing");
+            updateLabels();
+          }, state.reduceMotion ? 0 : 72);
+          return;
+        }
+
+        Array.prototype.slice.call(layers.children).forEach(function (layer) {
+          layer.classList.remove("is-active");
+          layer.classList.add("is-outgoing");
+          layer.style.setProperty("--exit-x", (direction * -8) + "px");
+        });
+
+        layers.appendChild(nextLayer);
+        state.component = nextComponent;
+        state.level = nextLevel;
+        setShellSize(nextComponent, nextLevel);
+        updateLabels();
+
+        window.requestAnimationFrame(function () {
+          window.requestAnimationFrame(function () {
+            if (generation !== state.generation) return;
+            nextLayer.classList.add("is-active");
+          });
+        });
+
+        cleanupTimer = window.setTimeout(function () {
+          if (generation === state.generation) clearOldLayers(nextLayer);
+        }, Math.max(state.shellDuration, state.contentDuration) + 80);
+      }
+
+      function setExperience(experience) {
+        state.experience = experience;
+        body.dataset.experience = experience;
+        modeCaption.textContent = experience === "continuous"
+          ? "persistent shell · latest wins"
+          : "root replacement · endpoint jump";
+        document.querySelectorAll("[data-experience-choice]").forEach(function (button) {
+          button.setAttribute("aria-pressed", String(button.dataset.experienceChoice === experience));
+        });
+        commitState(state.component, state.level, { force: true });
+      }
+
+      function switchRelative(offset) {
+        var index = componentOrder.indexOf(state.component);
+        var next = componentOrder[(index + offset + componentOrder.length) % componentOrder.length];
+        var nextLevel = state.level === "expanded" ? "compact" : state.level;
+        commitState(next, nextLevel, { trigger: "manual" });
+      }
+
+      function updateMotionVariables() {
+        root.style.setProperty("--shell-ms", state.shellDuration + "ms");
+        root.style.setProperty("--content-ms", state.contentDuration + "ms");
+        document.getElementById("shellDurationValue").textContent = state.shellDuration + "ms";
+        document.getElementById("contentDurationValue").textContent = state.contentDuration + "ms";
+        document.getElementById("shellDuration").value = String(state.shellDuration);
+        document.getElementById("contentDuration").value = String(state.contentDuration);
+      }
+
+      function rapidSwitch() {
+        var sequence = ["media", "calendar", "focus", "media", "calendar"];
+        sequence.forEach(function (component, index) {
+          window.setTimeout(function () {
+            commitState(component, "compact", { trigger: "manual" });
+          }, index * 86);
+        });
+      }
+
+      function mediaTakeover() {
+        commitState("media", "compact", { trigger: "automatic" });
+        window.setTimeout(function () {
+          commitState("focus", "compact", { trigger: "automatic" });
+        }, 1050);
+      }
+
+      function exportConfiguration() {
+        var payload = {
+          artifact: "keep3-surface-transition",
+          experience: state.experience,
+          selectedState: {
+            component: state.component,
+            level: state.level
+          },
+          motion: {
+            shellDurationMs: state.shellDuration,
+            contentDurationMs: state.contentDuration,
+            easing: "cubic-bezier(.2,.82,.24,1)",
+            manualOffsetPt: 10,
+            automaticHandoff: "neutral",
+            interruptionPolicy: "latest-wins",
+            reduceMotion: "120ms opacity-only"
+          },
+          feedback: state.feedback
+        };
+        copyText(JSON.stringify(payload, null, 2));
+      }
+
+      function copyText(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(showCopied, fallback);
+          return;
+        }
+        fallback();
+
+        function fallback() {
+          var area = document.createElement("textarea");
+          area.value = text;
+          area.setAttribute("readonly", "");
+          area.style.position = "fixed";
+          area.style.opacity = "0";
+          document.body.appendChild(area);
+          area.select();
+          try {
+            document.execCommand("copy");
+            showCopied();
+          } catch (error) {
+            exportStatus.textContent = "复制失败，请在浏览器允许剪贴板权限";
+          }
+          area.remove();
+        }
+
+        function showCopied() {
+          exportStatus.textContent = "已复制，可直接粘贴回对话";
+          window.setTimeout(function () { exportStatus.textContent = ""; }, 2200);
+        }
+      }
+
+      document.querySelectorAll("[data-experience-choice]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          setExperience(button.dataset.experienceChoice);
+        });
+      });
+
+      document.querySelectorAll("[data-component]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          var target = button.dataset.component;
+          var nextLevel = state.level === "expanded" && target !== state.component
+            ? "compact"
+            : state.level;
+          commitState(target, nextLevel, { trigger: "manual" });
+        });
+      });
+
+      document.querySelectorAll("[data-level-choice]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          commitState(state.component, button.dataset.levelChoice, { trigger: "manual" });
+        });
+      });
+
+      document.querySelectorAll("[data-preset]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          var preset = button.dataset.preset;
+          if (preset === "snappy") {
+            state.shellDuration = 190;
+            state.contentDuration = 120;
+          } else if (preset === "soft") {
+            state.shellDuration = 320;
+            state.contentDuration = 210;
+          } else {
+            state.shellDuration = 240;
+            state.contentDuration = 160;
+          }
+          updateMotionVariables();
+          commitState(state.component, state.level, { force: true });
+        });
+      });
+
+      document.getElementById("shellDuration").addEventListener("input", function (event) {
+        state.shellDuration = Number(event.target.value);
+        updateMotionVariables();
+      });
+
+      document.getElementById("contentDuration").addEventListener("input", function (event) {
+        state.contentDuration = Number(event.target.value);
+        updateMotionVariables();
+      });
+
+      document.getElementById("reduceMotion").addEventListener("change", function (event) {
+        state.reduceMotion = event.target.checked;
+        body.dataset.reduceMotion = String(state.reduceMotion);
+        commitState(state.component, state.level, { force: true });
+      });
+
+      document.getElementById("rapidSwitch").addEventListener("click", rapidSwitch);
+      document.getElementById("autoTakeover").addEventListener("click", mediaTakeover);
+      document.getElementById("exportButton").addEventListener("click", exportConfiguration);
+
+      document.getElementById("feedback").addEventListener("click", function (event) {
+        var button = event.target.closest("[data-feedback]");
+        if (!button) return;
+        state.feedback = button.dataset.feedback;
+        document.querySelectorAll("[data-feedback]").forEach(function (item) {
+          item.setAttribute("aria-pressed", String(item === button));
+        });
+        exportStatus.textContent = "反馈已写入导出 JSON";
+      });
+
+      shell.addEventListener("click", function () {
+        var next = state.level === "expanded" ? "compact" : "expanded";
+        commitState(state.component, next, { trigger: "manual" });
+      });
+
+      shell.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          event.stopPropagation();
+          shell.click();
+        }
+      });
+
+      desktop.addEventListener("keydown", function (event) {
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          switchRelative(1);
+        } else if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          switchRelative(-1);
+        } else if (event.key === "Enter") {
+          event.preventDefault();
+          commitState(state.component, state.level === "expanded" ? "compact" : "expanded");
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          commitState(state.component, "compact");
+        }
+      });
+
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        state.reduceMotion = true;
+        body.dataset.reduceMotion = "true";
+        document.getElementById("reduceMotion").checked = true;
+      }
+
+      setShellSize(state.component, state.level);
+      var initialLayer = buildLayer(state.component, state.level, 0);
+      layers.appendChild(initialLayer);
+      window.requestAnimationFrame(function () { initialLayer.classList.add("is-active"); });
+      updateLabels();
+      updateMotionVariables();
+    })();
+  </script>
+</body>
+</html>

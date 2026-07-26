@@ -10,8 +10,12 @@ Status: Code gates pass; live provider and UI session gates are documented
 ## Delivered behavior
 
 - One stationary top canvas owns both priority and media presentation.
-- Priority changes use Keep3's signature staged transition without moving the
-  panel.
+- One persistent shell inside that canvas owns background, animated shape,
+  clipping, hit geometry, and content handoff across priority, Media, and
+  Calendar without moving or replacing the panel.
+- Content updates use a 150-millisecond handoff, component changes use
+  210 milliseconds, expansion uses 270 milliseconds, and collapse uses
+  200 milliseconds. Reduce Motion uses a 120-millisecond non-spatial crossfade.
 - Settings use a sidebar, grouped controls, and live previews for Focus Surface
   and Media.
 - A playing system media session preempts priorities; pause, stop, interruption,
@@ -63,6 +67,17 @@ an explicit personal-build exception and is not Mac App Store compatible.
 | Binary boundary | Pass | `otool -L` and `nm -u` show no static MediaRemote dependency or undefined MediaRemote symbols; the helper contains the expected dynamic symbol strings |
 | UI test source | Pass | The new media-first fixture scenario compiles into `Keep3UITests` |
 | UI execution | Session-state exception | The macOS UI test runner was rejected before test launch because system authentication/loginwindow was active (`LocalAuthentication Code=-4`) |
+
+### 2026-07-27 continuity rerun
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Focused transition coverage | Pass | 123 tests cover latest-wins retargeting, two-layer bounds, hover geometry, automatic deferral, focus transfer, and Media/Calendar invariants |
+| Full unit suite | Pass | 241 executed, 240 passed, 1 live-media snapshot probe skipped, 0 failed |
+| Static analysis | Pass | Debug analyzer completed without findings |
+| arm64 Release build | Pass | The optimized application built and launched from the isolated build product |
+| Stable native host | Pass | The Release process retained one 377×216 top panel at the physical top edge; QA state, defaults, and process were cleaned up |
+| Native interpolation review | Physical exception | Both displays were asleep and macOS omitted app windows from capture; slow-motion, Reduce Motion, trackpad, and floating-display checks remain an unlocked-session gate |
 
 ## Installed Release correction checklist
 

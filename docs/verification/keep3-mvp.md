@@ -168,12 +168,43 @@ installed application bundle.
   transitions while preserving the button's identity and interaction behavior.
 - The default schedule is now 30 seconds for the current focus and 8 seconds for
   each secondary item.
-- Rotation continues during the 400-millisecond hover-intent delay. It pauses
+- Rotation continues during the 140-millisecond hover-intent delay. It pauses
   only when the surface actually expands, so a quick pointer pass does not
   restart the schedule.
 - Regression coverage includes transition identity, the default schedule,
   quick pointer passes, rotation during hover intent, and opening the matching
   editor item from the expanded surface.
+
+## Surface continuity correction
+
+Verification date: 2026-07-27
+
+- Priorities, Media, and Calendar now render inside one persistent host. The host
+  owns background, animated silhouette, clipping, interaction geometry, and
+  accessibility focus transfer; component renderers no longer replace that
+  outer shell at runtime.
+- Trigger-specific timings replace the obsolete blanket handoff: content
+  150 ms, component change 210 ms, expansion 270 ms, collapse 200 ms, and
+  Reduce Motion crossfade 120 ms.
+- Transition generations are latest-wins. Content revisions coalesce without
+  restarting shell motion, rapid component retargets retain at most two content
+  layers, and stale completions cannot restore an intermediate target.
+- Automatic takeover and fallback defer while pointer-down, explicit keyboard
+  navigation, VoiceOver, or a component command owns the interaction.
+- Hover intent is 140 ms, exit grace is 220 ms, a notched display keeps the
+  physical top-edge corridor, and a floating surface uses the current clipped
+  silhouette with 8 points of exit slop.
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Strict formatting | Pass | Recursive Swift format lint and `git diff --check` report no findings |
+| Focused continuity suites | Pass | 123 transition, navigation, geometry, gesture, interaction, Media, and Calendar tests passed before release reconciliation |
+| Full unit suite | Pass | 241 executed, 240 passed, 1 live-media probe skipped because no current system session published a snapshot, 0 failed |
+| Static analysis | Pass | Debug `xcodebuild analyze` completed without findings |
+| arm64 Release build | Pass | Optimized application and embedded media service built successfully |
+| UI automation execution | Session-state exception | The new depth/component identifier scenario compiled, but macOS cancelled the runner before assertions because system authentication was active |
+| Release runtime geometry | Pass | The isolated Release executable owned one 377×216 top panel at Quartz `X = 675, Y = 0` plus its editor window; the QA process and isolated defaults were removed afterward |
+| Native motion capture | Physical exception | Both connected displays reported asleep and application windows remained excluded from screenshot capture, so normal-speed, slow-motion, and Reduce Motion visual review must be repeated in an unlocked interactive session |
 
 ## Expanded surface presentation
 

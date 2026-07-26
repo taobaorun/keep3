@@ -27,7 +27,7 @@ struct FocusSurfaceSettingsView: View {
           step: 0.01
         )
         .accessibilityIdentifier("settings.backgroundOpacity")
-        Text("Keep3 使用统一的 0.76 秒交接；减少动态效果时使用 0.12 秒交叉淡入。")
+        Text("Keep3 会按内容、切换与展开动作匹配短促节奏；减少动态效果时统一使用 0.12 秒交叉淡入。")
           .font(.caption)
           .foregroundStyle(.secondary)
       }

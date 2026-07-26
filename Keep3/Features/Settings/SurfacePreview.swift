@@ -8,6 +8,7 @@ struct SurfacePreview: View {
 
   var body: some View {
     let transition = SignatureSurfaceTransition.resolve(
+      intent: .content,
       reduceMotion: reduceMotion,
       reduceTransparency: reduceTransparency,
       increaseContrast: false,

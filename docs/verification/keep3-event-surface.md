@@ -16,6 +16,8 @@ This record covers the post-MVP event surface iteration:
 - keyboard, accessibility, display-lifecycle, and XPC boundaries;
 - named VoiceOver depth/component actions backed by the shared navigation state
   machine.
+- one persistent top shell with interruptible, trigger-specific component and
+  depth transitions.
 
 ## Automated evidence
 
@@ -36,6 +38,32 @@ This record covers the post-MVP event surface iteration:
   before assertions because macOS reported `CGSSessionScreenIsLocked=Yes` and
   XCUIApplication could not activate either the new scenario or an unchanged
   baseline scenario.
+
+## Transition continuity evidence
+
+The 2026-07-27 correction keeps a single host and action router alive across
+priority, Media, Calendar, compact, and expanded presentations. Manual component
+navigation carries direction; automatic takeover and fallback remain neutral.
+Newer targets retarget the current presentation, content-only revisions
+coalesce, and stale generations cannot replay after lifecycle recovery.
+
+Deterministic coverage proves:
+
+- five rapid eligible targets settle only the latest with no queued compact
+  intermediate;
+- automatic selection waits for pointer, keyboard, VoiceOver, and command pins,
+  then recomputes the newest eligible target;
+- shell navigation remains available while outgoing and incoming component
+  controls are inert;
+- accessibility focus moves only after the destination settles, using the
+  equivalent compact control or the settled component container;
+- notched and floating hover ownership follow current presentation geometry
+  rather than the destination union.
+
+The full current run executed 241 unit tests with 0 failures and one
+live-environment skip. Static analysis and the arm64 Release build passed. The
+new UI outcome scenario compiled, but macOS cancelled XCUITest initialization
+while system authentication was active.
 
 ## Media correction evidence
 
@@ -65,6 +93,9 @@ This record covers the post-MVP event surface iteration:
 - Physical two-finger direction, trackpad haptic, expanded Media retreat, and
   accessibility focus/announcement require the installed Release app on an
   unlocked, interactive console with human input.
+- Normal-speed and slow-motion continuity, Reduce Motion, and the floating
+  external-display presentation also require that unlocked physical rerun; both
+  connected displays reported asleep during this verification session.
 
 ## Privacy and isolation
 

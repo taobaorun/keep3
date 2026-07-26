@@ -89,19 +89,6 @@ final class SignatureSurfaceTransitionTests: XCTestCase {
     XCTAssertEqual(transition.markerStyle(isCurrentFocus: false), .outlinedOrdinal)
   }
 
-  func testLegacyRendererResolverPreservesCurrentHandoffUntilRendererAdoption() {
-    let transition = SignatureSurfaceTransition.resolve(
-      reduceMotion: false,
-      reduceTransparency: false,
-      increaseContrast: false,
-      differentiateWithoutColor: false
-    )
-
-    XCTAssertEqual(transition.duration, 0.76, accuracy: 0.001)
-    XCTAssertTrue(transition.animatesShape)
-    XCTAssertTrue(transition.usesProgressiveTitleBlur)
-  }
-
   private func resolve(
     intent: SurfaceTransitionIntent
   ) -> SignatureSurfaceTransition {

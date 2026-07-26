@@ -54,26 +54,6 @@ struct SignatureSurfaceTransition: Equatable, Sendable {
     )
   }
 
-  static func resolve(
-    reduceMotion: Bool,
-    reduceTransparency: Bool,
-    increaseContrast: Bool,
-    differentiateWithoutColor: Bool,
-    backgroundOpacity: Double = 0.94
-  ) -> SignatureSurfaceTransition {
-    SignatureSurfaceTransition(
-      duration: reduceMotion ? 0.12 : 0.76,
-      motionPolicy: reduceMotion ? .crossfade : .standard,
-      direction: .neutral,
-      directionalContentOffset: 0,
-      animatesShape: !reduceMotion,
-      usesProgressiveTitleBlur: !reduceMotion,
-      outgoingTitleBlurRadius: reduceMotion ? 0 : 7,
-      backgroundOpacity: reduceTransparency ? 1 : backgroundOpacity,
-      usesHighContrastMarkers: increaseContrast || differentiateWithoutColor
-    )
-  }
-
   func markerStyle(isCurrentFocus: Bool) -> SurfaceMarkerStyle {
     isCurrentFocus ? .filledLozenge : .outlinedOrdinal
   }

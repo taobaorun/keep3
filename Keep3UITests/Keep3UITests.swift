@@ -116,6 +116,41 @@ final class Keep3UITests: XCTestCase {
     XCTAssertTrue(compactFocus.label.contains("Focus Returns"))
   }
 
+  func testSurfaceIdentifiersSurviveDepthAndComponentChanges() throws {
+    try launchIsolatedApp(
+      mediaFixture: true,
+      surfaceLevel: "compact"
+    )
+    defer { cleanUpIsolatedApp() }
+
+    addItem("Persistent Destination")
+
+    let compactMedia = app.buttons["media.compact"]
+    XCTAssertTrue(
+      compactMedia.waitForExistence(timeout: 4),
+      app.debugDescription
+    )
+    compactMedia.click()
+
+    XCTAssertTrue(
+      app.buttons["media.keyboard"].waitForExistence(timeout: 3),
+      app.debugDescription
+    )
+
+    openSettings()
+    openSettingsCategory("media")
+    let mediaEnabled = app.checkBoxes["settings.media.enabled"]
+    XCTAssertTrue(mediaEnabled.waitForExistence(timeout: 2))
+    mediaEnabled.click()
+
+    let expandedFocus = app.buttons["overlay.openItem"]
+    XCTAssertTrue(
+      expandedFocus.waitForExistence(timeout: 4),
+      app.debugDescription
+    )
+    XCTAssertTrue(expandedFocus.label.contains("Persistent Destination"))
+  }
+
   func testCalendarFixtureOwnsSurfaceAndDisablingRestoresFocus() throws {
     try launchIsolatedApp(
       expandedSurface: true,

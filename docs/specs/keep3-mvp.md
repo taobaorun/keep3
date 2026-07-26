@@ -167,9 +167,9 @@ Additional rules:
 
 1. In the default interaction mode, a quick pointer pass does not pause or reset
    rotation.
-2. After a 400-millisecond intentional-hover delay, rotation pauses and the
+2. After a 140-millisecond intentional-hover delay, rotation pauses and the
    surface expands.
-3. It collapses 200 milliseconds after pointer exit.
+3. It collapses 220 milliseconds after pointer exit.
 4. Re-entering during the collapse delay cancels collapse.
 5. Expanded content displays only the currently visible item:
    - Title
@@ -191,17 +191,24 @@ Additional rules:
 
 ### FR-8: Motion and Appearance
 
-1. The default transition is a 450-millisecond fade plus 6-point vertical
-   movement.
-2. The user can select Fade, Slide, or Dissolve.
-3. The user can choose a motion-speed multiplier within a bounded range of
-   0.5×–2×.
-4. When Reduce Motion is enabled in macOS, Keep3 uses a short crossfade without
-   positional movement, regardless of the selected preset.
-5. The user can adjust capsule width within layout-safe bounds.
-6. The user can adjust background opacity within a range that preserves text
+1. One persistent, top-anchored shell owns the background, shape, clipping, and
+   hit region across priorities, Media, Calendar, compact, and expanded states.
+2. Manual component navigation uses a directional 210-millisecond handoff.
+   Automatic component changes use a neutral 210-millisecond handoff; content
+   edits use 150 milliseconds; expansion uses 270 milliseconds; collapse uses
+   200 milliseconds.
+3. A new eligible target retargets the current presentation immediately. Rapid
+   input never queues stale destinations or flashes an intermediate compact
+   state.
+4. Automatic takeover and exit wait while pointer-down, keyboard navigation,
+   VoiceOver, or a component command owns the interaction, then reconcile only
+   the newest eligible target.
+5. When Reduce Motion is enabled in macOS, every component and depth change uses
+   a 120-millisecond non-spatial crossfade.
+6. The user can adjust capsule width within layout-safe bounds.
+7. The user can adjust background opacity within a range that preserves text
    contrast.
-7. Appearance follows the system light/dark appearance.
+8. Appearance follows the system light/dark appearance.
 
 ### FR-9: Accessibility
 

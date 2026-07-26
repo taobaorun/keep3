@@ -60,11 +60,12 @@ The broader breakdown is the current understanding and may be revised by later p
 
 - R1. The compact and expanded focus surfaces must read as one continuous black product object across notched and floating-capsule displays.
 - R2. The compact surface must remain motionless after settling, with no breathing, pulsing, shimmer, or autonomous decorative animation.
-- R3. Automatic rotation and visible-item updates must use one signature transition that briefly reshapes the surface and returns it to rest within 650–850 milliseconds.
-- R4. The signature transition must coordinate the surface shape, progressive blur of the outgoing title, arrival of the incoming title, and final settling as one handoff.
+- R3. The shared persistent shell must resolve one trigger-specific signature family: content 150 milliseconds, manual or automatic component change 210 milliseconds, expansion 270 milliseconds, and collapse 200 milliseconds.
+- R4. The signature transition must coordinate the surface shape, progressive blur of the outgoing title, arrival of the incoming title, and final settling as one interruptible handoff. Manual component changes may carry direction; automatic changes remain neutral.
 - R5. The designated current focus must carry a persistent filled lozenge before its title; a secondary item must carry an outlined ordinal badge (`2` or `3`) instead. The marker must remain visible through handoff and expansion, and color may reinforce but must not encode the distinction.
-- R6. Hover expansion and collapse must use the same motion character as item switching while remaining visibly intentional rather than notification-like. Expansion must reveal the context of the item that was visible when expansion began; if that item is secondary, its outlined ordinal badge must remain visible, and collapse must return to the designated current focus.
+- R6. Hover expansion and collapse must use the same motion character as item switching while remaining visibly intentional rather than notification-like. Expansion must reveal the context of the item that was visible when expansion began; if that item is secondary, its outlined ordinal badge must remain visible, and collapse must return to the designated current focus. Hover intent resolves after 140 milliseconds and exit grace after 220 milliseconds.
 - R7. When Reduce Motion is enabled, all shape and positional movement must become a crossfade lasting no more than 150 milliseconds.
+- R7a. A newer eligible target retargets the current presentation and invalidates stale completion. Automatic changes defer during pointer-down, keyboard, VoiceOver, or a component command, then reconcile only the latest target.
 
 ```mermaid
 stateDiagram-v2
@@ -133,7 +134,7 @@ flowchart TB
   - **Covers R3–R5.**
   - **Given:** The first item is the designated current focus and the second item is due to rotate in.
   - **When:** The signature handoff completes.
-  - **Then:** The second title is readable, the surface is at rest within 850 milliseconds, and the first item remains the designated focus.
+  - **Then:** The second title is readable, the 150-millisecond content handoff settles without replacing the shell, and the first item remains the designated focus.
 - AE3. Editing uses the same language
   - **Covers R3, R4.**
   - **Given:** The visible item's title changes in the editor.
@@ -159,7 +160,7 @@ flowchart TB
 
 - After 14 consecutive workdays, the user still keeps automatic rotation enabled and does not describe the signature transition as distracting.
 - In side-by-side review, the resting, switching, and expanded states are recognizable as one Keep3 object on both notched and non-notched displays.
-- In a blind comparison against the current MVP transition, at least four of five evaluators can distinguish the new handoff from the baseline and recognize the same Keep3-specific choreography across rotation, editing, and expansion.
+- In a blind comparison against the current MVP transition, at least four of five evaluators can distinguish the new trigger-specific handoff family from the baseline and recognize one uninterrupted Keep3 object across rotation, editing, component changes, and expansion.
 - A visual review passes in light, dark, increased-contrast, Reduce Motion, and Reduce Transparency configurations without losing current-focus meaning.
 - A planning pass can define implementation without inventing motion behavior, settings organization, accessibility fallback, or visual scope.
 
@@ -182,7 +183,9 @@ flowchart TB
 
 **Deferred to Planning**
 
-- Select the exact easing or spring parameters that satisfy the 650–850 millisecond product envelope.
+- Resolved by the 2026-07-26 continuity plan: use the trigger-specific
+  150/200/210/270-millisecond family and a 120-millisecond Reduce Motion
+  crossfade.
 - Select the concrete typography, material, corner geometry, and spacing tokens that satisfy the approved visual direction.
 
 ### Sources and Research
@@ -196,6 +199,8 @@ flowchart TB
 
 ### From 2026-07-26 review
 
-- **Overlapping transitions can produce inconsistent surface state** — Requirements / Key Flows (P1, adversarial, confidence 75)
+- **Resolved: overlapping transitions use latest-wins retargeting** — Requirements / Key Flows (P1, adversarial, confidence 75)
 
-  When rotation, editing, and intentional expansion overlap during an active handoff, users may see a jump, stale title, or unintended expansion. Planning must choose one arbitration policy—queue, cancel, or preempt—and define its ordering before implementation.
+  Rotation, editing, component changes, and intentional expansion retarget the
+  current presentation. Stale generation completions are ignored and automatic
+  component changes defer while an explicit interaction owns the surface.
