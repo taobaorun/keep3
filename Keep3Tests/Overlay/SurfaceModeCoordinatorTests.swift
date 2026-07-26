@@ -30,6 +30,30 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
     XCTAssertEqual(coordinator.designatedFocusID, focusID)
   }
 
+  func testFocusUpdatesAreDeliveredWhileMediaPresentationRemainsActive() {
+    let firstFocus = focus(UUID(), revision: 1)
+    let rotatedFocus = focus(UUID(), revision: 2)
+    let media = MediaSurfacePayload(
+      sessionID: "session-1",
+      contentRevision: 1,
+      isExpanded: false,
+      areControlsEnabled: true
+    )
+    var presentations: [TopSurfacePresentation] = []
+    var focusUpdates: [FocusSurfacePayload] = []
+    let coordinator = SurfaceModeCoordinator(
+      onPresentation: { presentations.append($0) },
+      onFocusPayloadChange: { focusUpdates.append($0) }
+    )
+    coordinator.updateFocus(firstFocus)
+    coordinator.updateMedia(media)
+
+    coordinator.updateFocus(rotatedFocus)
+
+    XCTAssertEqual(presentations.last, .media(media))
+    XCTAssertEqual(focusUpdates.last, rotatedFocus)
+  }
+
   func testMediaExitKeepsDisabledMediaForGraceThenReturnsLatestFocus() {
     let firstFocusID = UUID()
     let latestFocusID = UUID()

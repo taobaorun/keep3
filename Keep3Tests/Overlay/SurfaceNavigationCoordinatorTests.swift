@@ -75,6 +75,20 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
     XCTAssertFalse(coordinator.isAvailable(.media))
   }
 
+  func testSameMediaSessionRecoveryPreservesManualPrioritiesSelection() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .priorities)
+    coordinator.beginMediaSession("session-1")
+    coordinator.select(.priorities)
+
+    coordinator.endMediaSession("session-1")
+    coordinator.beginMediaSession("session-1")
+
+    XCTAssertEqual(coordinator.state.selectedComponent, .priorities)
+    XCTAssertEqual(coordinator.state.selectionSource, .manual)
+    XCTAssertTrue(coordinator.isAvailable(.media))
+  }
+
   func testExpandedMediaExitReturnsPrioritiesAtCompactLevel() {
     let coordinator = SurfaceNavigationCoordinator()
     coordinator.setAvailability(true, for: .priorities)
@@ -120,6 +134,17 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
 
     XCTAssertEqual(coordinator.state.level, .compact)
     XCTAssertEqual(coordinator.state.effectiveLevel, .compact)
+  }
+
+  func testHoverStateTracksPointerAtCompactLevel() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setLevel(.compact)
+
+    coordinator.setHovering(true)
+    XCTAssertTrue(coordinator.state.isHovering)
+
+    coordinator.setHovering(false)
+    XCTAssertFalse(coordinator.state.isHovering)
   }
 
   func testDepthAndExpandedComponentIntentsFollowThreeLevelContract() {

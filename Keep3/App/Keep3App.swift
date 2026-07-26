@@ -87,6 +87,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private lazy var surfaceModeCoordinator = SurfaceModeCoordinator(
     onPresentation: { [weak self] presentation in
       self?.handleSourcePresentation(presentation)
+    },
+    onFocusPayloadChange: { [weak self] payload in
+      self?.handleSourceFocusPayload(payload)
     }
   )
   private lazy var surfaceNavigationCoordinator =
@@ -351,6 +354,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
+  private func handleSourceFocusPayload(_ payload: FocusSurfacePayload) {
+    sourceFocusPayload = payload
+    guard sourceMediaPayload != nil,
+      surfaceNavigationCoordinator.state.selectedComponent == .priorities
+    else {
+      return
+    }
+    renderSelectedSurface()
+  }
+
   private func handleCalendarState(_ state: CalendarSessionState) {
     calendarState = state
     calendarRevision &+= 1
@@ -410,7 +423,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           revision: sourceFocusPayload.revision,
           expansionReason:
             navigation.isHoverPreviewed
-            ? .hover : level == .expanded ? .manual : .none
+            ? .hover : level == .expanded ? .manual : .none,
+          isHovered: navigation.isHovering
         )
       )
     case .media:
@@ -434,7 +448,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ? .hover : level == .expanded ? .manual : .none,
           appearance: sourceMediaPayload.appearance,
           trackChangeDirection: sourceMediaPayload.trackChangeDirection,
-          trackPeek: sourceMediaPayload.trackPeek
+          trackPeek: sourceMediaPayload.trackPeek,
+          isHovered: navigation.isHovering
         )
       )
     case .calendar:
@@ -442,7 +457,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         CalendarSurfacePayload(
           state: calendarState,
           level: level,
-          revision: calendarRevision
+          revision: calendarRevision,
+          isHovered: navigation.isHovering
         )
       )
     }
@@ -495,7 +511,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       content: content,
       metrics: surfaceMetrics,
       onHoverChanged: { [weak self] isInside in
-        self?.surfaceNavigationCoordinator.setHovering(isInside)
+        self?.handleSurfaceHoverChange(isInside)
       },
       onScroll: { [weak self] event in
         self?.handleSurfaceScroll(event)
@@ -530,7 +546,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       payload: payload,
       focusMetrics: surfaceMetrics,
       onHoverChanged: { [weak self] isInside in
-        self?.surfaceNavigationCoordinator.setHovering(isInside)
+        self?.handleSurfaceHoverChange(isInside)
       },
       onScroll: { [weak self] event in
         self?.handleSurfaceScroll(event)
@@ -567,7 +583,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       payload: payload,
       metrics: surfaceMetrics,
       onHoverChanged: { [weak self] isInside in
-        self?.surfaceNavigationCoordinator.setHovering(isInside)
+        self?.handleSurfaceHoverChange(isInside)
       },
       onScroll: { [weak self] event in
         self?.handleSurfaceScroll(event)
@@ -590,6 +606,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func dismissSurfaceNavigation() {
     topSurfaceController.endKeyboardNavigation()
     surfaceNavigationCoordinator.setLevel(.compact)
+  }
+
+  private func handleSurfaceHoverChange(_ isInside: Bool) {
+    let wasHovering = surfaceNavigationCoordinator.state.isHovering
+    surfaceNavigationCoordinator.setHovering(isInside)
+    if isInside && !wasHovering {
+      surfaceHapticFeedback.performHoverFeedback()
+    }
   }
 
   private func handlePendingMediaActionChange(

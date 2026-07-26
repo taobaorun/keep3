@@ -374,6 +374,7 @@ final class TopSurfacePanel: NSPanel {
         TopSurfaceRootView(
           layout: layout,
           animatesSurfaceFrame: false,
+          isHovered: focus.isHovered && focus.level != .expanded,
           content: TopSurfaceView(
             content: focus,
             presentationStyle: presentationStyle,
@@ -391,6 +392,7 @@ final class TopSurfacePanel: NSPanel {
         TopSurfaceRootView(
           layout: layout,
           animatesSurfaceFrame: true,
+          isHovered: media.isHovered && media.level != .expanded,
           content: MediaSurfaceView(
             payload: media,
             presentationStyle: presentationStyle,
@@ -407,6 +409,7 @@ final class TopSurfacePanel: NSPanel {
         TopSurfaceRootView(
           layout: layout,
           animatesSurfaceFrame: false,
+          isHovered: calendar.isHovered && calendar.level != .expanded,
           content: CalendarSurfaceView(
             payload: calendar,
             presentationStyle: presentationStyle,
@@ -498,9 +501,11 @@ private struct TopSurfaceRootView<Content: View>: View {
 
   let layout: TopSurfaceHostedLayout
   let animatesSurfaceFrame: Bool
+  let isHovered: Bool
   let content: Content
 
   var body: some View {
+    let hoverEffect = TopSurfaceHoverEffect(isActive: isHovered)
     ZStack(alignment: .topLeading) {
       content
         .frame(
@@ -508,6 +513,11 @@ private struct TopSurfaceRootView<Content: View>: View {
           height: layout.surfaceFrameInPanel.height
         )
         .position(layout.centerInSwiftUICoordinates)
+        .scaleEffect(
+          x: hoverEffect.scaleX,
+          y: hoverEffect.scaleY,
+          anchor: .top
+        )
     }
     .frame(
       width: layout.panelSize.width,
@@ -520,6 +530,20 @@ private struct TopSurfaceRootView<Content: View>: View {
         : nil,
       value: layout.surfaceFrameInPanel
     )
+    .animation(
+      !reduceMotion ? .easeOut(duration: 0.16) : nil,
+      value: isHovered
+    )
+  }
+}
+
+struct TopSurfaceHoverEffect: Equatable {
+  let scaleX: CGFloat
+  let scaleY: CGFloat
+
+  init(isActive: Bool) {
+    scaleX = isActive ? 1.02 : 1
+    scaleY = isActive ? 1.05 : 1
   }
 }
 

@@ -14,19 +14,22 @@ struct FocusSurfacePayload: Equatable, Sendable {
   let level: SurfaceLevel
   let revision: UInt64
   let expansionReason: SurfaceExpansionReason
+  let isHovered: Bool
 
   init(
     visibleItemID: UUID?,
     isExpanded: Bool,
     level: SurfaceLevel? = nil,
     revision: UInt64,
-    expansionReason: SurfaceExpansionReason
+    expansionReason: SurfaceExpansionReason,
+    isHovered: Bool = false
   ) {
     self.visibleItemID = visibleItemID
     self.isExpanded = isExpanded
     self.level = level ?? (isExpanded ? .expanded : .compact)
     self.revision = revision
     self.expansionReason = expansionReason
+    self.isHovered = isHovered
   }
 }
 
@@ -95,6 +98,7 @@ struct MediaSurfacePayload: Equatable, Sendable {
   let appearance: MediaSurfaceAppearance
   let trackChangeDirection: MediaTrackDirection?
   let trackPeek: MediaTrackPeek?
+  let isHovered: Bool
 
   init(
     sessionID: String,
@@ -108,7 +112,8 @@ struct MediaSurfacePayload: Equatable, Sendable {
     expansionReason: SurfaceExpansionReason = .none,
     appearance: MediaSurfaceAppearance = .standard,
     trackChangeDirection: MediaTrackDirection? = nil,
-    trackPeek: MediaTrackPeek? = nil
+    trackPeek: MediaTrackPeek? = nil,
+    isHovered: Bool = false
   ) {
     self.sessionID = sessionID
     self.contentRevision = contentRevision
@@ -122,6 +127,7 @@ struct MediaSurfacePayload: Equatable, Sendable {
     self.appearance = appearance
     self.trackChangeDirection = trackChangeDirection
     self.trackPeek = trackPeek
+    self.isHovered = isHovered
   }
 
   var isTemporaryExpansion: Bool {
@@ -133,6 +139,19 @@ struct CalendarSurfacePayload: Equatable, Sendable {
   let state: CalendarSessionState
   let level: SurfaceLevel
   let revision: UInt64
+  let isHovered: Bool
+
+  init(
+    state: CalendarSessionState,
+    level: SurfaceLevel,
+    revision: UInt64,
+    isHovered: Bool = false
+  ) {
+    self.state = state
+    self.level = level
+    self.revision = revision
+    self.isHovered = isHovered
+  }
 
   var isExpanded: Bool {
     level == .expanded
