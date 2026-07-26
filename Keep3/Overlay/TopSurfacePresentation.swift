@@ -11,8 +11,23 @@ enum SurfaceExpansionReason: Equatable, Sendable {
 struct FocusSurfacePayload: Equatable, Sendable {
   let visibleItemID: UUID?
   let isExpanded: Bool
+  let level: SurfaceLevel
   let revision: UInt64
   let expansionReason: SurfaceExpansionReason
+
+  init(
+    visibleItemID: UUID?,
+    isExpanded: Bool,
+    level: SurfaceLevel? = nil,
+    revision: UInt64,
+    expansionReason: SurfaceExpansionReason
+  ) {
+    self.visibleItemID = visibleItemID
+    self.isExpanded = isExpanded
+    self.level = level ?? (isExpanded ? .expanded : .compact)
+    self.revision = revision
+    self.expansionReason = expansionReason
+  }
 }
 
 enum MediaArtworkTreatment: String, CaseIterable, Codable, Equatable, Sendable {
@@ -65,6 +80,7 @@ struct MediaSurfacePayload: Equatable, Sendable {
   let sessionID: String
   let contentRevision: UInt64
   let isExpanded: Bool
+  let level: SurfaceLevel
   let areControlsEnabled: Bool
   let session: MediaSession?
   let playbackState: MediaPlaybackState
@@ -76,6 +92,7 @@ struct MediaSurfacePayload: Equatable, Sendable {
     sessionID: String,
     contentRevision: UInt64,
     isExpanded: Bool,
+    level: SurfaceLevel? = nil,
     areControlsEnabled: Bool,
     session: MediaSession? = nil,
     playbackState: MediaPlaybackState = .unknown,
@@ -86,6 +103,7 @@ struct MediaSurfacePayload: Equatable, Sendable {
     self.sessionID = sessionID
     self.contentRevision = contentRevision
     self.isExpanded = isExpanded
+    self.level = level ?? (isExpanded ? .expanded : .compact)
     self.areControlsEnabled = areControlsEnabled
     self.session = session
     self.playbackState = playbackState
@@ -103,6 +121,19 @@ enum TopSurfacePresentation: Equatable, Sendable {
   case hidden
   case focus(FocusSurfacePayload)
   case media(MediaSurfacePayload)
+}
+
+extension TopSurfacePresentation {
+  var componentID: SurfaceComponentID? {
+    switch self {
+    case .hidden:
+      nil
+    case .focus:
+      .priorities
+    case .media:
+      .media
+    }
+  }
 }
 
 enum TopSurfaceInteractionIntent: Equatable, Sendable {

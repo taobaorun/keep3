@@ -1,15 +1,15 @@
-# Spec: Keep3 MVP
+# Spec: Keep3
 
-Status: Personal MVP implemented and approved with documented physical
-verification exceptions
+Status: MVP implemented; event-surface product iteration in progress under
+[`docs/plans/2026-07-26-001-feat-event-surface-interactions-plan.md`](../plans/2026-07-26-001-feat-event-surface-interactions-plan.md)
 Source idea: [`docs/ideas/keep3.md`](../ideas/keep3.md)
 
 ## Objective
 
-Keep3 is a quiet, native macOS companion that keeps at most three
-user-defined priorities in sight. The user designates one item as the current
-focus. Keep3 shows that item near the top center of the primary display and
-occasionally surfaces the other two without becoming a task manager or
+Keep3 is a quiet, native macOS event surface. It keeps at most three
+user-defined priorities in sight, yields to active media, and can show the
+next relevant local Calendar commitment after explicit opt-in. These components
+share the top center of the primary display without becoming a task manager or
 interrupting the user's work.
 
 The first release is for the developer's personal workflow. It validates one
@@ -43,14 +43,17 @@ measures.
 - Local persistence and launch-at-login support.
 - A small set of appearance and interaction preferences.
 - A media-first top surface for the active system media session.
+- An opt-in, local-only EventKit Calendar component.
+- Hardware-aligned, compact, and expanded surface levels.
+- Vertical component/depth gestures and horizontal media track gestures.
 - Accessibility, reduced-motion behavior, and idle resource constraints.
 
 ### Out of Scope
 
 - Completion state, checkboxes, progress, history, review, or analytics.
-- Dates, deadlines, reminders, or notifications.
+- Priority-item dates, deadlines, reminders, or notifications.
 - Automatic activity monitoring or drift detection.
-- Calendar, Reminders, third-party, account, cloud, or team integration.
+- Reminders, third-party calendar services, accounts, cloud, or team integration.
 - Clipboard, file shelf, system HUD, or other general notch utilities.
 - iPhone, iPad, Apple Watch, ActivityKit, or Live Activities.
 - Independent overlays per display or freely draggable overlay placement.
@@ -215,7 +218,9 @@ Additional rules:
 ### FR-10: Resource Use and Privacy
 
 1. The app requests no Accessibility, Screen Recording, Full Disk Access,
-   Contacts, Calendar, Reminders, or notification permission.
+   Contacts, Reminders, or notification permission. Calendar full access is
+   requested only after the user explicitly enables the Calendar component in
+   Settings.
 2. The app contains no analytics, telemetry, advertisements, or crash-reporting
    SDK.
 3. After a two-minute warm-up in a release build on Apple Silicon, compact idle
@@ -226,18 +231,19 @@ Additional rules:
 
 ### FR-11: Media-First Surface
 
-1. When media-first mode is enabled and the active system media session is
-   playing, media owns the same fixed top-surface canvas used by priorities.
+1. When media-first mode is enabled and a new eligible system media session is
+   playing, media auto-selects once in the shared top surface.
 2. Pausing, stopping, interruption, player exit, source suppression, or loss of
    the media session returns the surface to the latest designated priority.
 3. Compact media shows artwork or a fallback, title, artist, and a playback
    indicator. Expanded media shows metadata, progress, capability-gated
    controls, and the configured secondary action.
-4. A new track can trigger a bounded Quick Peek. Hover or click expansion
-   supersedes Quick Peek and remains under direct user control.
-5. Precise vertical two-finger gestures dispatch at most one previous/next
-   command per physical gesture. Horizontal intent and momentum do not switch
-   tracks.
+4. A confirmed new track triggers a bounded artwork/title/artist peek without
+   opening full controls. Hover or click expansion remains under direct user
+   control.
+5. Precise horizontal two-finger gestures dispatch at most one previous/next
+   command per physical gesture. Vertical intent belongs to surface depth and
+   component switching; momentum never switches tracks.
 6. Track-change haptics occur only after a newer content identity is observed
    for the same media session and capability revision. Rejected, timed-out, and
    stale commands do not produce success feedback.
@@ -247,6 +253,20 @@ Additional rules:
 8. Media settings include the master switch, Quick Peek, manual expansion,
    artwork treatment, waveform, secondary action, opacity, frontmost-player
    suppression, and persisted per-source suppression.
+
+### FR-12: Event Surface and Calendar
+
+1. The ordered initial components are priorities, media, and Calendar;
+   unavailable components are skipped.
+2. A manual component selection is not overridden by media progress snapshots.
+   Media pause, exit, or session loss returns to the latest designated priority.
+3. A notched display has hardware-aligned, compact, and expanded levels.
+   Hover previews compact, click expands, and deliberate vertical gestures
+   advance depth or select the next/previous component from expanded.
+4. Calendar is disabled by default, requests EventKit access only from Settings,
+   keeps no event persistence, and publishes at most five non-cancelled
+   title/time projections from the next 24 hours.
+5. Calendar content never enters the media XPC service or a network path.
 
 ## Tech Stack
 
@@ -260,7 +280,7 @@ Additional rules:
 - ServiceManagement `SMAppService` for launch at login.
 - XCTest and XCUITest for automated verification.
 - `swift-format` from the Xcode toolchain.
-- No third-party runtime or development dependencies in the MVP.
+- No third-party runtime or development dependencies.
 
 All screen, notch, window, persistence, and settings behavior uses documented
 Apple APIs. Global cross-application media control is an explicit personal-build
@@ -451,13 +471,15 @@ Before MVP completion:
 
 ### Never Do
 
-- Use private Apple frameworks or undocumented API.
+- Use private Apple frameworks or undocumented API outside the existing,
+  isolated, fail-closed MediaRemote XPC exception.
 - Commit secrets, signing certificates, or provisioning profiles.
 - Read unrelated user files or other applications' data.
 - Add completion, streak, productivity-scoring, or drift-monitoring behavior
   without a new reviewed spec.
 - Hide failing tests, weaken assertions, or remove tests to make a build pass.
-- Add general-purpose notch widgets unrelated to the three priorities.
+- Add general-purpose notch widgets that are not passive, local-first,
+  glanceable, non-interruptive, and tied to current or imminent context.
 
 ## Success Criteria
 
