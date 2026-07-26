@@ -31,7 +31,7 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertFalse(panel.canBecomeKey)
   }
 
-  func testMediaTakeoverAlwaysEndsFocusKeyboardNavigation() throws {
+  func testMediaTakeoverPreservesExplicitKeyboardNavigation() throws {
     let frame = CGRect(x: 100, y: 100, width: 360, height: 216)
     let panel = TopSurfacePanel(
       contentRect: frame,
@@ -55,7 +55,7 @@ final class TopSurfacePanelTests: XCTestCase {
       onMediaAction: { _ in }
     )
 
-    XCTAssertFalse(panel.canBecomeKey)
+    XCTAssertTrue(panel.canBecomeKey)
   }
 
   func testKeyboardCommandsAcceptOnlyUnmodifiedNavigationKeys() {

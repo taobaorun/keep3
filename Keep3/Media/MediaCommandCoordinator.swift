@@ -6,6 +6,11 @@ enum MediaCommandDispatchResult: Equatable, Sendable {
   case confirmed
 }
 
+struct ConfirmedMediaTrackChange: Equatable, Sendable {
+  let direction: MediaTrackDirection
+  let snapshot: MediaSessionSnapshot
+}
+
 protocol MediaCommandSending: Sendable {
   func send(
     _ action: MediaSurfaceAction,
@@ -26,7 +31,7 @@ final class MediaCommandCoordinator {
     let capabilityRevision: UInt64
     let contentRevisionBeforeDispatch: UInt64
     var hasBeenAccepted = false
-    var candidateContentRevision: UInt64?
+    var candidateSnapshot: MediaSessionSnapshot?
 
     var requiresTrackConfirmation: Bool {
       action == .previous || action == .next
@@ -37,6 +42,7 @@ final class MediaCommandCoordinator {
   private let haptic: any MediaHapticPerforming
   private let scheduler: any AppTimerScheduling
   private let onPendingActionChange: (MediaSurfaceAction?) -> Void
+  private let onConfirmedTrackChange: (ConfirmedMediaTrackChange) -> Void
   private var currentSnapshot: MediaSessionSnapshot?
   private var isMediaActive = false
   private var pending: PendingCommand?
@@ -50,12 +56,16 @@ final class MediaCommandCoordinator {
       TaskAppTimerScheduler(),
     onPendingActionChange: @escaping (MediaSurfaceAction?) -> Void = {
       _ in
+    },
+    onConfirmedTrackChange: @escaping (ConfirmedMediaTrackChange) -> Void = {
+      _ in
     }
   ) {
     self.sender = sender
     self.haptic = haptic
     self.scheduler = scheduler
     self.onPendingActionChange = onPendingActionChange
+    self.onConfirmedTrackChange = onConfirmedTrackChange
   }
 
   var pendingAction: MediaSurfaceAction? {
@@ -118,7 +128,16 @@ final class MediaCommandCoordinator {
       clearPending()
       return false
     case .confirmed:
-      complete(command)
+      guard command.requiresTrackConfirmation else {
+        complete(command)
+        return true
+      }
+      pending?.hasBeenAccepted = true
+      if let candidateSnapshot = pending?.candidateSnapshot {
+        complete(command, confirmedSnapshot: candidateSnapshot)
+      } else {
+        scheduleTimeout(for: command)
+      }
       return true
     case .accepted:
       guard command.requiresTrackConfirmation else {
@@ -126,8 +145,8 @@ final class MediaCommandCoordinator {
         return true
       }
       pending?.hasBeenAccepted = true
-      if pending?.candidateContentRevision != nil {
-        complete(command)
+      if let candidateSnapshot = pending?.candidateSnapshot {
+        complete(command, confirmedSnapshot: candidateSnapshot)
         return true
       }
       scheduleTimeout(for: command)
@@ -159,10 +178,10 @@ final class MediaCommandCoordinator {
     }
 
     guard pending.hasBeenAccepted else {
-      self.pending?.candidateContentRevision = snapshot.contentRevision
+      self.pending?.candidateSnapshot = snapshot
       return
     }
-    complete(pending)
+    complete(pending, confirmedSnapshot: snapshot)
   }
 
   func cancel() {
@@ -199,14 +218,41 @@ final class MediaCommandCoordinator {
     return requiredCapability.map(session.capabilities.contains) ?? false
   }
 
-  private func complete(_ command: PendingCommand) {
+  private func complete(
+    _ command: PendingCommand,
+    confirmedSnapshot: MediaSessionSnapshot? = nil
+  ) {
     guard pending?.token == command.token else {
       return
     }
     lastCompletedToken = command.token
     clearPending()
     if command.requiresTrackConfirmation {
+      guard let confirmedSnapshot,
+        let direction = trackDirection(for: command.action)
+      else {
+        return
+      }
       haptic.performConfirmedTrackChange()
+      onConfirmedTrackChange(
+        ConfirmedMediaTrackChange(
+          direction: direction,
+          snapshot: confirmedSnapshot
+        )
+      )
+    }
+  }
+
+  private func trackDirection(
+    for action: MediaSurfaceAction
+  ) -> MediaTrackDirection? {
+    switch action {
+    case .previous:
+      .previous
+    case .next:
+      .next
+    default:
+      nil
     }
   }
 

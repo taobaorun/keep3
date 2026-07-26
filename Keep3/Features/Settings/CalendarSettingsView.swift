@@ -61,7 +61,9 @@ struct CalendarSettingsView: View {
         ),
         presentationStyle: .floatingCapsule,
         surfaceSize: CGSize(width: 310, height: 44),
-        onActivateSurface: {}
+        onActivateSurface: {},
+        onRequestKeyboardNavigation: {},
+        onSurfaceNavigation: { _ in }
       )
       Text("向下双指滑动可进入常态、展开当前组件，并继续切换到下一组件。")
         .font(.caption)

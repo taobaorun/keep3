@@ -12,11 +12,15 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     label: "dev.keep3.mediaremote.service",
     qos: .userInitiated
   )
+  private let clientStateLock = NSLock()
+  private var clientGeneration: UInt64 = 0
+  private var activeClientGeneration: UInt64?
   private var client: (any MediaRemoteClientProtocol)?
   private var runtime: MediaRemoteRuntime?
   private var observerTokens: [NSObjectProtocol] = []
   private var pendingRefresh: DispatchWorkItem?
   private var monitoringGeneration: UInt64 = 0
+  private var monitoringClientGeneration: UInt64?
   private var contentRevision: UInt64 = 0
   private var currentSessionID: String?
   private var currentContentIdentity: ContentIdentity?
@@ -26,10 +30,17 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
   private var currentArtworkMIMEType: String?
 
   func attach(client: any MediaRemoteClientProtocol) {
+    clientStateLock.withLock {
+      clientGeneration &+= 1
+      activeClientGeneration = clientGeneration
+    }
     self.client = client
   }
 
   func invalidateClient() {
+    clientStateLock.withLock {
+      activeClientGeneration = nil
+    }
     queue.async { [weak self] in
       guard let self else {
         return
@@ -46,8 +57,14 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
   }
 
   func startMonitoring(reply: @escaping @Sendable (Bool) -> Void) {
+    guard let clientGeneration = currentClientGeneration() else {
+      reply(false)
+      return
+    }
     queue.async { [weak self] in
-      guard let self else {
+      guard let self, self.acceptsClient(clientGeneration),
+        self.client != nil
+      else {
         reply(false)
         return
       }
@@ -62,6 +79,7 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
       }
 
       self.runtime = runtime
+      self.monitoringClientGeneration = clientGeneration
       let generation = self.monitoringGeneration
       runtime.registerNotifications(on: self.queue)
       self.installObservers(generation: generation)
@@ -83,8 +101,14 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     value: NSNumber?,
     reply: @escaping @Sendable (Bool) -> Void
   ) {
+    guard let clientGeneration = currentClientGeneration() else {
+      reply(false)
+      return
+    }
     queue.async { [weak self] in
-      guard let self, self.currentSessionID == sessionID,
+      guard let self, self.acceptsClient(clientGeneration),
+        self.monitoringClientGeneration == clientGeneration,
+        self.currentSessionID == sessionID,
         let command = MediaRemoteCommandName(rawValue: action),
         capabilityRevision.exactUInt64 == self.currentCapabilityRevision,
         self.currentCapabilities.contains(command.requiredCapability)
@@ -199,7 +223,10 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     capabilities: Set<MediaCapability>,
     generation: UInt64
   ) {
-    guard generation == monitoringGeneration else {
+    guard generation == monitoringGeneration,
+      let monitoringClientGeneration,
+      acceptsClient(monitoringClientGeneration)
+    else {
       return
     }
     let application =
@@ -303,7 +330,10 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
   }
 
   private func publishUnavailable(generation: UInt64) {
-    guard generation == monitoringGeneration else {
+    guard generation == monitoringGeneration,
+      let monitoringClientGeneration,
+      acceptsClient(monitoringClientGeneration)
+    else {
       return
     }
     currentSessionID = nil
@@ -380,6 +410,7 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     observerTokens = []
     runtime?.unregisterNotifications()
     runtime = nil
+    monitoringClientGeneration = nil
     currentSessionID = nil
     currentContentIdentity = nil
     currentCapabilities = []
@@ -392,7 +423,24 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     runtime: MediaRemoteRuntime,
     generation: UInt64
   ) -> Bool {
-    generation == monitoringGeneration && self.runtime === runtime
+    guard generation == monitoringGeneration, self.runtime === runtime,
+      let monitoringClientGeneration
+    else {
+      return false
+    }
+    return acceptsClient(monitoringClientGeneration)
+  }
+
+  private func currentClientGeneration() -> UInt64? {
+    clientStateLock.withLock {
+      activeClientGeneration
+    }
+  }
+
+  private func acceptsClient(_ generation: UInt64) -> Bool {
+    clientStateLock.withLock {
+      activeClientGeneration == generation
+    }
   }
 }
 

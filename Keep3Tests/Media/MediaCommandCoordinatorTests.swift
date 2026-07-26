@@ -8,10 +8,12 @@ final class MediaCommandCoordinatorTests: XCTestCase {
     let sender = CommandSender(result: .accepted)
     let haptic = HapticRecorder()
     let scheduler = ManualCommandTimerScheduler()
+    var confirmations: [ConfirmedMediaTrackChange] = []
     let coordinator = MediaCommandCoordinator(
       sender: sender,
       haptic: haptic,
-      scheduler: scheduler
+      scheduler: scheduler,
+      onConfirmedTrackChange: { confirmations.append($0) }
     )
     coordinator.updateContext(snapshot: snapshot(revision: 1), isMediaActive: true)
 
@@ -25,6 +27,8 @@ final class MediaCommandCoordinatorTests: XCTestCase {
 
     coordinator.receive(snapshot(revision: 2))
     XCTAssertEqual(haptic.count, 1)
+    XCTAssertEqual(confirmations.map(\.direction), [.next])
+    XCTAssertEqual(confirmations.first?.snapshot.contentRevision, 2)
     XCTAssertNil(coordinator.pendingAction)
   }
 
@@ -68,10 +72,12 @@ final class MediaCommandCoordinatorTests: XCTestCase {
   func testSnapshotArrivingBeforeRejectedReplyNeverHaptics() async {
     let sender = SuspendedCommandSender()
     let haptic = HapticRecorder()
+    var confirmations: [ConfirmedMediaTrackChange] = []
     let coordinator = MediaCommandCoordinator(
       sender: sender,
       haptic: haptic,
-      scheduler: ManualCommandTimerScheduler()
+      scheduler: ManualCommandTimerScheduler(),
+      onConfirmedTrackChange: { confirmations.append($0) }
     )
     coordinator.updateContext(snapshot: snapshot(revision: 1), isMediaActive: true)
 
@@ -87,6 +93,7 @@ final class MediaCommandCoordinatorTests: XCTestCase {
     let result = await dispatch.value
     XCTAssertFalse(result)
     XCTAssertEqual(haptic.count, 0)
+    XCTAssertTrue(confirmations.isEmpty)
     XCTAssertNil(coordinator.pendingAction)
   }
 

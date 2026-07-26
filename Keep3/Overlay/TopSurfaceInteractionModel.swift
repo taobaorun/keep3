@@ -111,6 +111,7 @@ final class TopSurfaceInteractionModel {
     isExpanded = false
     scrollAccumulator = 0
     didNavigateDuringScrollGesture = false
+    resumeRotationIfNeeded()
   }
 
   func synchronizeUnifiedExpansion(_ shouldExpand: Bool) {

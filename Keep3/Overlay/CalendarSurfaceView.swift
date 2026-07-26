@@ -138,6 +138,8 @@ struct CalendarSurfaceView: View {
   let presentationStyle: TopSurfacePresentationStyle
   let surfaceSize: CGSize
   let onActivateSurface: () -> Void
+  let onRequestKeyboardNavigation: () -> Void
+  let onSurfaceNavigation: (SurfaceGestureIntent) -> Void
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -172,6 +174,12 @@ struct CalendarSurfaceView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .accessibilityElement(children: .contain)
     .accessibilityLabel(presentation.accessibilitySummary)
+    .modifier(
+      SurfaceAccessibilityNavigationModifier(
+        level: payload.level,
+        onNavigate: onSurfaceNavigation
+      )
+    )
   }
 
   @ViewBuilder
@@ -247,6 +255,16 @@ struct CalendarSurfaceView: View {
           .foregroundStyle(.white.opacity(0.72))
         Spacer()
         refreshIndicator
+        Button(action: onRequestKeyboardNavigation) {
+          Image(systemName: "keyboard")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.white.opacity(0.58))
+            .frame(width: 26, height: 26)
+            .background(.white.opacity(0.06), in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("启用键盘导航")
+        .accessibilityIdentifier("calendar.keyboard")
       }
       .padding(.bottom, 10)
 

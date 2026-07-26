@@ -78,6 +78,7 @@ final class TopSurfacePanel: NSPanel {
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
     onRequestKeyboardNavigation: @escaping () -> Void = {},
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
     onDismiss: @escaping () -> Void = {},
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onOpenItem: @escaping () -> Void = {}
@@ -91,6 +92,7 @@ final class TopSurfacePanel: NSPanel {
       onScroll: onScroll,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+      onSurfaceNavigation: onSurfaceNavigation,
       onDismiss: onDismiss,
       onNavigate: onNavigate,
       onOpenItem: onOpenItem,
@@ -106,6 +108,10 @@ final class TopSurfacePanel: NSPanel {
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
+    onRequestKeyboardNavigation: @escaping () -> Void = {},
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
+    onDismiss: @escaping () -> Void = {},
+    onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onMediaAction: @escaping (MediaSurfaceAction) -> Void = { _ in }
   ) {
     self.init(
@@ -116,9 +122,10 @@ final class TopSurfacePanel: NSPanel {
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,
       onActivateSurface: onActivateSurface,
-      onRequestKeyboardNavigation: {},
-      onDismiss: {},
-      onNavigate: { _ in },
+      onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+      onSurfaceNavigation: onSurfaceNavigation,
+      onDismiss: onDismiss,
+      onNavigate: onNavigate,
       onOpenItem: {},
       onMediaAction: onMediaAction
     )
@@ -131,7 +138,10 @@ final class TopSurfacePanel: NSPanel {
     presentationStyle: TopSurfacePresentationStyle = .floatingCapsule,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
-    onActivateSurface: @escaping () -> Void = {}
+    onActivateSurface: @escaping () -> Void = {},
+    onRequestKeyboardNavigation: @escaping () -> Void = {},
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
+    onDismiss: @escaping () -> Void = {}
   ) {
     self.init(
       contentRect: contentRect,
@@ -141,8 +151,9 @@ final class TopSurfacePanel: NSPanel {
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,
       onActivateSurface: onActivateSurface,
-      onRequestKeyboardNavigation: {},
-      onDismiss: {},
+      onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+      onSurfaceNavigation: onSurfaceNavigation,
+      onDismiss: onDismiss,
       onNavigate: { _ in },
       onOpenItem: {},
       onMediaAction: { _ in }
@@ -158,6 +169,7 @@ final class TopSurfacePanel: NSPanel {
     onScroll: @escaping (SurfaceScrollEvent) -> Void,
     onActivateSurface: @escaping () -> Void,
     onRequestKeyboardNavigation: @escaping () -> Void,
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void,
     onDismiss: @escaping () -> Void,
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
     onOpenItem: @escaping () -> Void,
@@ -177,6 +189,7 @@ final class TopSurfacePanel: NSPanel {
         surfaceSize: resolvedSurfaceFrame.size,
         onActivateSurface: onActivateSurface,
         onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+        onSurfaceNavigation: onSurfaceNavigation,
         onNavigate: onNavigate,
         onOpenItem: onOpenItem,
         onMediaAction: onMediaAction
@@ -235,6 +248,7 @@ final class TopSurfacePanel: NSPanel {
     onScroll: @escaping (SurfaceScrollEvent) -> Void,
     onActivateSurface: @escaping () -> Void,
     onRequestKeyboardNavigation: @escaping () -> Void,
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void,
     onDismiss: @escaping () -> Void,
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
     onOpenItem: @escaping () -> Void
@@ -255,14 +269,11 @@ final class TopSurfacePanel: NSPanel {
       surfaceSize: surfaceFrameInPanel.size,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+      onSurfaceNavigation: onSurfaceNavigation,
       onNavigate: onNavigate,
       onOpenItem: onOpenItem,
       onMediaAction: { _ in }
     )
-
-    if !content.isExpanded {
-      setKeyboardNavigationEnabled(false)
-    }
   }
 
   func update(
@@ -272,6 +283,10 @@ final class TopSurfacePanel: NSPanel {
     onHoverChanged: @escaping (Bool) -> Void,
     onScroll: @escaping (SurfaceScrollEvent) -> Void,
     onActivateSurface: @escaping () -> Void,
+    onRequestKeyboardNavigation: @escaping () -> Void = {},
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
+    onDismiss: @escaping () -> Void = {},
+    onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onMediaAction: @escaping (MediaSurfaceAction) -> Void
   ) {
     panelContent = .media(mediaPayload)
@@ -280,8 +295,8 @@ final class TopSurfacePanel: NSPanel {
     hasShadow = presentationStyle.hasPanelShadow
     eventView.onHoverChanged = onHoverChanged
     eventView.onScroll = onScroll
-    eventView.onNavigate = { _ in }
-    eventView.onDismiss = {}
+    eventView.onNavigate = onNavigate
+    eventView.onDismiss = onDismiss
     eventView.onOpenItem = {}
     eventView.updateActiveFrame(surfaceFrameInPanel)
     eventView.hostingView.rootView = Self.rootView(
@@ -289,12 +304,12 @@ final class TopSurfacePanel: NSPanel {
       presentationStyle: presentationStyle,
       surfaceSize: surfaceFrameInPanel.size,
       onActivateSurface: onActivateSurface,
-      onRequestKeyboardNavigation: {},
-      onNavigate: { _ in },
+      onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+      onSurfaceNavigation: onSurfaceNavigation,
+      onNavigate: onNavigate,
       onOpenItem: {},
       onMediaAction: onMediaAction
     )
-    setKeyboardNavigationEnabled(false)
   }
 
   func update(
@@ -303,7 +318,10 @@ final class TopSurfacePanel: NSPanel {
     surfaceFrameInPanel: CGRect,
     onHoverChanged: @escaping (Bool) -> Void,
     onScroll: @escaping (SurfaceScrollEvent) -> Void,
-    onActivateSurface: @escaping () -> Void
+    onActivateSurface: @escaping () -> Void,
+    onRequestKeyboardNavigation: @escaping () -> Void = {},
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
+    onDismiss: @escaping () -> Void = {}
   ) {
     panelContent = .calendar(calendarPayload)
     renderedPresentationStyle = presentationStyle
@@ -312,7 +330,7 @@ final class TopSurfacePanel: NSPanel {
     eventView.onHoverChanged = onHoverChanged
     eventView.onScroll = onScroll
     eventView.onNavigate = { _ in }
-    eventView.onDismiss = {}
+    eventView.onDismiss = onDismiss
     eventView.onOpenItem = {}
     eventView.updateActiveFrame(surfaceFrameInPanel)
     eventView.hostingView.rootView = Self.rootView(
@@ -320,12 +338,12 @@ final class TopSurfacePanel: NSPanel {
       presentationStyle: presentationStyle,
       surfaceSize: surfaceFrameInPanel.size,
       onActivateSurface: onActivateSurface,
-      onRequestKeyboardNavigation: {},
+      onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+      onSurfaceNavigation: onSurfaceNavigation,
       onNavigate: { _ in },
       onOpenItem: {},
       onMediaAction: { _ in }
     )
-    setKeyboardNavigationEnabled(false)
   }
 
   private static func rootView(
@@ -334,6 +352,7 @@ final class TopSurfacePanel: NSPanel {
     surfaceSize: CGSize,
     onActivateSurface: @escaping () -> Void,
     onRequestKeyboardNavigation: @escaping () -> Void,
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void,
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
     onOpenItem: @escaping () -> Void,
     onMediaAction: @escaping (MediaSurfaceAction) -> Void
@@ -347,6 +366,7 @@ final class TopSurfacePanel: NSPanel {
           surfaceSize: surfaceSize,
           onActivateSurface: onActivateSurface,
           onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+          onSurfaceNavigation: onSurfaceNavigation,
           onNavigate: onNavigate,
           onOpenItem: onOpenItem
         )
@@ -358,7 +378,9 @@ final class TopSurfacePanel: NSPanel {
           presentationStyle: presentationStyle,
           surfaceSize: surfaceSize,
           onAction: onMediaAction,
-          onActivateSurface: onActivateSurface
+          onActivateSurface: onActivateSurface,
+          onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+          onSurfaceNavigation: onSurfaceNavigation
         )
       )
     case .calendar(let calendar):
@@ -367,7 +389,9 @@ final class TopSurfacePanel: NSPanel {
           payload: calendar,
           presentationStyle: presentationStyle,
           surfaceSize: surfaceSize,
-          onActivateSurface: onActivateSurface
+          onActivateSurface: onActivateSurface,
+          onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+          onSurfaceNavigation: onSurfaceNavigation
         )
       )
     }
@@ -507,13 +531,17 @@ private final class TopSurfaceEventView: NSView {
   }
 
   override func scrollWheel(with event: NSEvent) {
+    let locationInScreen = window?.convertPoint(
+      toScreen: event.locationInWindow
+    )
     onScroll(
       SurfaceScrollEvent(
         deltaX: event.scrollingDeltaX,
         deltaY: event.scrollingDeltaY,
         isPrecise: event.hasPreciseScrollingDeltas,
         physicalPhase: physicalPhase(for: event.phase),
-        momentumPhase: momentumPhase(for: event.momentumPhase)
+        momentumPhase: momentumPhase(for: event.momentumPhase),
+        locationInScreen: locationInScreen
       )
     )
   }

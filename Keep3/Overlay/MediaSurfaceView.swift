@@ -134,6 +134,8 @@ struct MediaSurfaceView: View {
   let surfaceSize: CGSize
   let onAction: (MediaSurfaceAction) -> Void
   let onActivateSurface: () -> Void
+  let onRequestKeyboardNavigation: () -> Void
+  let onSurfaceNavigation: (SurfaceGestureIntent) -> Void
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -177,6 +179,12 @@ struct MediaSurfaceView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .accessibilityElement(children: .contain)
     .accessibilityLabel(accessibilitySummary)
+    .modifier(
+      SurfaceAccessibilityNavigationModifier(
+        level: payload.level,
+        onNavigate: onSurfaceNavigation
+      )
+    )
   }
 
   @ViewBuilder
@@ -395,6 +403,17 @@ struct MediaSurfaceView: View {
           )
           .padding(.bottom, 22)
         }
+        Button(action: onRequestKeyboardNavigation) {
+          Image(systemName: "keyboard")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.white.opacity(0.58))
+            .frame(width: 28, height: 28)
+            .background(.white.opacity(0.06), in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("启用键盘导航")
+        .accessibilityIdentifier("media.keyboard")
+        .padding(.bottom, 14)
       }
       .frame(height: 56)
       .padding(.horizontal, metrics.horizontalInset)

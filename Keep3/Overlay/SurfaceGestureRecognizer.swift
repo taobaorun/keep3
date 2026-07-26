@@ -15,17 +15,20 @@ struct SurfaceGestureContext: Equatable, Sendable {
   let level: SurfaceLevel
   let generation: UInt64
   let mediaSessionID: String?
+  let interactionFrameInScreen: CGRect
 
   init(
     component: SurfaceComponentID,
     level: SurfaceLevel,
     generation: UInt64,
-    mediaSessionID: String? = nil
+    mediaSessionID: String? = nil,
+    interactionFrameInScreen: CGRect = .infinite
   ) {
     self.component = component
     self.level = level
     self.generation = generation
     self.mediaSessionID = mediaSessionID
+    self.interactionFrameInScreen = interactionFrameInScreen
   }
 }
 
@@ -43,6 +46,7 @@ struct SurfaceGestureRecognizer {
   private var lockedAxis: Axis?
   private var armedIntent: SurfaceGestureIntent?
   private var isTracking = false
+  private var capturedInteractionFrame: CGRect?
 
   mutating func updateContext(_ context: SurfaceGestureContext?) {
     guard self.context != context else {
@@ -63,7 +67,16 @@ struct SurfaceGestureRecognizer {
     switch event.physicalPhase {
     case .began:
       resetGesture()
+      guard let context else {
+        return nil
+      }
+      if let location = event.locationInScreen,
+        !contextContains(location: location, context: context)
+      {
+        return nil
+      }
       isTracking = true
+      capturedInteractionFrame = context.interactionFrameInScreen
       accumulate(event)
       lockAndArmIfEligible()
       return nil
@@ -71,11 +84,19 @@ struct SurfaceGestureRecognizer {
       guard isTracking else {
         return nil
       }
+      guard isInsideCapturedFrame(event.locationInScreen) else {
+        resetGesture()
+        return nil
+      }
       accumulate(event)
       lockAndArmIfEligible()
       return nil
     case .ended:
       guard isTracking else {
+        return nil
+      }
+      guard isInsideCapturedFrame(event.locationInScreen) else {
+        resetGesture()
         return nil
       }
       let intent = armedIntent
@@ -135,5 +156,20 @@ struct SurfaceGestureRecognizer {
     lockedAxis = nil
     armedIntent = nil
     isTracking = false
+    capturedInteractionFrame = nil
+  }
+
+  private func contextContains(
+    location: CGPoint,
+    context: SurfaceGestureContext
+  ) -> Bool {
+    context.interactionFrameInScreen.contains(location)
+  }
+
+  private func isInsideCapturedFrame(_ location: CGPoint?) -> Bool {
+    guard let location, let capturedInteractionFrame else {
+      return true
+    }
+    return capturedInteractionFrame.contains(location)
   }
 }

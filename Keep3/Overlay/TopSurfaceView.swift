@@ -253,12 +253,44 @@ struct TopSurfaceShape: Shape {
   }
 }
 
+struct SurfaceAccessibilityNavigationModifier: ViewModifier {
+  let level: SurfaceLevel
+  let onNavigate: (SurfaceGestureIntent) -> Void
+
+  @ViewBuilder
+  func body(content: Content) -> some View {
+    switch level {
+    case .hardware:
+      content.accessibilityAction(named: Text("展开一级")) {
+        onNavigate(.advanceDepth)
+      }
+    case .compact:
+      content
+        .accessibilityAction(named: Text("展开一级")) {
+          onNavigate(.advanceDepth)
+        }
+        .accessibilityAction(named: Text("收起一级")) {
+          onNavigate(.retreatDepth)
+        }
+    case .expanded:
+      content
+        .accessibilityAction(named: Text("下一个组件")) {
+          onNavigate(.advanceDepth)
+        }
+        .accessibilityAction(named: Text("上一个组件")) {
+          onNavigate(.retreatDepth)
+        }
+    }
+  }
+}
+
 struct TopSurfaceView: View {
   let content: TopSurfaceContent
   let presentationStyle: TopSurfacePresentationStyle
   let surfaceSize: CGSize
   let onActivateSurface: () -> Void
   let onRequestKeyboardNavigation: () -> Void
+  let onSurfaceNavigation: (SurfaceGestureIntent) -> Void
   let onNavigate: (TopSurfaceBrowseDirection) -> Void
   let onOpenItem: () -> Void
 
@@ -275,6 +307,12 @@ struct TopSurfaceView: View {
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
       .accessibilityElement(children: .contain)
       .accessibilityLabel(accessibilitySummary)
+      .modifier(
+        SurfaceAccessibilityNavigationModifier(
+          level: content.level,
+          onNavigate: onSurfaceNavigation
+        )
+      )
   }
 
   private var surfaceBody: some View {

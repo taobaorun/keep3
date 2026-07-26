@@ -4,6 +4,13 @@ import AppKit
 final class TopSurfaceController {
   private(set) var panel: TopSurfacePanel?
 
+  var visibleInteractionFrameInScreen: CGRect? {
+    guard let panel, panel.isVisible else {
+      return nil
+    }
+    return panel.convertToScreen(panel.renderedSurfaceFrameInPanel)
+  }
+
   func showOnPrimaryDisplay(
     content: TopSurfaceContent,
     metrics: SurfaceMetrics = .standard,
@@ -11,6 +18,7 @@ final class TopSurfaceController {
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
     onRequestKeyboardNavigation: @escaping () -> Void = {},
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
     onDismiss: @escaping () -> Void = {},
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onOpenItem: @escaping () -> Void = {}
@@ -31,6 +39,7 @@ final class TopSurfaceController {
       onScroll: onScroll,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+      onSurfaceNavigation: onSurfaceNavigation,
       onDismiss: onDismiss,
       onNavigate: onNavigate,
       onOpenItem: onOpenItem
@@ -43,6 +52,10 @@ final class TopSurfaceController {
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
+    onRequestKeyboardNavigation: @escaping () -> Void = {},
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
+    onDismiss: @escaping () -> Void = {},
+    onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onAction: @escaping (MediaSurfaceAction) -> Void = { _ in }
   ) {
     guard let screen = NSScreen.screens.first else {
@@ -64,6 +77,10 @@ final class TopSurfaceController {
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,
       onActivateSurface: onActivateSurface,
+      onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+      onSurfaceNavigation: onSurfaceNavigation,
+      onDismiss: onDismiss,
+      onNavigate: onNavigate,
       onAction: onAction
     )
   }
@@ -73,7 +90,10 @@ final class TopSurfaceController {
     metrics: SurfaceMetrics = .standard,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
-    onActivateSurface: @escaping () -> Void = {}
+    onActivateSurface: @escaping () -> Void = {},
+    onRequestKeyboardNavigation: @escaping () -> Void = {},
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
+    onDismiss: @escaping () -> Void = {}
   ) {
     guard let screen = NSScreen.screens.first else {
       remove()
@@ -89,7 +109,10 @@ final class TopSurfaceController {
       payload: payload,
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,
-      onActivateSurface: onActivateSurface
+      onActivateSurface: onActivateSurface,
+      onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+      onSurfaceNavigation: onSurfaceNavigation,
+      onDismiss: onDismiss
     )
   }
 
@@ -100,6 +123,7 @@ final class TopSurfaceController {
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
     onRequestKeyboardNavigation: @escaping () -> Void = {},
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
     onDismiss: @escaping () -> Void = {},
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onOpenItem: @escaping () -> Void = {}
@@ -117,6 +141,7 @@ final class TopSurfaceController {
       onScroll: onScroll,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+      onSurfaceNavigation: onSurfaceNavigation,
       onDismiss: onDismiss,
       onNavigate: onNavigate,
       onOpenItem: onOpenItem
@@ -129,6 +154,10 @@ final class TopSurfaceController {
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
+    onRequestKeyboardNavigation: @escaping () -> Void = {},
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
+    onDismiss: @escaping () -> Void = {},
+    onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onAction: @escaping (MediaSurfaceAction) -> Void = { _ in }
   ) {
     let presentationStyle =
@@ -147,6 +176,10 @@ final class TopSurfaceController {
         onHoverChanged: onHoverChanged,
         onScroll: onScroll,
         onActivateSurface: onActivateSurface,
+        onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+        onSurfaceNavigation: onSurfaceNavigation,
+        onDismiss: onDismiss,
+        onNavigate: onNavigate,
         onMediaAction: onAction
       )
     } else {
@@ -158,6 +191,10 @@ final class TopSurfaceController {
         onHoverChanged: onHoverChanged,
         onScroll: onScroll,
         onActivateSurface: onActivateSurface,
+        onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+        onSurfaceNavigation: onSurfaceNavigation,
+        onDismiss: onDismiss,
+        onNavigate: onNavigate,
         onMediaAction: onAction
       )
       panel = surfacePanel
@@ -180,7 +217,10 @@ final class TopSurfaceController {
     payload: CalendarSurfacePayload,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
-    onActivateSurface: @escaping () -> Void = {}
+    onActivateSurface: @escaping () -> Void = {},
+    onRequestKeyboardNavigation: @escaping () -> Void = {},
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
+    onDismiss: @escaping () -> Void = {}
   ) {
     let presentationStyle =
       layout.obstructionSize.map {
@@ -196,7 +236,10 @@ final class TopSurfaceController {
         surfaceFrameInPanel: layout.surfaceFrameInPanel,
         onHoverChanged: onHoverChanged,
         onScroll: onScroll,
-        onActivateSurface: onActivateSurface
+        onActivateSurface: onActivateSurface,
+        onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+        onSurfaceNavigation: onSurfaceNavigation,
+        onDismiss: onDismiss
       )
     } else {
       surfacePanel = TopSurfacePanel(
@@ -206,7 +249,10 @@ final class TopSurfaceController {
         presentationStyle: presentationStyle,
         onHoverChanged: onHoverChanged,
         onScroll: onScroll,
-        onActivateSurface: onActivateSurface
+        onActivateSurface: onActivateSurface,
+        onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+        onSurfaceNavigation: onSurfaceNavigation,
+        onDismiss: onDismiss
       )
       panel = surfacePanel
     }
@@ -222,6 +268,7 @@ final class TopSurfaceController {
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
     onRequestKeyboardNavigation: @escaping () -> Void = {},
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
     onDismiss: @escaping () -> Void = {},
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onOpenItem: @escaping () -> Void = {}
@@ -245,6 +292,7 @@ final class TopSurfaceController {
       onScroll: onScroll,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+      onSurfaceNavigation: onSurfaceNavigation,
       onDismiss: onDismiss,
       onNavigate: onNavigate,
       onOpenItem: onOpenItem
@@ -259,6 +307,7 @@ final class TopSurfaceController {
     onScroll: @escaping (SurfaceScrollEvent) -> Void,
     onActivateSurface: @escaping () -> Void,
     onRequestKeyboardNavigation: @escaping () -> Void,
+    onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void,
     onDismiss: @escaping () -> Void,
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
     onOpenItem: @escaping () -> Void
@@ -275,6 +324,7 @@ final class TopSurfaceController {
         onScroll: onScroll,
         onActivateSurface: onActivateSurface,
         onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+        onSurfaceNavigation: onSurfaceNavigation,
         onDismiss: onDismiss,
         onNavigate: onNavigate,
         onOpenItem: onOpenItem
@@ -289,6 +339,7 @@ final class TopSurfaceController {
         onScroll: onScroll,
         onActivateSurface: onActivateSurface,
         onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+        onSurfaceNavigation: onSurfaceNavigation,
         onDismiss: onDismiss,
         onNavigate: onNavigate,
         onOpenItem: onOpenItem

@@ -8,6 +8,7 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
     var states: [SurfaceNavigationState] = []
     let coordinator = SurfaceNavigationCoordinator { states.append($0) }
 
+    coordinator.setAvailability(true, for: .priorities)
     coordinator.setAvailability(true, for: .media)
     coordinator.beginMediaSession("session-1")
 
@@ -28,6 +29,7 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
 
   func testNavigationWrapsAndSkipsUnavailableComponents() {
     let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .priorities)
     coordinator.setAvailability(true, for: .calendar)
 
     coordinator.navigate(.next)
@@ -41,6 +43,7 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
 
   func testSelectedUnavailableFallsForwardThenUltimatelyReturnsPriorities() {
     let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .priorities)
     coordinator.setAvailability(true, for: .media)
     coordinator.setAvailability(true, for: .calendar)
     coordinator.select(.media)
@@ -57,6 +60,7 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
 
   func testMediaExitReturnsPrioritiesAndReleasesManualPin() {
     let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .priorities)
     coordinator.setAvailability(true, for: .media)
     coordinator.setAvailability(true, for: .calendar)
     coordinator.beginMediaSession("session-1")
@@ -124,6 +128,7 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
   func testExpandedComponentSelectionPublishesOneAtomicCompactState() {
     var states: [SurfaceNavigationState] = []
     let coordinator = SurfaceNavigationCoordinator { states.append($0) }
+    coordinator.setAvailability(true, for: .priorities)
     coordinator.setAvailability(true, for: .media)
     coordinator.apply(.advanceDepth)
     coordinator.apply(.advanceDepth)
@@ -134,5 +139,27 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
     XCTAssertEqual(states.count, publicationCount + 1)
     XCTAssertEqual(states.last?.selectedComponent, .media)
     XCTAssertEqual(states.last?.level, .compact)
+  }
+
+  func testCalendarBecomesFallbackWhenPrioritiesAreEmpty() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .priorities)
+    coordinator.setAvailability(true, for: .calendar)
+
+    coordinator.setAvailability(false, for: .priorities)
+
+    XCTAssertEqual(coordinator.state.selectedComponent, .calendar)
+    XCTAssertEqual(coordinator.state.selectionSource, .fallback)
+  }
+
+  func testMediaExitFallsBackToCalendarWhenPrioritiesAreEmpty() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .calendar)
+    coordinator.beginMediaSession("session-1")
+
+    coordinator.endMediaSession("session-1")
+
+    XCTAssertEqual(coordinator.state.selectedComponent, .calendar)
+    XCTAssertEqual(coordinator.state.selectionSource, .mediaExit)
   }
 }

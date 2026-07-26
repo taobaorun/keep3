@@ -206,11 +206,13 @@ final class TopSurfaceInteractionTests: XCTestCase {
       currentFocusID: currentID
     )
     coordinator.showRotatedItem(secondaryID)
+    coordinator.synchronizeUnifiedExpansion(true)
     let publicationCountBeforeSync = recorder.presentations.count
 
     coordinator.synchronizeToCurrentFocusWithoutPresentation()
 
     XCTAssertEqual(recorder.presentations.count, publicationCountBeforeSync)
+    XCTAssertEqual(recorder.resumeCount, 1)
     coordinator.activateVisibleItem()
     XCTAssertEqual(recorder.openedIDs, [currentID])
   }

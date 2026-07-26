@@ -257,7 +257,9 @@ private struct MediaSettingsPreview: View {
         presentationStyle: .floatingCapsule,
         surfaceSize: CGSize(width: 310, height: 44),
         onAction: { _ in },
-        onActivateSurface: {}
+        onActivateSurface: {},
+        onRequestKeyboardNavigation: {},
+        onSurfaceNavigation: { _ in }
       )
       Text("预览使用与顶部媒体胶囊相同的外观与辅助功能规则。")
         .font(.caption)

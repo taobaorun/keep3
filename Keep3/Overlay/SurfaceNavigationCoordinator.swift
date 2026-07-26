@@ -42,7 +42,7 @@ final class SurfaceNavigationCoordinator {
     self.orderedComponents = orderedComponents
     self.onStateChange = onStateChange
     availability = Dictionary(
-      uniqueKeysWithValues: orderedComponents.map { ($0.id, $0.id == .priorities) }
+      uniqueKeysWithValues: orderedComponents.map { ($0.id, false) }
     )
   }
 
@@ -54,11 +54,10 @@ final class SurfaceNavigationCoordinator {
     _ isAvailable: Bool,
     for component: SurfaceComponentID
   ) {
-    let resolvedAvailability = component == .priorities ? true : isAvailable
-    guard availability[component] != resolvedAvailability else {
+    guard availability[component] != isAvailable else {
       return
     }
-    availability[component] = resolvedAvailability
+    availability[component] = isAvailable
 
     guard !self.isAvailable(selectedComponent) else {
       publish()
@@ -199,7 +198,13 @@ final class SurfaceNavigationCoordinator {
     }
     mediaSessionID = nil
     availability[.media] = false
-    selectedComponent = .priorities
+    if isAvailable(.priorities) {
+      selectedComponent = .priorities
+    } else if let fallback = firstAvailableComponent(after: .media) {
+      selectedComponent = fallback
+    } else {
+      selectedComponent = .priorities
+    }
     selectionSource = .mediaExit
     publish()
   }
@@ -222,27 +227,26 @@ final class SurfaceNavigationCoordinator {
   }
 
   private func selectFallback(after component: SurfaceComponentID) {
+    selectedComponent = firstAvailableComponent(after: component) ?? .priorities
+    selectionSource = .fallback
+    publish()
+  }
+
+  private func firstAvailableComponent(
+    after component: SurfaceComponentID
+  ) -> SurfaceComponentID? {
     guard let selectedIndex = index(of: component) else {
-      selectedComponent = .priorities
-      selectionSource = .fallback
-      publish()
-      return
+      return orderedComponents.lazy.map(\.id).first(where: isAvailable)
     }
 
     for offset in 1...orderedComponents.count {
       let candidate =
         orderedComponents[(selectedIndex + offset) % orderedComponents.count].id
       if isAvailable(candidate) {
-        selectedComponent = candidate
-        selectionSource = .fallback
-        publish()
-        return
+        return candidate
       }
     }
-
-    selectedComponent = .priorities
-    selectionSource = .fallback
-    publish()
+    return nil
   }
 
   private func index(of component: SurfaceComponentID) -> Int? {

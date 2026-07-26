@@ -117,9 +117,45 @@ final class Keep3UITests: XCTestCase {
     XCTAssertTrue(app.buttons["overlay.openItem"].label.contains("Focus Returns"))
   }
 
+  func testCalendarFixtureOwnsSurfaceAndDisablingRestoresFocus() throws {
+    try launchIsolatedApp(
+      expandedSurface: true,
+      calendarFixture: true
+    )
+    defer { cleanUpIsolatedApp() }
+
+    openSettings()
+    openSettingsCategory("calendar")
+    var calendarEnabled =
+      app.checkBoxes["settings.calendar.enabled"]
+    XCTAssertTrue(calendarEnabled.waitForExistence(timeout: 2))
+    calendarEnabled.click()
+
+    XCTAssertTrue(
+      app.staticTexts["UI Fixture Event"].waitForExistence(timeout: 4),
+      app.debugDescription
+    )
+
+    app.radioButtons["重点"].click()
+    addItem("Calendar Fallback")
+    openSettings()
+    openSettingsCategory("calendar")
+    calendarEnabled = app.checkBoxes["settings.calendar.enabled"]
+    XCTAssertTrue(calendarEnabled.waitForExistence(timeout: 2))
+    calendarEnabled.click()
+
+    XCTAssertTrue(
+      app.buttons["overlay.openItem"].waitForExistence(timeout: 4)
+    )
+    XCTAssertTrue(
+      app.buttons["overlay.openItem"].label.contains("Calendar Fallback")
+    )
+  }
+
   private func launchIsolatedApp(
     mediaFixture: Bool = false,
-    expandedSurface: Bool = false
+    expandedSurface: Bool = false,
+    calendarFixture: Bool = false
   ) throws {
     continueAfterFailure = false
 
@@ -140,6 +176,11 @@ final class Keep3UITests: XCTestCase {
       mediaFixture.description
     if mediaFixture {
       app.launchEnvironment["KEEP3_UI_TEST_MEDIA_FIXTURE"] = "playing"
+    }
+    app.launchEnvironment["KEEP3_UI_TEST_CALENDAR_ENABLED"] =
+      false.description
+    if calendarFixture {
+      app.launchEnvironment["KEEP3_UI_TEST_CALENDAR_FIXTURE"] = "authorized"
     }
     if expandedSurface {
       app.launchEnvironment["KEEP3_UI_TEST_SURFACE_LEVEL"] = "expanded"

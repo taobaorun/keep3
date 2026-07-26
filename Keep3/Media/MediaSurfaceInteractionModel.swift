@@ -34,9 +34,10 @@ final class MediaSurfaceInteractionModel {
     }
   }
 
-  func receive(_ snapshot: MediaSessionSnapshot?) {
-    guard let snapshot, snapshot.playbackState == .playing else {
-      reset()
+  func receiveConfirmedTrackChange(_ change: ConfirmedMediaTrackChange) {
+    let snapshot = change.snapshot
+    guard snapshot.playbackState == .playing else {
+      clearTrackPeek()
       return
     }
     let identity = ContentIdentity(
@@ -45,9 +46,6 @@ final class MediaSurfaceInteractionModel {
       artist: snapshot.session.artist,
       album: snapshot.session.album
     )
-    guard identity != contentIdentity else {
-      return
-    }
     contentIdentity = identity
     guard isQuickPeekEnabled else {
       return
