@@ -58,6 +58,62 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertTrue(panel.canBecomeKey)
   }
 
+  func testControllerReportsKeyboardDeferralLifecycle() {
+    let controller = TopSurfaceController()
+    var changes: [(SurfaceAutomaticDeferralReason, Bool)] = []
+    controller.onAutomaticTransitionDeferralChange = {
+      changes.append(($0, $1))
+    }
+
+    controller.beginKeyboardNavigation()
+    controller.endKeyboardNavigation()
+
+    XCTAssertEqual(changes.map(\.0), [.keyboardNavigation, .keyboardNavigation])
+    XCTAssertEqual(changes.map(\.1), [true, false])
+  }
+
+  func testPanelReportsPointerDownAndUpDeferralLifecycle() throws {
+    let panel = TopSurfacePanel(
+      contentRect: CGRect(x: 100, y: 100, width: 280, height: 44),
+      content: try makeContent(title: "当前重点")
+    )
+    var changes: [Bool] = []
+    panel.onPointerInteractionChanged = {
+      changes.append($0)
+    }
+    let down = try XCTUnwrap(
+      NSEvent.mouseEvent(
+        with: .leftMouseDown,
+        location: CGPoint(x: 140, y: 22),
+        modifierFlags: [],
+        timestamp: 1,
+        windowNumber: panel.windowNumber,
+        context: nil,
+        eventNumber: 1,
+        clickCount: 1,
+        pressure: 1
+      )
+    )
+    let up = try XCTUnwrap(
+      NSEvent.mouseEvent(
+        with: .leftMouseUp,
+        location: CGPoint(x: 140, y: 22),
+        modifierFlags: [],
+        timestamp: 2,
+        windowNumber: panel.windowNumber,
+        context: nil,
+        eventNumber: 2,
+        clickCount: 1,
+        pressure: 0
+      )
+    )
+
+    panel.sendEvent(down)
+    panel.sendEvent(up)
+
+    XCTAssertEqual(changes, [true, false])
+  }
+
   func testKeyboardCommandsAcceptOnlyUnmodifiedNavigationKeys() {
     XCTAssertEqual(
       TopSurfaceKeyboardCommand(keyCode: 123, modifiers: []),
@@ -507,6 +563,44 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertFalse(midpoint.contains(CGPoint(x: 10, y: 154)))
   }
 
+  func testFloatingHoverExitUsesCurrentSilhouetteWithEightPointSlop() {
+    let geometry = TopSurfacePresentedGeometry(
+      frame: CGRect(x: 80, y: 80, width: 200, height: 44),
+      presentationStyle: .floatingCapsule,
+      level: .compact,
+      panelBounds: CGRect(x: 0, y: 0, width: 360, height: 216)
+    )
+
+    XCTAssertFalse(
+      geometry.containsForHover(CGPoint(x: 73, y: 102), wasInside: false)
+    )
+    XCTAssertTrue(
+      geometry.containsForHover(CGPoint(x: 73, y: 102), wasInside: true)
+    )
+    XCTAssertFalse(
+      geometry.containsForHover(CGPoint(x: 71, y: 102), wasInside: true)
+    )
+  }
+
+  func testNotchHoverExitKeepsTopEdgeCorridor() {
+    let geometry = TopSurfacePresentedGeometry(
+      frame: CGRect(x: 40, y: 120, width: 280, height: 44),
+      presentationStyle: .notchAttached(
+        notchSize: CGSize(width: 185, height: 32)
+      ),
+      level: .compact,
+      panelBounds: CGRect(x: 0, y: 0, width: 360, height: 216)
+    )
+    let corridorPoint = CGPoint(x: 180, y: 190)
+
+    XCTAssertFalse(
+      geometry.containsForHover(corridorPoint, wasInside: false)
+    )
+    XCTAssertTrue(
+      geometry.containsForHover(corridorPoint, wasInside: true)
+    )
+  }
+
   func testRapidRetargetKeepsOnlyLatestTwoLayersAndLatestIntent() throws {
     let frame = CGRect(x: 0, y: 0, width: 360, height: 216)
     let panel = TopSurfacePanel(
@@ -589,6 +683,167 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertFalse(panel.areComponentControlsEnabled)
     panel.performSurfaceNavigation(.nextComponent)
     XCTAssertEqual(navigation, [.nextComponent])
+  }
+
+  func testContentRevisionsStaySettledWithoutCreatingShellOverlap() throws {
+    let frame = CGRect(x: 0, y: 0, width: 360, height: 216)
+    let focusID = UUID()
+    let initialFocus = TopSurfaceContent(
+      item: try FocusItem(id: focusID, title: "Initial"),
+      position: 1,
+      itemCount: 1,
+      isCurrentFocus: true,
+      presentation: FocusSurfacePayload(
+        visibleItemID: focusID,
+        isExpanded: false,
+        revision: 1,
+        expansionReason: .none
+      )
+    )
+    let panel = TopSurfacePanel(contentRect: frame, content: initialFocus)
+
+    panel.update(
+      content: TopSurfaceContent(
+        item: try FocusItem(id: focusID, title: "Edited"),
+        position: 1,
+        itemCount: 1,
+        isCurrentFocus: true,
+        presentation: FocusSurfacePayload(
+          visibleItemID: focusID,
+          isExpanded: false,
+          revision: 2,
+          expansionReason: .none
+        )
+      ),
+      presentationStyle: .floatingCapsule,
+      surfaceFrameInPanel: frame,
+      transitionIntent: .content,
+      onHoverChanged: { _ in },
+      onScroll: { _ in },
+      onActivateSurface: {},
+      onRequestKeyboardNavigation: {},
+      onSurfaceNavigation: { _ in },
+      onDismiss: {},
+      onNavigate: { _ in },
+      onOpenItem: {}
+    )
+    XCTAssertEqual(panel.transitionContext.phase, .settled)
+    XCTAssertEqual(panel.liveHostedLayerCount, 1)
+
+    let mediaPanel = TopSurfacePanel(
+      contentRect: frame,
+      mediaPayload: MediaSurfacePayload(
+        sessionID: "session-1",
+        contentRevision: 1,
+        isExpanded: false,
+        areControlsEnabled: true
+      )
+    )
+    mediaPanel.update(
+      mediaPayload: MediaSurfacePayload(
+        sessionID: "session-1",
+        contentRevision: 2,
+        isExpanded: false,
+        areControlsEnabled: true
+      ),
+      presentationStyle: .floatingCapsule,
+      surfaceFrameInPanel: frame,
+      transitionIntent: .content,
+      onHoverChanged: { _ in },
+      onScroll: { _ in },
+      onActivateSurface: {},
+      onMediaAction: { _ in }
+    )
+    XCTAssertEqual(mediaPanel.transitionContext.phase, .settled)
+    XCTAssertEqual(mediaPanel.liveHostedLayerCount, 1)
+
+    let calendar = CalendarSurfacePayload(
+      state: .content(
+        events: [],
+        isRefreshing: false,
+        refreshFailure: nil
+      ),
+      level: .compact,
+      revision: 1
+    )
+    let calendarPanel = TopSurfacePanel(
+      contentRect: frame,
+      calendarPayload: calendar
+    )
+    calendarPanel.update(
+      calendarPayload: CalendarSurfacePayload(
+        state: .content(
+          events: [],
+          isRefreshing: true,
+          refreshFailure: nil
+        ),
+        level: .compact,
+        revision: 2
+      ),
+      presentationStyle: .floatingCapsule,
+      surfaceFrameInPanel: frame,
+      transitionIntent: .content,
+      onHoverChanged: { _ in },
+      onScroll: { _ in },
+      onActivateSurface: {}
+    )
+    XCTAssertEqual(calendarPanel.transitionContext.phase, .settled)
+    XCTAssertEqual(calendarPanel.liveHostedLayerCount, 1)
+  }
+
+  func testAccessibilityRequestCrossesDualLayerHandoffIntoSettledTarget() {
+    let frame = CGRect(x: 0, y: 0, width: 360, height: 216)
+    let state = TopSurfaceHostState(
+      initialSnapshot: TopSurfaceHostSnapshot(
+        content: .media(
+          MediaSurfacePayload(
+            sessionID: "session-1",
+            contentRevision: 1,
+            isExpanded: true,
+            areControlsEnabled: true
+          )
+        ),
+        presentationStyle: .floatingCapsule,
+        panelSize: frame.size,
+        surfaceFrameInPanel: frame
+      )
+    )
+    state.update(
+      snapshot: TopSurfaceHostSnapshot(
+        content: .media(
+          MediaSurfacePayload(
+            sessionID: "session-1",
+            contentRevision: 1,
+            isExpanded: false,
+            areControlsEnabled: true
+          )
+        ),
+        presentationStyle: .floatingCapsule,
+        panelSize: frame.size,
+        surfaceFrameInPanel: frame
+      ),
+      intent: .collapse,
+      reduceMotion: false
+    )
+
+    state.requestAccessibilityFocus(
+      for: .expandedRetreat(for: .media)
+    )
+
+    XCTAssertEqual(state.transitionContext.phase, .transitioning)
+    XCTAssertNil(state.accessibilityFocusRequest)
+
+    state.complete(shellGeneration: state.shellGeneration)
+
+    XCTAssertEqual(state.transitionContext.phase, .settled)
+    XCTAssertEqual(
+      state.accessibilityFocusRequest?.destination,
+      .compactMedia
+    )
+    XCTAssertEqual(
+      state.rendererContext.accessibilityFocusRequest,
+      state.accessibilityFocusRequest
+    )
   }
 
   func testContentOmitsBlankDetailsAndSubitems() throws {

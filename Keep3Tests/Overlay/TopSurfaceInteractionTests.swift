@@ -16,7 +16,7 @@ final class TopSurfaceInteractionTests: XCTestCase {
 
     coordinator.pointerEntered()
     XCTAssertEqual(recorder.pauseCount, 0)
-    XCTAssertEqual(scheduler.activeDelays, [0.4])
+    XCTAssertEqual(scheduler.activeDelays, [0.14])
 
     coordinator.pointerExited()
 
@@ -48,7 +48,7 @@ final class TopSurfaceInteractionTests: XCTestCase {
     )
 
     coordinator.pointerExited()
-    XCTAssertEqual(scheduler.activeDelays, [0.2])
+    XCTAssertEqual(scheduler.activeDelays, [0.22])
     scheduler.fireNext()
 
     XCTAssertEqual(recorder.resumeCount, 1)
@@ -260,7 +260,7 @@ final class TopSurfaceInteractionTests: XCTestCase {
     XCTAssertEqual(scheduler.activeTimerCount, 0)
     coordinator.pointerEntered()
     XCTAssertEqual(recorder.pauseCount, 0)
-    XCTAssertEqual(scheduler.activeDelays, [0.4])
+    XCTAssertEqual(scheduler.activeDelays, [0.14])
   }
 
   func testClickTriggerDoesNotExpandOnHoverAndExpandsOnActivation() {

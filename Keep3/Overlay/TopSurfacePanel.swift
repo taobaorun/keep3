@@ -48,6 +48,7 @@ final class TopSurfacePanel: NSPanel {
   private(set) var renderedPresentationStyle: TopSurfacePresentationStyle
   private(set) var renderedSurfaceFrameInPanel: CGRect
   var onPresentedGeometryChanged: () -> Void = {}
+  var onPointerInteractionChanged: (Bool) -> Void = { _ in }
   private var keyboardNavigationEnabled = false
   private var keyboardEventMonitor: Any?
 
@@ -200,14 +201,6 @@ final class TopSurfacePanel: NSPanel {
   ) {
     let resolvedSurfaceFrame =
       surfaceFrameInPanel ?? CGRect(origin: .zero, size: contentRect.size)
-    let actionRouter = TopSurfaceActionRouter(
-      onActivateSurface: onActivateSurface,
-      onRequestKeyboardNavigation: onRequestKeyboardNavigation,
-      onSurfaceNavigation: onSurfaceNavigation,
-      onNavigate: onNavigate,
-      onOpenItem: onOpenItem,
-      onMediaAction: onMediaAction
-    )
     let initialSnapshot = TopSurfaceHostSnapshot(
       content: panelContent,
       presentationStyle: presentationStyle,
@@ -215,6 +208,18 @@ final class TopSurfacePanel: NSPanel {
       surfaceFrameInPanel: resolvedSurfaceFrame
     )
     let hostState = TopSurfaceHostState(initialSnapshot: initialSnapshot)
+    let actionRouter = TopSurfaceActionRouter(
+      onActivateSurface: onActivateSurface,
+      onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+      onSurfaceNavigation: onSurfaceNavigation,
+      onNavigate: onNavigate,
+      onOpenItem: onOpenItem,
+      onMediaAction: onMediaAction,
+      onAccessibilityNavigationAction: {
+        [weak hostState] action in
+        hostState?.requestAccessibilityFocus(for: action)
+      }
+    )
     self.actionRouter = actionRouter
     self.hostState = hostState
     self.panelContent = panelContent
@@ -468,6 +473,14 @@ final class TopSurfacePanel: NSPanel {
   }
 
   override func sendEvent(_ event: NSEvent) {
+    switch event.type {
+    case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+      onPointerInteractionChanged(true)
+    case .leftMouseUp, .rightMouseUp, .otherMouseUp:
+      onPointerInteractionChanged(false)
+    default:
+      break
+    }
     if keyboardNavigationEnabled,
       event.type == .keyDown,
       eventView.handleKeyboardEvent(event)
@@ -557,7 +570,75 @@ struct TopSurfaceHostSnapshot: Equatable {
   }
 }
 
+struct SurfaceRendererContext: Equatable, Sendable {
+  let phase: SurfaceTransitionPhase
+  let trigger: SurfaceTransitionTrigger
+  let direction: SurfaceTransitionDirection
+  let generation: UInt64
+  let motion: SignatureSurfaceTransition
+  let targetComponent: SurfaceComponentID?
+  let targetLevel: SurfaceLevel?
+  let accessibilityFocusRequest: SurfaceAccessibilityFocusRequest?
+
+  static let initial = SurfaceRendererContext(
+    phase: .settled,
+    trigger: .initial,
+    direction: .neutral,
+    generation: 0,
+    motion: SignatureSurfaceTransition.resolve(
+      intent: .initial,
+      reduceMotion: false,
+      reduceTransparency: false,
+      increaseContrast: false,
+      differentiateWithoutColor: false
+    ),
+    targetComponent: nil,
+    targetLevel: nil,
+    accessibilityFocusRequest: nil
+  )
+
+  init(
+    context: SurfaceTransitionContext,
+    accessibilityFocusRequest: SurfaceAccessibilityFocusRequest?
+  ) {
+    phase = context.phase
+    trigger = context.trigger
+    direction = context.direction
+    generation = context.generation
+    motion = context.motion
+    targetComponent = context.target.componentID
+    targetLevel = context.target.level
+    self.accessibilityFocusRequest = accessibilityFocusRequest
+  }
+
+  private init(
+    phase: SurfaceTransitionPhase,
+    trigger: SurfaceTransitionTrigger,
+    direction: SurfaceTransitionDirection,
+    generation: UInt64,
+    motion: SignatureSurfaceTransition,
+    targetComponent: SurfaceComponentID?,
+    targetLevel: SurfaceLevel?,
+    accessibilityFocusRequest: SurfaceAccessibilityFocusRequest?
+  ) {
+    self.phase = phase
+    self.trigger = trigger
+    self.direction = direction
+    self.generation = generation
+    self.motion = motion
+    self.targetComponent = targetComponent
+    self.targetLevel = targetLevel
+    self.accessibilityFocusRequest = accessibilityFocusRequest
+  }
+
+  var intent: SurfaceTransitionIntent {
+    SurfaceTransitionIntent(trigger: trigger, direction: direction)
+  }
+}
+
 struct TopSurfacePresentedGeometry: Equatable {
+  private static let floatingExitSlop: CGFloat = 8
+
   let frame: CGRect
   let presentationStyle: TopSurfacePresentationStyle
   let level: SurfaceLevel
@@ -622,6 +703,57 @@ struct TopSurfacePresentedGeometry: Equatable {
     .path(in: CGRect(origin: .zero, size: frame.size))
     .contains(pointInShape)
   }
+
+  var hoverTrackingFrame: CGRect {
+    let proposedFrame: CGRect
+    switch presentationStyle {
+    case .floatingCapsule:
+      proposedFrame = frame.insetBy(
+        dx: -Self.floatingExitSlop,
+        dy: -Self.floatingExitSlop
+      )
+    case .notchAttached:
+      proposedFrame = CGRect(
+        x: frame.minX,
+        y: frame.minY,
+        width: frame.width,
+        height: max(0, panelBounds.maxY - frame.minY)
+      )
+    }
+    let clippedFrame = proposedFrame.intersection(panelBounds)
+    return clippedFrame.isNull ? .zero : clippedFrame
+  }
+
+  func containsForHover(
+    _ pointInPanel: CGPoint,
+    wasInside: Bool
+  ) -> Bool {
+    if contains(pointInPanel) {
+      return true
+    }
+    guard wasInside, hoverTrackingFrame.contains(pointInPanel) else {
+      return false
+    }
+    switch presentationStyle {
+    case .notchAttached:
+      return true
+    case .floatingCapsule:
+      let pointInShape = CGPoint(
+        x: pointInPanel.x - frame.minX,
+        y: frame.maxY - pointInPanel.y
+      )
+      let path = TopSurfaceShape(
+        presentationStyle: presentationStyle,
+        isExpanded: level == .expanded,
+        isQuickPeek: isQuickPeek
+      )
+      .path(in: CGRect(origin: .zero, size: frame.size))
+      return path.strokedPath(
+        StrokeStyle(lineWidth: Self.floatingExitSlop * 2)
+      )
+      .contains(pointInShape)
+    }
+  }
 }
 
 @MainActor
@@ -629,8 +761,13 @@ final class TopSurfaceHostState: ObservableObject {
   private(set) var snapshot: TopSurfaceHostSnapshot
   private(set) var sourceSnapshot: TopSurfaceHostSnapshot?
   private(set) var transitionContext: SurfaceTransitionContext
+  private(set) var shellGeneration: UInt64 = 0
+  private(set) var accessibilityFocusRequest: SurfaceAccessibilityFocusRequest?
 
   private let coordinator: SurfaceTransitionCoordinator
+  private var shellCompletionGeneration: UInt64 = 0
+  private var pendingAccessibilityAction: SurfaceAccessibilityNavigationAction?
+  private var accessibilityFocusGeneration: UInt64 = 0
   var onPresentedGeometryChanged: (TopSurfacePresentedGeometry) -> Void = {
     _ in
   }
@@ -647,6 +784,13 @@ final class TopSurfaceHostState: ObservableObject {
     sourceSnapshot == nil ? 1 : 2
   }
 
+  var rendererContext: SurfaceRendererContext {
+    SurfaceRendererContext(
+      context: transitionContext,
+      accessibilityFocusRequest: accessibilityFocusRequest
+    )
+  }
+
   func update(
     snapshot newSnapshot: TopSurfaceHostSnapshot,
     intent: SurfaceTransitionIntent,
@@ -659,34 +803,72 @@ final class TopSurfaceHostState: ObservableObject {
       intent: intent,
       reduceMotion: reduceMotion
     )
+    let isPureContentUpdate =
+      nextContext.phase == .transitioning
+      && nextContext.trigger == .content
+    let continuesCurrentShellTransition =
+      previousContext.phase == .transitioning
+      && nextContext.phase == .transitioning
+      && nextContext.source == previousContext.source
+      && nextContext.trigger == previousContext.trigger
+      && nextContext.direction == previousContext.direction
 
     objectWillChange.send()
     snapshot = newSnapshot
-    transitionContext = nextContext
-    if nextContext.phase == .transitioning {
+    if isPureContentUpdate {
+      _ = coordinator.complete(generation: nextContext.generation)
+      transitionContext = coordinator.context
+      sourceSnapshot = nil
+      settlePendingAccessibilityFocus()
+    } else if nextContext.phase == .transitioning {
+      transitionContext = nextContext
+      shellCompletionGeneration = nextContext.generation
+      if !continuesCurrentShellTransition {
+        shellGeneration &+= 1
+      }
       if previousContext.phase != .transitioning
         || nextContext.source != previousContext.source
       {
         sourceSnapshot = previousSnapshot
       }
     } else {
+      transitionContext = nextContext
       sourceSnapshot = nil
     }
   }
 
-  func complete(generation: UInt64) {
-    guard coordinator.complete(generation: generation) else {
+  func complete(shellGeneration: UInt64) {
+    guard self.shellGeneration == shellGeneration,
+      coordinator.complete(generation: shellCompletionGeneration)
+    else {
       return
     }
     objectWillChange.send()
     transitionContext = coordinator.context
     sourceSnapshot = nil
+    settlePendingAccessibilityFocus()
   }
 
   func cancelForLifecycle() {
     objectWillChange.send()
     transitionContext = coordinator.cancelForLifecycle()
     sourceSnapshot = nil
+    pendingAccessibilityAction = nil
+    accessibilityFocusRequest = nil
+  }
+
+  func requestAccessibilityFocus(
+    for action: SurfaceAccessibilityNavigationAction
+  ) {
+    guard action.focusDestination != nil else {
+      return
+    }
+    pendingAccessibilityAction = action
+    guard transitionContext.phase == .settled else {
+      return
+    }
+    objectWillChange.send()
+    settlePendingAccessibilityFocus()
   }
 
   func reportPresentedGeometry(
@@ -698,6 +880,27 @@ final class TopSurfaceHostState: ObservableObject {
     }
     onPresentedGeometryChanged(geometry)
   }
+
+  private func settlePendingAccessibilityFocus() {
+    guard let action = pendingAccessibilityAction,
+      let requested = action.focusDestination,
+      let destination = SurfaceAccessibilityFocusResolver.resolve(
+        requested: requested,
+        phase: transitionContext.phase,
+        targetComponent: transitionContext.target.componentID,
+        targetLevel: transitionContext.target.level
+      )
+    else {
+      return
+    }
+    pendingAccessibilityAction = nil
+    accessibilityFocusGeneration &+= 1
+    accessibilityFocusRequest = SurfaceAccessibilityFocusRequest(
+      generation: accessibilityFocusGeneration,
+      destination: destination,
+      announcement: action.announcement
+    )
+  }
 }
 
 @MainActor
@@ -708,6 +911,7 @@ final class TopSurfaceActionRouter {
   private var onNavigate: (TopSurfaceBrowseDirection) -> Void
   private var onOpenItem: () -> Void
   private var onMediaAction: (MediaSurfaceAction) -> Void
+  private let onAccessibilityNavigationAction: (SurfaceAccessibilityNavigationAction) -> Void
 
   init(
     onActivateSurface: @escaping () -> Void,
@@ -715,7 +919,10 @@ final class TopSurfaceActionRouter {
     onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void,
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
     onOpenItem: @escaping () -> Void,
-    onMediaAction: @escaping (MediaSurfaceAction) -> Void
+    onMediaAction: @escaping (MediaSurfaceAction) -> Void,
+    onAccessibilityNavigationAction: @escaping (
+      SurfaceAccessibilityNavigationAction
+    ) -> Void
   ) {
     self.onActivateSurface = onActivateSurface
     self.onRequestKeyboardNavigation = onRequestKeyboardNavigation
@@ -723,6 +930,8 @@ final class TopSurfaceActionRouter {
     self.onNavigate = onNavigate
     self.onOpenItem = onOpenItem
     self.onMediaAction = onMediaAction
+    self.onAccessibilityNavigationAction =
+      onAccessibilityNavigationAction
   }
 
   func update(
@@ -764,16 +973,26 @@ final class TopSurfaceActionRouter {
   func performMediaAction(_ action: MediaSurfaceAction) {
     onMediaAction(action)
   }
+
+  func handleAccessibilityNavigationAction(
+    _ action: SurfaceAccessibilityNavigationAction
+  ) {
+    onAccessibilityNavigationAction(action)
+  }
 }
 
 private struct TopSurfaceHostView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @Environment(\.accessibilityReduceTransparency) private
+    var reduceTransparency
 
   @ObservedObject var state: TopSurfaceHostState
   let actionRouter: TopSurfaceActionRouter
 
   @State private var presentedLayout: TopSurfaceHostedLayout
   @State private var handoffPhase: CGFloat = 0
+  @AccessibilityFocusState private
+    var isSurfaceContainerAccessibilityFocused: Bool
 
   init(
     state: TopSurfaceHostState,
@@ -789,27 +1008,7 @@ private struct TopSurfaceHostView: View {
       layout: presentedLayout,
       animatesSurfaceFrame: false,
       isHovered: state.snapshot.isHovered,
-      content: ZStack {
-        if let source = state.sourceSnapshot {
-          hostedContent(
-            source,
-            surfaceSize: source.surfaceFrameInPanel.size
-          )
-          .opacity(1 - targetProgress)
-          .offset(x: outgoingOffset)
-          .allowsHitTesting(false)
-          .accessibilityHidden(true)
-        }
-
-        hostedContent(
-          state.snapshot,
-          surfaceSize: state.snapshot.surfaceFrameInPanel.size
-        )
-        .opacity(state.sourceSnapshot == nil ? 1 : targetProgress)
-        .offset(x: incomingOffset)
-        .allowsHitTesting(state.transitionContext.phase == .settled)
-        .accessibilityHidden(state.transitionContext.phase != .settled)
-      }
+      content: shellContent
     )
     .modifier(
       TopSurfacePresentedGeometryReporter(
@@ -836,13 +1035,17 @@ private struct TopSurfaceHostView: View {
         generation: report.generation
       )
     }
-    .onChange(of: state.transitionContext.generation) { _, generation in
-      beginTransition(generation: generation)
+    .onChange(of: state.shellGeneration) { _, generation in
+      beginTransition(shellGeneration: generation)
     }
+    .onChange(of: state.accessibilityFocusRequest) { _, request in
+      handleAccessibilityFocusRequest(request)
+    }
+    .accessibilityFocused($isSurfaceContainerAccessibilityFocused)
   }
 
   private var targetProgress: CGFloat {
-    state.transitionContext.generation.isMultiple(of: 2)
+    state.shellGeneration.isMultiple(of: 2)
       ? 1 - handoffPhase : handoffPhase
   }
 
@@ -865,6 +1068,53 @@ private struct TopSurfaceHostView: View {
       : CGFloat(state.transitionContext.motion.directionalContentOffset)
   }
 
+  private var shellContent: some View {
+    ZStack {
+      if let source = state.sourceSnapshot {
+        hostedContent(
+          source,
+          surfaceSize: source.surfaceFrameInPanel.size
+        )
+        .opacity(1 - targetProgress)
+        .offset(x: outgoingOffset)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+      }
+
+      hostedContent(
+        state.snapshot,
+        surfaceSize: state.snapshot.surfaceFrameInPanel.size
+      )
+      .opacity(state.sourceSnapshot == nil ? 1 : targetProgress)
+      .offset(x: incomingOffset)
+      .allowsHitTesting(state.transitionContext.phase == .settled)
+      .accessibilityHidden(state.transitionContext.phase != .settled)
+    }
+    .background {
+      ZStack {
+        Color.black.opacity(shellBackgroundOpacity(for: state.snapshot))
+        if let source = state.sourceSnapshot {
+          shellDecoration(for: source)
+            .opacity(1 - targetProgress)
+        }
+        shellDecoration(for: state.snapshot)
+          .opacity(state.sourceSnapshot == nil ? 1 : targetProgress)
+      }
+    }
+    .mask {
+      shellShape
+        .fill(.white)
+        .animation(shellShapeAnimation, value: state.shellGeneration)
+    }
+    .overlay(alignment: .top) {
+      if case .notchAttached = state.snapshot.presentationStyle {
+        Rectangle()
+          .fill(.black)
+          .frame(height: 1)
+      }
+    }
+  }
+
   @ViewBuilder
   private func hostedContent(
     _ snapshot: TopSurfaceHostSnapshot,
@@ -876,6 +1126,7 @@ private struct TopSurfaceHostView: View {
         content: focus,
         presentationStyle: snapshot.presentationStyle,
         surfaceSize: surfaceSize,
+        rendererContext: state.rendererContext,
         onActivateSurface: actionRouter.activateSurface,
         onRequestKeyboardNavigation:
           actionRouter.requestKeyboardNavigation,
@@ -888,17 +1139,23 @@ private struct TopSurfaceHostView: View {
         payload: media,
         presentationStyle: snapshot.presentationStyle,
         surfaceSize: surfaceSize,
+        rendererContext: state.rendererContext,
+        rendersOwnShell: false,
         onAction: actionRouter.performMediaAction,
         onActivateSurface: actionRouter.activateSurface,
         onRequestKeyboardNavigation:
           actionRouter.requestKeyboardNavigation,
-        onSurfaceNavigation: actionRouter.navigateSurface
+        onSurfaceNavigation: actionRouter.navigateSurface,
+        onAccessibilityNavigationAction:
+          actionRouter.handleAccessibilityNavigationAction
       )
     case .calendar(let calendar):
       CalendarSurfaceView(
         payload: calendar,
         presentationStyle: snapshot.presentationStyle,
         surfaceSize: surfaceSize,
+        rendererContext: state.rendererContext,
+        rendersOwnShell: false,
         onActivateSurface: actionRouter.activateSurface,
         onRequestKeyboardNavigation:
           actionRouter.requestKeyboardNavigation,
@@ -907,7 +1164,80 @@ private struct TopSurfaceHostView: View {
     }
   }
 
-  private func beginTransition(generation: UInt64) {
+  private var shellShape: TopSurfaceShape {
+    TopSurfaceShape(
+      presentationStyle: state.snapshot.presentationStyle,
+      isExpanded: state.snapshot.level == .expanded,
+      isQuickPeek: state.snapshot.isQuickPeek
+    )
+  }
+
+  private var shellShapeAnimation: Animation? {
+    guard state.transitionContext.motion.animatesShape, !reduceMotion else {
+      return nil
+    }
+    return .timingCurve(
+      0.2,
+      0.8,
+      0.2,
+      1,
+      duration: state.transitionContext.motion.duration
+    )
+  }
+
+  private func shellBackgroundOpacity(
+    for snapshot: TopSurfaceHostSnapshot
+  ) -> Double {
+    if case .notchAttached = snapshot.presentationStyle {
+      return 1
+    }
+    guard !reduceTransparency else {
+      return 1
+    }
+    return switch snapshot.content {
+    case .focus(let focus):
+      focus.appearance.backgroundOpacity
+    case .media(let media):
+      media.appearance.backgroundOpacity
+    case .calendar:
+      0.96
+    }
+  }
+
+  @ViewBuilder
+  private func shellDecoration(
+    for snapshot: TopSurfaceHostSnapshot
+  ) -> some View {
+    if case .media(let payload) = snapshot.content,
+      case .floatingCapsule = snapshot.presentationStyle
+    {
+      let presentation = MediaSurfacePresentation(payload: payload)
+      let artwork = MediaArtworkDecoder.resolve(presentation.artworkData).image
+      if payload.appearance.artworkTreatment == .gradient {
+        LinearGradient(
+          colors: [.purple.opacity(0.42), .blue.opacity(0.2), .clear],
+          startPoint: .topLeading,
+          endPoint: .bottomTrailing
+        )
+      } else if let artwork {
+        Image(decorative: artwork, scale: 1)
+          .resizable()
+          .scaledToFill()
+          .grayscale(
+            payload.appearance.artworkTreatment == .monochrome ? 1 : 0
+          )
+          .blur(radius: 28)
+          .opacity(reduceTransparency ? 0 : 0.28)
+      }
+      LinearGradient(
+        colors: [.black.opacity(0.06), .black.opacity(0.58)],
+        startPoint: .top,
+        endPoint: .bottom
+      )
+    }
+  }
+
+  private func beginTransition(shellGeneration: UInt64) {
     let context = state.transitionContext
     guard context.phase == .transitioning else {
       presentedLayout = state.snapshot.layout
@@ -937,12 +1267,36 @@ private struct TopSurfaceHostView: View {
         presentedLayout = state.snapshot.layout
       }
       handoffPhase =
-        generation.isMultiple(of: 2) ? 0 : 1
+        shellGeneration.isMultiple(of: 2) ? 0 : 1
     } completion: {
       Task { @MainActor [weak state] in
-        state?.complete(generation: generation)
+        state?.complete(shellGeneration: shellGeneration)
       }
     }
+  }
+
+  private func handleAccessibilityFocusRequest(
+    _ request: SurfaceAccessibilityFocusRequest?
+  ) {
+    guard let request else {
+      return
+    }
+    if case .surfaceContainer = request.destination {
+      isSurfaceContainerAccessibilityFocused = true
+    }
+    guard let announcement = request.announcement,
+      let application = NSApp
+    else {
+      return
+    }
+    NSAccessibility.post(
+      element: application,
+      notification: .announcementRequested,
+      userInfo: [
+        .announcement: announcement,
+        .priority: NSAccessibilityPriorityLevel.medium.rawValue,
+      ]
+    )
   }
 }
 
@@ -1155,17 +1509,18 @@ private final class TopSurfaceEventView: NSView {
   func updatePresentedGeometry(
     _ geometry: TopSurfacePresentedGeometry
   ) {
+    let previousTrackingFrame = presentedGeometry.hoverTrackingFrame
     presentedGeometry = geometry
     let frame = geometry.frame
-    guard hoverRegion.activeFrame != frame else {
-      reconcileHover(at: currentPointerLocation())
-      return
+    if hoverRegion.activeFrame != frame {
+      _ = hoverRegion.updateActiveFrame(
+        frame,
+        pointerLocation: nil
+      )
     }
-    _ = hoverRegion.updateActiveFrame(
-      frame,
-      pointerLocation: nil
-    )
-    updateTrackingAreas()
+    if previousTrackingFrame != geometry.hoverTrackingFrame {
+      updateTrackingAreas()
+    }
     reconcileHover(at: currentPointerLocation())
   }
 
@@ -1175,7 +1530,7 @@ private final class TopSurfaceEventView: NSView {
     }
 
     let area = NSTrackingArea(
-      rect: hoverRegion.activeFrame,
+      rect: presentedGeometry.hoverTrackingFrame,
       options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways],
       owner: self,
       userInfo: nil
@@ -1209,7 +1564,10 @@ private final class TopSurfaceEventView: NSView {
       return
     }
     if let hoverChange = hoverRegion.reconcile(
-      isInside: presentedGeometry.contains(point)
+      isInside: presentedGeometry.containsForHover(
+        point,
+        wasInside: hoverRegion.isPointerInside
+      )
     ) {
       onHoverChanged(hoverChange)
     }

@@ -33,8 +33,8 @@ protocol AppTimerScheduling {
 
 @MainActor
 final class TopSurfaceInteractionModel {
-  private static let expansionDelay: TimeInterval = 0.4
-  private static let collapseDelay: TimeInterval = 0.2
+  private static let expansionDelay: TimeInterval = 0.14
+  private static let collapseDelay: TimeInterval = 0.22
   private static let scrollThreshold: CGFloat = 20
 
   private let scheduler: any AppTimerScheduling

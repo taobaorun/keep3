@@ -137,6 +137,8 @@ struct CalendarSurfaceView: View {
   let payload: CalendarSurfacePayload
   let presentationStyle: TopSurfacePresentationStyle
   let surfaceSize: CGSize
+  var rendererContext: SurfaceRendererContext = .initial
+  var rendersOwnShell = true
   let onActivateSurface: () -> Void
   let onRequestKeyboardNavigation: () -> Void
   let onSurfaceNavigation: (SurfaceGestureIntent) -> Void
@@ -162,13 +164,23 @@ struct CalendarSurfaceView: View {
     .foregroundStyle(.white)
     .frame(width: surfaceSize.width, height: surfaceSize.height)
     .background {
-      surfaceShape.fill(
-        .black.opacity(reduceTransparency ? 1 : 0.96)
-      )
+      if rendersOwnShell {
+        surfaceShape.fill(
+          .black.opacity(reduceTransparency ? 1 : 0.96)
+        )
+      }
     }
-    .clipShape(surfaceShape)
+    .mask {
+      if rendersOwnShell {
+        surfaceShape.fill(.white)
+      } else {
+        Rectangle().fill(.white)
+      }
+    }
     .animation(
-      reduceMotion ? nil : .easeInOut(duration: 0.2),
+      .easeInOut(
+        duration: reduceMotion ? 0.12 : rendererContext.motion.duration
+      ),
       value: payload.revision
     )
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -347,4 +359,5 @@ struct CalendarSurfaceView: View {
       isExpanded: payload.level == .expanded
     )
   }
+
 }

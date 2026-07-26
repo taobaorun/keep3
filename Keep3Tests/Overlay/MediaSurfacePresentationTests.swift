@@ -27,6 +27,44 @@ final class MediaSurfacePresentationTests: XCTestCase {
     }
   }
 
+  func testAccessibilityFocusWaitsForSettleThenUsesEquivalentControl() {
+    let transitioning = SurfaceAccessibilityFocusResolver.resolve(
+      requested: .compactMedia,
+      phase: .transitioning,
+      targetComponent: .media,
+      targetLevel: .compact
+    )
+    let settled = SurfaceAccessibilityFocusResolver.resolve(
+      requested: .compactMedia,
+      phase: .settled,
+      targetComponent: .media,
+      targetLevel: .compact
+    )
+
+    XCTAssertNil(transitioning)
+    XCTAssertEqual(settled, .compactMedia)
+  }
+
+  func testAccessibilityFocusFallsBackToSettledTargetContainer() {
+    XCTAssertEqual(
+      SurfaceAccessibilityFocusResolver.resolve(
+        requested: .compactMedia,
+        phase: .settled,
+        targetComponent: .priorities,
+        targetLevel: .compact
+      ),
+      .surfaceContainer(.priorities)
+    )
+    XCTAssertNil(
+      SurfaceAccessibilityFocusResolver.resolve(
+        requested: .compactMedia,
+        phase: .hidden,
+        targetComponent: nil,
+        targetLevel: nil
+      )
+    )
+  }
+
   func testTrackPeekRetainsUnicodeTitleAndArtistForCompactMetadata() {
     let peek = MediaTrackPeek(
       direction: .next,

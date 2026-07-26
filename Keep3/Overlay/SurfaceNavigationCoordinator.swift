@@ -2,6 +2,12 @@ import Foundation
 
 @MainActor
 final class SurfaceNavigationCoordinator {
+  private struct PendingAutomaticSelection {
+    let component: SurfaceComponentID
+    let source: SurfaceSelectionSource
+    let level: SurfaceLevel?
+  }
+
   private let orderedComponents: [SurfaceComponentDescriptor]
   private let onStateChange: (SurfaceNavigationState) -> Void
 
@@ -17,6 +23,11 @@ final class SurfaceNavigationCoordinator {
   private var isAwaitingReconciliation = false
   private var generation: UInt64 = 0
   private var transitionIntent = SurfaceTransitionIntent.initial
+  private var automaticDeferralReasons:
+    Set<
+      SurfaceAutomaticDeferralReason
+    > = []
+  private var pendingAutomaticSelection: PendingAutomaticSelection?
 
   var state: SurfaceNavigationState {
     SurfaceNavigationState(
@@ -64,11 +75,59 @@ final class SurfaceNavigationCoordinator {
     }
     availability[component] = isAvailable
 
+    if !automaticDeferralReasons.isEmpty,
+      let pendingAutomaticSelection
+    {
+      switch pendingAutomaticSelection.source {
+      case .automaticMedia:
+        if self.isAvailable(.media) {
+          return
+        }
+        self.pendingAutomaticSelection = PendingAutomaticSelection(
+          component: mediaExitFallbackComponent(),
+          source: .mediaExit,
+          level: .compact
+        )
+        return
+      case .mediaExit:
+        self.pendingAutomaticSelection = PendingAutomaticSelection(
+          component: mediaExitFallbackComponent(),
+          source: .mediaExit,
+          level: pendingAutomaticSelection.level
+        )
+        return
+      case .fallback, .manual:
+        break
+      }
+    }
+    if self.isAvailable(selectedComponent),
+      pendingAutomaticSelection?.source == .fallback
+    {
+      pendingAutomaticSelection = nil
+    }
     guard !self.isAvailable(selectedComponent) else {
       publish()
       return
     }
     selectFallback(after: selectedComponent)
+  }
+
+  func setAutomaticTransitionDeferred(
+    _ isDeferred: Bool,
+    reason: SurfaceAutomaticDeferralReason
+  ) {
+    if isDeferred {
+      automaticDeferralReasons.insert(reason)
+      return
+    }
+    automaticDeferralReasons.remove(reason)
+    guard automaticDeferralReasons.isEmpty,
+      let pendingAutomaticSelection
+    else {
+      return
+    }
+    self.pendingAutomaticSelection = nil
+    applyAutomaticSelection(pendingAutomaticSelection)
   }
 
   func select(_ component: SurfaceComponentID) {
@@ -78,6 +137,7 @@ final class SurfaceNavigationCoordinator {
     selectedComponent = component
     selectionSource = .manual
     recordManualMediaSelection()
+    pendingAutomaticSelection = nil
     publish(intent: .manualSelection)
   }
 
@@ -85,6 +145,7 @@ final class SurfaceNavigationCoordinator {
     guard moveSelection(direction) else {
       return
     }
+    pendingAutomaticSelection = nil
     publish(intent: .manualComponent(direction))
   }
 
@@ -204,6 +265,7 @@ final class SurfaceNavigationCoordinator {
       return
     }
     if didChange {
+      pendingAutomaticSelection = nil
       let publicationIntent: SurfaceTransitionIntent
       if selectedComponent != previousComponent {
         let direction: SurfaceNavigationDirection =
@@ -230,13 +292,19 @@ final class SurfaceNavigationCoordinator {
     availability[.media] = true
     if preservesManualSelection {
       selectionSource = .manual
-      publish(intent: .automaticComponent)
+      if automaticDeferralReasons.isEmpty {
+        publish(intent: .automaticComponent)
+      }
       return
     }
     manuallyDismissedMediaSessionID = nil
-    selectedComponent = .media
-    selectionSource = .automaticMedia
-    publish(intent: .automaticComponent)
+    deferOrApplyAutomaticSelection(
+      PendingAutomaticSelection(
+        component: .media,
+        source: .automaticMedia,
+        level: nil
+      )
+    )
   }
 
   func refreshMediaSession(_ sessionID: String) {
@@ -251,17 +319,13 @@ final class SurfaceNavigationCoordinator {
       return
     }
     availability[.media] = false
-    if isAvailable(.priorities) {
-      selectedComponent = .priorities
-    } else if let fallback = firstAvailableComponent(after: .media) {
-      selectedComponent = fallback
-    } else {
-      selectedComponent = .priorities
-    }
-    selectionSource = .mediaExit
-    isHoverPreviewed = false
-    level = .compact
-    publish(intent: .automaticComponent)
+    deferOrApplyAutomaticSelection(
+      PendingAutomaticSelection(
+        component: mediaExitFallbackComponent(),
+        source: .mediaExit,
+        level: .compact
+      )
+    )
   }
 
   private func recordManualMediaSelection() {
@@ -290,8 +354,87 @@ final class SurfaceNavigationCoordinator {
   }
 
   private func selectFallback(after component: SurfaceComponentID) {
-    selectedComponent = firstAvailableComponent(after: component) ?? .priorities
-    selectionSource = .fallback
+    deferOrApplyAutomaticSelection(
+      PendingAutomaticSelection(
+        component: fallbackComponent(after: component),
+        source: .fallback,
+        level: nil
+      )
+    )
+  }
+
+  private func fallbackComponent(
+    after component: SurfaceComponentID
+  ) -> SurfaceComponentID {
+    firstAvailableComponent(after: component) ?? .priorities
+  }
+
+  private func mediaExitFallbackComponent() -> SurfaceComponentID {
+    if isAvailable(.priorities) {
+      return .priorities
+    }
+    return firstAvailableComponent(after: .media) ?? .priorities
+  }
+
+  private func deferOrApplyAutomaticSelection(
+    _ selection: PendingAutomaticSelection
+  ) {
+    guard automaticDeferralReasons.isEmpty else {
+      pendingAutomaticSelection = selection
+      return
+    }
+    applyAutomaticSelection(selection)
+  }
+
+  private func applyAutomaticSelection(
+    _ proposedSelection: PendingAutomaticSelection
+  ) {
+    var selection = proposedSelection
+    if selection.source == .fallback {
+      guard !isAvailable(selectedComponent) else {
+        return
+      }
+      selection = PendingAutomaticSelection(
+        component: fallbackComponent(after: selectedComponent),
+        source: .fallback,
+        level: selection.level
+      )
+    } else if selection.source == .mediaExit {
+      selection = PendingAutomaticSelection(
+        component: mediaExitFallbackComponent(),
+        source: .mediaExit,
+        level: selection.level
+      )
+    }
+    if selection.component == .media {
+      if isAvailable(.media) {
+        guard manuallyDismissedMediaSessionID != mediaSessionID else {
+          return
+        }
+      } else {
+        selection = PendingAutomaticSelection(
+          component: mediaExitFallbackComponent(),
+          source: .mediaExit,
+          level: .compact
+        )
+      }
+    }
+    if selection.component != .priorities,
+      !isAvailable(selection.component)
+    {
+      selection = PendingAutomaticSelection(
+        component: fallbackComponent(after: selection.component),
+        source: selection.source,
+        level: selection.level
+      )
+    }
+
+    selectedComponent = selection.component
+    selectionSource = selection.source
+    if let level = selection.level {
+      self.level = level
+    }
+    isHoverPreviewed = false
     publish(intent: .automaticComponent)
   }
 

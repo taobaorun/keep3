@@ -143,6 +143,13 @@ enum SurfaceSelectionSource: Equatable, Sendable {
   case mediaExit
 }
 
+enum SurfaceAutomaticDeferralReason: Hashable, Sendable {
+  case pointerDown
+  case keyboardNavigation
+  case voiceOver
+  case componentCommand
+}
+
 struct SurfaceNavigationState: Equatable, Sendable {
   let selectedComponent: SurfaceComponentID
   let selectionSource: SurfaceSelectionSource

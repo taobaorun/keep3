@@ -172,10 +172,13 @@ struct MediaSurfaceView: View {
   let payload: MediaSurfacePayload
   let presentationStyle: TopSurfacePresentationStyle
   let surfaceSize: CGSize
+  var rendererContext: SurfaceRendererContext = .initial
+  var rendersOwnShell = true
   let onAction: (MediaSurfaceAction) -> Void
   let onActivateSurface: () -> Void
   let onRequestKeyboardNavigation: () -> Void
   let onSurfaceNavigation: (SurfaceGestureIntent) -> Void
+  var onAccessibilityNavigationAction: (SurfaceAccessibilityNavigationAction) -> Void = { _ in }
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -213,10 +216,21 @@ struct MediaSurfaceView: View {
     .animation(artworkAnimation, value: payload.contentRevision)
     .foregroundStyle(.white)
     .frame(width: surfaceSize.width, height: surfaceSize.height)
-    .background { mediaBackground(artwork: artwork.image) }
-    .clipShape(surfaceShape)
+    .background {
+      if rendersOwnShell {
+        mediaBackground(artwork: artwork.image)
+      }
+    }
+    .mask {
+      if rendersOwnShell {
+        surfaceShape.fill(.white)
+      } else {
+        Rectangle().fill(.white)
+      }
+    }
     .animation(
-      reduceMotion ? nil : .easeInOut(duration: 0.22),
+      rendersOwnShell && !reduceMotion
+        ? .easeInOut(duration: rendererContext.motion.duration) : nil,
       value: payload.isExpanded
     )
     .animation(
@@ -236,7 +250,7 @@ struct MediaSurfaceView: View {
         component: .media,
         level: payload.level,
         onNavigate: onSurfaceNavigation,
-        onActionPerformed: handleAccessibilityNavigationAction
+        onActionPerformed: onAccessibilityNavigationAction
       )
     )
     .onChange(of: presentation.isExpanded) { _, isExpanded in
@@ -244,29 +258,11 @@ struct MediaSurfaceView: View {
         isCompactMediaAccessibilityFocused = false
       }
     }
-  }
-
-  private func handleAccessibilityNavigationAction(
-    _ action: SurfaceAccessibilityNavigationAction
-  ) {
-    guard action.focusDestination == .compactMedia else {
-      return
-    }
-    Task { @MainActor in
-      isCompactMediaAccessibilityFocused = true
-      guard let announcement = action.announcement,
-        let application = NSApp
-      else {
+    .onChange(of: rendererContext.accessibilityFocusRequest) { _, request in
+      guard request?.destination == .compactMedia else {
         return
       }
-      NSAccessibility.post(
-        element: application,
-        notification: .announcementRequested,
-        userInfo: [
-          .announcement: announcement,
-          .priority: NSAccessibilityPriorityLevel.medium.rawValue,
-        ]
-      )
+      isCompactMediaAccessibilityFocused = true
     }
   }
 

@@ -4,6 +4,9 @@ import AppKit
 final class TopSurfaceController {
   private(set) var panel: TopSurfacePanel?
   var onVisibleInteractionFrameChanged: () -> Void = {}
+  var onAutomaticTransitionDeferralChange: (SurfaceAutomaticDeferralReason, Bool) -> Void = {
+    _, _ in
+  }
 
   var visibleInteractionFrameInScreen: CGRect? {
     guard let panel, panel.isVisible else {
@@ -380,6 +383,9 @@ final class TopSurfaceController {
     panel.onPresentedGeometryChanged = { [weak self] in
       self?.onVisibleInteractionFrameChanged()
     }
+    panel.onPointerInteractionChanged = { [weak self] isActive in
+      self?.onAutomaticTransitionDeferralChange(.pointerDown, isActive)
+    }
   }
 
   func reposition(frame: CGRect) {
@@ -387,15 +393,19 @@ final class TopSurfaceController {
   }
 
   func beginKeyboardNavigation() {
+    onAutomaticTransitionDeferralChange(.keyboardNavigation, true)
     panel?.setKeyboardNavigationEnabled(true)
   }
 
   func endKeyboardNavigation() {
     panel?.setKeyboardNavigationEnabled(false)
+    onAutomaticTransitionDeferralChange(.keyboardNavigation, false)
   }
 
   func remove() {
     panel?.setKeyboardNavigationEnabled(false)
+    onAutomaticTransitionDeferralChange(.pointerDown, false)
+    onAutomaticTransitionDeferralChange(.keyboardNavigation, false)
     panel?.cancelTransitionForLifecycle()
     panel?.orderOut(nil)
     panel = nil

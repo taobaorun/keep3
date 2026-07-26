@@ -305,4 +305,121 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
     XCTAssertEqual(coordinator.state.selectedComponent, .calendar)
     XCTAssertEqual(coordinator.state.selectionSource, .mediaExit)
   }
+
+  func testAutomaticMediaSelectionWaitsForAllPinsAndUsesLatestOutcome() {
+    var states: [SurfaceNavigationState] = []
+    let coordinator = SurfaceNavigationCoordinator(
+      onStateChange: { states.append($0) }
+    )
+    coordinator.setAvailability(true, for: .priorities)
+    let publicationCount = states.count
+
+    coordinator.setAutomaticTransitionDeferred(
+      true,
+      reason: .pointerDown
+    )
+    coordinator.setAutomaticTransitionDeferred(
+      true,
+      reason: .keyboardNavigation
+    )
+    coordinator.beginMediaSession("session-1")
+    coordinator.endMediaSession("session-1")
+    coordinator.beginMediaSession("session-2")
+
+    XCTAssertEqual(coordinator.state.selectedComponent, .priorities)
+    XCTAssertEqual(states.count, publicationCount)
+
+    coordinator.setAutomaticTransitionDeferred(
+      false,
+      reason: .pointerDown
+    )
+    XCTAssertEqual(coordinator.state.selectedComponent, .priorities)
+
+    coordinator.setAutomaticTransitionDeferred(
+      false,
+      reason: .keyboardNavigation
+    )
+    XCTAssertEqual(coordinator.state.selectedComponent, .media)
+    XCTAssertEqual(coordinator.state.selectionSource, .automaticMedia)
+    XCTAssertEqual(states.count, publicationCount + 1)
+  }
+
+  func testManualSelectionCancelsDeferredAutomaticTakeover() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .priorities)
+    coordinator.setAutomaticTransitionDeferred(
+      true,
+      reason: .componentCommand
+    )
+    coordinator.beginMediaSession("session-1")
+
+    coordinator.select(.priorities)
+    coordinator.setAutomaticTransitionDeferred(
+      false,
+      reason: .componentCommand
+    )
+
+    XCTAssertEqual(coordinator.state.selectedComponent, .priorities)
+    XCTAssertEqual(coordinator.state.selectionSource, .manual)
+  }
+
+  func testDeferredMediaExitWithoutAnyAvailableComponentSettlesOnPriorities() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.beginMediaSession("session-1")
+    coordinator.setAutomaticTransitionDeferred(
+      true,
+      reason: .voiceOver
+    )
+
+    coordinator.endMediaSession("session-1")
+    coordinator.setAutomaticTransitionDeferred(
+      false,
+      reason: .voiceOver
+    )
+
+    XCTAssertEqual(coordinator.state.selectedComponent, .priorities)
+    XCTAssertEqual(coordinator.state.selectionSource, .mediaExit)
+    XCTAssertEqual(coordinator.state.level, .compact)
+  }
+
+  func testRecoveredSelectionCancelsStaleDeferredFallback() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .priorities)
+    coordinator.setAvailability(true, for: .calendar)
+    coordinator.select(.calendar)
+    coordinator.setAutomaticTransitionDeferred(
+      true,
+      reason: .pointerDown
+    )
+
+    coordinator.setAvailability(false, for: .calendar)
+    coordinator.setAvailability(true, for: .calendar)
+    coordinator.setAutomaticTransitionDeferred(
+      false,
+      reason: .pointerDown
+    )
+
+    XCTAssertEqual(coordinator.state.selectedComponent, .calendar)
+    XCTAssertEqual(coordinator.state.selectionSource, .manual)
+  }
+
+  func testDeferredMediaExitRecomputesLatestPreferredFallback() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .calendar)
+    coordinator.beginMediaSession("session-1")
+    coordinator.setAutomaticTransitionDeferred(
+      true,
+      reason: .keyboardNavigation
+    )
+
+    coordinator.endMediaSession("session-1")
+    coordinator.setAvailability(true, for: .priorities)
+    coordinator.setAutomaticTransitionDeferred(
+      false,
+      reason: .keyboardNavigation
+    )
+
+    XCTAssertEqual(coordinator.state.selectedComponent, .priorities)
+    XCTAssertEqual(coordinator.state.selectionSource, .mediaExit)
+  }
 }

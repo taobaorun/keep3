@@ -268,6 +268,33 @@ struct TopSurfaceShape: Shape {
 
 enum SurfaceAccessibilityFocusDestination: Equatable, Sendable {
   case compactMedia
+  case surfaceContainer(SurfaceComponentID)
+}
+
+enum SurfaceAccessibilityFocusResolver {
+  static func resolve(
+    requested: SurfaceAccessibilityFocusDestination,
+    phase: SurfaceTransitionPhase,
+    targetComponent: SurfaceComponentID?,
+    targetLevel: SurfaceLevel?
+  ) -> SurfaceAccessibilityFocusDestination? {
+    guard phase == .settled, let targetComponent else {
+      return nil
+    }
+    if requested == .compactMedia,
+      targetComponent == .media,
+      targetLevel == .compact
+    {
+      return .compactMedia
+    }
+    return .surfaceContainer(targetComponent)
+  }
+}
+
+struct SurfaceAccessibilityFocusRequest: Equatable, Sendable {
+  let generation: UInt64
+  let destination: SurfaceAccessibilityFocusDestination
+  let announcement: String?
 }
 
 struct SurfaceAccessibilityNavigationAction: Equatable, Sendable {
@@ -352,6 +379,7 @@ struct TopSurfaceView: View {
   let content: TopSurfaceContent
   let presentationStyle: TopSurfacePresentationStyle
   let surfaceSize: CGSize
+  var rendererContext: SurfaceRendererContext = .initial
   let onActivateSurface: () -> Void
   let onRequestKeyboardNavigation: () -> Void
   let onSurfaceNavigation: (SurfaceGestureIntent) -> Void
@@ -386,33 +414,13 @@ struct TopSurfaceView: View {
         Color.clear
       } else if content.isExpanded {
         expandedContent
-          .transition(surfaceTransition)
       } else {
         compactContent
-          .transition(surfaceTransition)
       }
     }
     .animation(contentAnimation, value: content.transitionIdentity)
-    .animation(contentAnimation, value: content.isExpanded)
     .foregroundStyle(.white)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background {
-      surfaceShape
-        .fill(.black.opacity(surfaceBackgroundOpacity))
-        .animation(shapeAnimation, value: content.isExpanded)
-    }
-    .mask {
-      surfaceShape
-        .fill(.white)
-        .animation(shapeAnimation, value: content.isExpanded)
-    }
-    .overlay(alignment: .top) {
-      if case .notchAttached = presentationStyle {
-        Rectangle()
-          .fill(.black)
-          .frame(height: 1)
-      }
-    }
   }
 
   @ViewBuilder
@@ -693,6 +701,7 @@ struct TopSurfaceView: View {
 
   private var signatureTransition: SignatureSurfaceTransition {
     SignatureSurfaceTransition.resolve(
+      intent: rendererContext.intent,
       reduceMotion: reduceMotion,
       reduceTransparency: reduceTransparency,
       increaseContrast: colorSchemeContrast == .increased,
@@ -711,35 +720,8 @@ struct TopSurfaceView: View {
     return 0
   }
 
-  private var surfaceBackgroundOpacity: Double {
-    switch presentationStyle {
-    case .notchAttached:
-      1
-    case .floatingCapsule:
-      signatureTransition.backgroundOpacity
-    }
-  }
-
-  private var surfaceShape: TopSurfaceShape {
-    TopSurfaceShape(
-      presentationStyle: presentationStyle,
-      isExpanded: content.isExpanded
-    )
-  }
-
   private var contentAnimation: Animation {
     .easeInOut(duration: signatureTransition.duration)
-  }
-
-  private var shapeAnimation: Animation? {
-    guard signatureTransition.animatesShape else {
-      return nil
-    }
-    return .easeInOut(duration: signatureTransition.duration)
-  }
-
-  private var surfaceTransition: AnyTransition {
-    .opacity
   }
 
   private var titleTransition: AnyTransition {
