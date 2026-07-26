@@ -3,8 +3,9 @@
 Date: 2026-07-26  
 Environment: Apple Silicon Mac, macOS 15.7.7, Xcode 16.4, macOS 15.5 SDK,
 Swift 6, arm64  
-Status: Implementation complete; UI automation has a documented session-state
-exception
+Verified implementation commit: `0e74be0`
+
+Status: Code gates pass; live provider and UI session gates are documented
 
 ## Delivered behavior
 
@@ -41,12 +42,12 @@ an explicit personal-build exception and is not Mac App Store compatible.
 |---|---|---|
 | Format and lint | Pass | Recursive `swift-format`; zero lint findings |
 | Debug build | Pass | `xcodebuild build`, arm64 |
-| Unit tests | Pass | 129/129, including helper integration |
+| Unit tests | Pass | 146/146 after rebase, including helper integration |
 | Media interaction | Pass | Gesture, command confirmation, haptic, Quick Peek, source policy, lifecycle, and surface ownership tests |
 | Static analysis | Pass | Debug `xcodebuild analyze` |
 | Release build | Pass | Optimized arm64 app and embedded XPC service |
 | Package integrity | Pass | Explicit ad-hoc signing followed by deep, strict `codesign --verify` |
-| Binary boundary | Pass | `otool -L` shows no static MediaRemote dependency in either executable; the helper contains the expected dynamic framework path and symbols |
+| Binary boundary | Pass | `otool -L` and `nm -u` show no static MediaRemote dependency or undefined MediaRemote symbols; the helper contains the expected dynamic symbol strings |
 | UI test source | Pass | The new media-first fixture scenario compiles into `Keep3UITests` |
 | UI execution | Session-state exception | The macOS UI test runner was rejected before test launch because system authentication/loginwindow was active (`LocalAuthentication Code=-4`) |
 

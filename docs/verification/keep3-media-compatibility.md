@@ -13,7 +13,7 @@ integration matrix below.
 | Architecture | arm64 |
 | Xcode | 16.4 (16F6) |
 | SDK | macOS 15.5 |
-| Boundary commit | `8d0ae84` |
+| Verified implementation commit | `0e74be0` |
 
 ## Runtime symbol probe
 
@@ -23,8 +23,11 @@ The helper successfully opened:
 
 Resolved mandatory symbols:
 
-- `MRMediaRemoteGetNowPlayingClient`
+- `MRMediaRemoteGetNowPlayingInfo`
+- `MRMediaRemoteGetNowPlayingApplicationIsPlaying`
+- `MRMediaRemoteGetNowPlayingApplicationPID`
 - `MRMediaRemoteRegisterForNowPlayingNotifications`
+- `MRMediaRemoteUnregisterForNowPlayingNotifications`
 - `MRMediaRemoteSendCommand`
 
 Resolved optional symbols:
@@ -33,12 +36,18 @@ Resolved optional symbols:
 - `MRMediaRemoteSetShuffleMode`
 - `MRMediaRemoteSetRepeatMode`
 
-Missing optional symbols:
+Resolved current-source capability symbols:
 
-- `MRMediaRemoteGetPlaybackQueue`
+- `MRMediaRemoteGetLocalOrigin`
+- `MRMediaRemoteCopySupportedCommands`
+- `MRMediaRemoteCommandInfoGetCommand`
+- `MRMediaRemoteCommandInfoGetEnabled`
 
-The missing optional queue symbol retracts only its mapped capability. It does
-not disable baseline media support.
+No probed symbol was missing on this host. Optional transport symbols and the
+current-source capability group still fail closed independently: a missing
+transport symbol retracts only its mapped capability, while a missing
+current-source capability symbol produces an empty control set instead of
+advertising framework-wide support.
 
 ## Isolation and failure behavior
 
@@ -48,19 +57,30 @@ not disable baseline media support.
 - Neither the Keep3 executable nor its debug dylib has a static MediaRemote
   dependency or undefined MediaRemote symbols.
 - The app/XPC contract uses versioned, property-list-safe dictionaries.
+- The helper bounds strings and artwork before XPC, publishes artwork as
+  `replace` / `unchanged` / `clear`, and rejects stale capability revisions.
+- Every asynchronous refresh is fenced by both monitoring generation and
+  runtime identity.
+- Controls are derived from enabled commands reported for the current source,
+  not from MediaRemote symbol presence.
 - A missing mandatory symbol, malformed compatibility response, protocol
   mismatch, interruption, or invalidation produces `.unavailable`.
 - Missing optional symbols remove only their corresponding capability.
 
 ## Automated evidence
 
-The focused boundary suite passes:
+The post-rebase suite passes 146/146 tests, including:
 
 - `MediaRemoteSymbolsTests`: 2 tests
-- `MediaSessionNormalizationTests`: 2 tests
+- `MediaSessionNormalizationTests`: 7 tests
+- `MediaCommandCoordinatorTests`: 5 tests
+- `MediaRemoteAdapterIntegrationTests`: 1 test
 
-The Debug app build passes, the embedded helper has package type `XPC!`, and
-both app and helper dependency inspection show no static MediaRemote linkage.
+Static analysis and the optimized arm64 Release build pass. The embedded helper
+has package type `XPC!`. The Release app and helper were ad-hoc signed and passed
+deep strict `codesign` verification. Dependency and undefined-symbol inspection
+show no static MediaRemote linkage; the helper contains only the expected
+dynamically resolved MediaRemote symbol strings.
 
 ## Provider integration matrix
 
@@ -85,3 +105,9 @@ capability, not that Keep3 should render an empty control.
 - Verify player commands and success confirmation independently from UI
   animation.
 - Repeat the compatibility probe for every supported macOS/architecture row.
+
+The live provider gate is tracked in
+[GitHub issue #4](https://github.com/taobaorun/keep3/issues/4). Trusted
+provider-specific Favorite and Repeat One dispatch is tracked separately in
+[GitHub issue #3](https://github.com/taobaorun/keep3/issues/3); Keep3 leaves
+those controls hidden until a verified backend exists.
