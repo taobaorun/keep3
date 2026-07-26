@@ -262,6 +262,39 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertEqual(panel.renderedContent.item.title, "发布 Keep3")
   }
 
+  func testControllerCanReuseTheSamePanelForCalendar() throws {
+    let controller = TopSurfaceController()
+    let compactFrame = CGRect(x: 100, y: 500, width: 280, height: 44)
+    let expandedFrame = CGRect(x: 60, y: 328, width: 360, height: 216)
+    defer { controller.remove() }
+
+    controller.show(
+      frame: compactFrame,
+      content: try makeContent(title: "写 Keep3")
+    )
+    let panel = try XCTUnwrap(controller.panel)
+    let payload = CalendarSurfacePayload(
+      state: .content(
+        events: [],
+        isRefreshing: false,
+        refreshFailure: nil
+      ),
+      level: .expanded,
+      revision: 1
+    )
+    let layout = SurfaceLayout(
+      panelFrame: expandedFrame,
+      surfaceFrameInPanel: CGRect(origin: .zero, size: expandedFrame.size),
+      obstructionSize: nil
+    )
+
+    controller.showCalendar(layout: layout, payload: payload)
+
+    XCTAssertTrue(controller.panel === panel)
+    XCTAssertEqual(panel.renderedCalendarPayload, payload)
+    XCTAssertEqual(panel.frame, expandedFrame)
+  }
+
   func testContentOmitsBlankDetailsAndSubitems() throws {
     let item = try FocusItem(
       title: "设计 Keep3",

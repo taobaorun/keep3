@@ -56,6 +56,13 @@ final class TopSurfacePanel: NSPanel {
     return payload
   }
 
+  var renderedCalendarPayload: CalendarSurfacePayload? {
+    guard case .calendar(let payload) = panelContent else {
+      return nil
+    }
+    return payload
+  }
+
   convenience init(
     contentRect: CGRect,
     surfaceFrameInPanel: CGRect? = nil,
@@ -108,6 +115,31 @@ final class TopSurfacePanel: NSPanel {
       onNavigate: { _ in },
       onOpenItem: {},
       onMediaAction: onMediaAction
+    )
+  }
+
+  convenience init(
+    contentRect: CGRect,
+    surfaceFrameInPanel: CGRect? = nil,
+    calendarPayload: CalendarSurfacePayload,
+    presentationStyle: TopSurfacePresentationStyle = .floatingCapsule,
+    onHoverChanged: @escaping (Bool) -> Void = { _ in },
+    onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
+    onActivateSurface: @escaping () -> Void = {}
+  ) {
+    self.init(
+      contentRect: contentRect,
+      surfaceFrameInPanel: surfaceFrameInPanel,
+      panelContent: .calendar(calendarPayload),
+      presentationStyle: presentationStyle,
+      onHoverChanged: onHoverChanged,
+      onScroll: onScroll,
+      onActivateSurface: onActivateSurface,
+      onRequestKeyboardNavigation: {},
+      onDismiss: {},
+      onNavigate: { _ in },
+      onOpenItem: {},
+      onMediaAction: { _ in }
     )
   }
 
@@ -259,6 +291,37 @@ final class TopSurfacePanel: NSPanel {
     setKeyboardNavigationEnabled(false)
   }
 
+  func update(
+    calendarPayload: CalendarSurfacePayload,
+    presentationStyle: TopSurfacePresentationStyle,
+    surfaceFrameInPanel: CGRect,
+    onHoverChanged: @escaping (Bool) -> Void,
+    onScroll: @escaping (SurfaceScrollEvent) -> Void,
+    onActivateSurface: @escaping () -> Void
+  ) {
+    panelContent = .calendar(calendarPayload)
+    renderedPresentationStyle = presentationStyle
+    renderedSurfaceFrameInPanel = surfaceFrameInPanel
+    hasShadow = presentationStyle.hasPanelShadow
+    eventView.onHoverChanged = onHoverChanged
+    eventView.onScroll = onScroll
+    eventView.onNavigate = { _ in }
+    eventView.onDismiss = {}
+    eventView.onOpenItem = {}
+    eventView.updateActiveFrame(surfaceFrameInPanel)
+    eventView.hostingView.rootView = Self.rootView(
+      for: panelContent,
+      presentationStyle: presentationStyle,
+      surfaceSize: surfaceFrameInPanel.size,
+      onActivateSurface: onActivateSurface,
+      onRequestKeyboardNavigation: {},
+      onNavigate: { _ in },
+      onOpenItem: {},
+      onMediaAction: { _ in }
+    )
+    setKeyboardNavigationEnabled(false)
+  }
+
   private static func rootView(
     for content: PanelContent,
     presentationStyle: TopSurfacePresentationStyle,
@@ -289,6 +352,15 @@ final class TopSurfacePanel: NSPanel {
           presentationStyle: presentationStyle,
           surfaceSize: surfaceSize,
           onAction: onMediaAction,
+          onActivateSurface: onActivateSurface
+        )
+      )
+    case .calendar(let calendar):
+      AnyView(
+        CalendarSurfaceView(
+          payload: calendar,
+          presentationStyle: presentationStyle,
+          surfaceSize: surfaceSize,
           onActivateSurface: onActivateSurface
         )
       )
@@ -350,6 +422,7 @@ final class TopSurfacePanel: NSPanel {
 private enum PanelContent {
   case focus(TopSurfaceContent)
   case media(MediaSurfacePayload)
+  case calendar(CalendarSurfacePayload)
 }
 
 @MainActor

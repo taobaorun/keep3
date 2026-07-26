@@ -105,6 +105,8 @@
 		A42000000000000000000005 /* CalendarPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41000000000000000000005 /* CalendarPreferences.swift */; };
 		A42000000000000000000006 /* CalendarSessionCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41000000000000000000006 /* CalendarSessionCoordinatorTests.swift */; };
 		A42000000000000000000007 /* CalendarPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41000000000000000000007 /* CalendarPreferencesTests.swift */; };
+		A42000000000000000000008 /* CalendarSurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41000000000000000000009 /* CalendarSurfaceView.swift */; };
+		A42000000000000000000009 /* CalendarSurfacePresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4100000000000000000000A /* CalendarSurfacePresentationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -244,6 +246,8 @@
 		A41000000000000000000006 /* CalendarSessionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSessionCoordinatorTests.swift; sourceTree = "<group>"; };
 		A41000000000000000000007 /* CalendarPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarPreferencesTests.swift; sourceTree = "<group>"; };
 		A41000000000000000000008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A41000000000000000000009 /* CalendarSurfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSurfaceView.swift; sourceTree = "<group>"; };
+		A4100000000000000000000A /* CalendarSurfacePresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSurfacePresentationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -396,6 +400,7 @@
 				200000000000000000000070 /* MediaSurfacePresentationTests.swift */,
 				20000000000000000000007C /* SurfaceNavigationCoordinatorTests.swift */,
 				20000000000000000000007E /* SurfaceGestureRecognizerTests.swift */,
+				A4100000000000000000000A /* CalendarSurfacePresentationTests.swift */,
 			);
 			path = Overlay;
 			sourceTree = "<group>";
@@ -419,6 +424,7 @@
 				20000000000000000000007A /* SurfaceComponent.swift */,
 				20000000000000000000007B /* SurfaceNavigationCoordinator.swift */,
 				20000000000000000000007D /* SurfaceGestureRecognizer.swift */,
+				A41000000000000000000009 /* CalendarSurfaceView.swift */,
 			);
 			path = Overlay;
 			sourceTree = "<group>";
@@ -792,6 +798,7 @@
 				A42000000000000000000003 /* EventKitCalendarAdapter.swift in Sources */,
 				A42000000000000000000004 /* CalendarSessionCoordinator.swift in Sources */,
 				A42000000000000000000005 /* CalendarPreferences.swift in Sources */,
+				A42000000000000000000008 /* CalendarSurfaceView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -830,6 +837,7 @@
 				10000000000000000000007F /* SurfaceGestureRecognizerTests.swift in Sources */,
 				A42000000000000000000006 /* CalendarSessionCoordinatorTests.swift in Sources */,
 				A42000000000000000000007 /* CalendarPreferencesTests.swift in Sources */,
+				A42000000000000000000009 /* CalendarSurfacePresentationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
