@@ -39,11 +39,11 @@ final class Keep3UITests: XCTestCase {
 
     addItem("Persistent Focus")
     openSettings()
+    openSettingsCategory("rotation")
 
     let automaticRotation = automaticRotationCheckbox()
     XCTAssertTrue(automaticRotation.waitForExistence(timeout: 2))
     automaticRotation.click()
-    app.radioButtons["点击"].click()
 
     app.terminate()
     app.launch()
@@ -52,27 +52,22 @@ final class Keep3UITests: XCTestCase {
     XCTAssertTrue(app.buttons["editor.item.1"].label.contains("Persistent Focus"))
 
     openSettings()
+    openSettingsCategory("rotation")
     XCTAssertEqual(valueDescription(of: automaticRotationCheckbox()), "0")
-    XCTAssertEqual(valueDescription(of: app.radioButtons["点击"]), "1")
   }
 
   func testOverlayBrowsingOpensTheMatchingEditorItem() throws {
-    try launchIsolatedApp()
+    try launchIsolatedApp(expandedSurface: true)
     defer { cleanUpIsolatedApp() }
 
     addItem("Alpha")
     addItem("Beta")
     addItem("Gamma")
-    openSettings()
-    app.radioButtons["点击"].click()
-    app.radioButtons["重点"].click()
-
-    let compactSurface = app.buttons["overlay.compact"]
-    XCTAssertTrue(compactSurface.waitForExistence(timeout: 3))
-    compactSurface.click()
-
     let nextButton = app.buttons["overlay.next"]
-    XCTAssertTrue(nextButton.waitForExistence(timeout: 3))
+    XCTAssertTrue(
+      nextButton.waitForExistence(timeout: 3),
+      app.debugDescription
+    )
     nextButton.click()
 
     let openItem = app.buttons["overlay.openItem"]
@@ -88,17 +83,22 @@ final class Keep3UITests: XCTestCase {
   func testPlayingMediaOwnsSurfaceAndDisablingMediaRestoresFocus()
     throws
   {
-    try launchIsolatedApp(mediaFixture: true)
+    try launchIsolatedApp(
+      mediaFixture: true,
+      expandedSurface: true
+    )
     defer { cleanUpIsolatedApp() }
 
-    let expandedMedia = app.descendants(matching: .any)["media.expanded"]
-    XCTAssertTrue(expandedMedia.waitForExistence(timeout: 4))
-
-    let next = app.buttons["media.action.next"]
-    XCTAssertTrue(next.waitForExistence(timeout: 2))
+    let next =
+      app.descendants(matching: .any)["media.action.next"]
+    XCTAssertTrue(
+      next.waitForExistence(timeout: 4),
+      app.debugDescription
+    )
     next.click()
-    XCTAssertTrue(next.waitForExistence(timeout: 2))
-    XCTAssertTrue(next.isEnabled)
+    XCTAssertTrue(
+      app.staticTexts["Keep3 Fixture 2"].waitForExistence(timeout: 2)
+    )
 
     addItem("Focus Returns")
     openSettings()
@@ -107,16 +107,20 @@ final class Keep3UITests: XCTestCase {
     XCTAssertTrue(mediaCategory.waitForExistence(timeout: 2))
     mediaCategory.click()
 
-    let mediaEnabled = app.switches["settings.media.enabled"]
+    let mediaEnabled = app.checkBoxes["settings.media.enabled"]
     XCTAssertTrue(mediaEnabled.waitForExistence(timeout: 2))
     mediaEnabled.click()
 
     XCTAssertTrue(
-      app.buttons["overlay.compact"].waitForExistence(timeout: 4)
+      app.buttons["overlay.openItem"].waitForExistence(timeout: 4)
     )
+    XCTAssertTrue(app.buttons["overlay.openItem"].label.contains("Focus Returns"))
   }
 
-  private func launchIsolatedApp(mediaFixture: Bool = false) throws {
+  private func launchIsolatedApp(
+    mediaFixture: Bool = false,
+    expandedSurface: Bool = false
+  ) throws {
     continueAfterFailure = false
 
     let identifier = UUID().uuidString
@@ -132,8 +136,13 @@ final class Keep3UITests: XCTestCase {
     app.launchEnvironment["KEEP3_UI_TEST_STATE_PATH"] =
       testDirectoryURL.appendingPathComponent("state.json").path
     app.launchEnvironment["KEEP3_UI_TEST_DEFAULTS_SUITE"] = defaultsSuiteName
+    app.launchEnvironment["KEEP3_UI_TEST_MEDIA_ENABLED"] =
+      mediaFixture.description
     if mediaFixture {
       app.launchEnvironment["KEEP3_UI_TEST_MEDIA_FIXTURE"] = "playing"
+    }
+    if expandedSurface {
+      app.launchEnvironment["KEEP3_UI_TEST_SURFACE_LEVEL"] = "expanded"
     }
     app.launch()
 
@@ -175,13 +184,20 @@ final class Keep3UITests: XCTestCase {
     XCTAssertTrue(settingsTab.waitForExistence(timeout: 2))
     settingsTab.click()
     XCTAssertTrue(
-      app.descendants(matching: .any)["settings.root"]
+      app.descendants(matching: .any)["settings.category.general"]
         .waitForExistence(timeout: 2)
     )
   }
 
+  private func openSettingsCategory(_ identifier: String) {
+    let category =
+      app.descendants(matching: .any)["settings.category.\(identifier)"]
+    XCTAssertTrue(category.waitForExistence(timeout: 2))
+    category.click()
+  }
+
   private func automaticRotationCheckbox() -> XCUIElement {
-    app.switches["settings.autoRotation"]
+    app.checkBoxes["settings.autoRotation"]
   }
 
   private func valueDescription(of element: XCUIElement) -> String {

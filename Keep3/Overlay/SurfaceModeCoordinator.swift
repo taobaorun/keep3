@@ -22,8 +22,6 @@ final class SurfaceModeCoordinator {
   private var mediaSnapshot: MediaSessionSnapshot?
   private var mediaPolicy = MediaSourcePolicy()
   private var mediaAppearance = MediaSurfaceAppearance.standard
-  private var mediaExpansionReason = SurfaceExpansionReason.none
-  private var isMediaExpanded = false
   private var areMediaControlsEnabled = true
   private var mediaTrackChangeDirection: MediaTrackDirection?
   private var mediaTrackPeek: MediaTrackPeek?
@@ -155,21 +153,6 @@ final class SurfaceModeCoordinator {
     reconcileMediaEligibility()
   }
 
-  func updateMediaExpansion(
-    isExpanded: Bool,
-    reason: SurfaceExpansionReason
-  ) {
-    guard
-      isMediaExpanded != isExpanded
-        || mediaExpansionReason != reason
-    else {
-      return
-    }
-    isMediaExpanded = isExpanded
-    mediaExpansionReason = reason
-    reconcileMediaEligibility()
-  }
-
   func setMediaControlsEnabled(_ isEnabled: Bool) {
     guard areMediaControlsEnabled != isEnabled else {
       return
@@ -288,12 +271,12 @@ final class SurfaceModeCoordinator {
       .init(
         sessionID: mediaSnapshot.session.sessionID,
         contentRevision: mediaSnapshot.contentRevision,
-        isExpanded: isMediaExpanded,
+        isExpanded: false,
         areControlsEnabled: areMediaControlsEnabled,
         session: mediaSnapshot.session,
         playbackState: mediaSnapshot.playbackState,
         capabilityRevision: mediaSnapshot.capabilityRevision,
-        expansionReason: mediaExpansionReason,
+        expansionReason: .none,
         appearance: mediaAppearance,
         trackChangeDirection: mediaTrackChangeDirection,
         trackPeek: mediaTrackPeek

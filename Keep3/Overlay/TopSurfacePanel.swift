@@ -377,6 +377,9 @@ final class TopSurfacePanel: NSPanel {
     _ isEnabled: Bool,
     activateApplication: Bool = true
   ) {
+    guard keyboardNavigationEnabled != isEnabled else {
+      return
+    }
     keyboardNavigationEnabled = isEnabled
 
     guard isEnabled else {

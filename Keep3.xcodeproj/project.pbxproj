@@ -74,10 +74,9 @@
 		10000000000000000000006F /* MediaSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000006E /* MediaSettingsView.swift */; };
 		100000000000000000000070 /* MediaArtworkDecoderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000006F /* MediaArtworkDecoderTests.swift */; };
 		100000000000000000000071 /* MediaSurfacePresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000070 /* MediaSurfacePresentationTests.swift */; };
-		100000000000000000000072 /* MediaGestureRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000071 /* MediaGestureRecognizer.swift */; };
+		100000000000000000000072 /* SurfaceScrollEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000071 /* SurfaceScrollEvent.swift */; };
 		100000000000000000000073 /* MediaCommandCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000072 /* MediaCommandCoordinator.swift */; };
 		100000000000000000000074 /* MediaHapticFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000073 /* MediaHapticFeedback.swift */; };
-		100000000000000000000075 /* MediaGestureRecognizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000074 /* MediaGestureRecognizerTests.swift */; };
 		100000000000000000000076 /* MediaCommandCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000075 /* MediaCommandCoordinatorTests.swift */; };
 		100000000000000000000077 /* MediaRemoteAdapterIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000076 /* MediaRemoteAdapterIntegrationTests.swift */; };
 		100000000000000000000078 /* MediaSurfaceInteractionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000077 /* MediaSurfaceInteractionModel.swift */; };
@@ -225,10 +224,9 @@
 		20000000000000000000006E /* MediaSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSettingsView.swift; sourceTree = "<group>"; };
 		20000000000000000000006F /* MediaArtworkDecoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaArtworkDecoderTests.swift; sourceTree = "<group>"; };
 		200000000000000000000070 /* MediaSurfacePresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSurfacePresentationTests.swift; sourceTree = "<group>"; };
-		200000000000000000000071 /* MediaGestureRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaGestureRecognizer.swift; sourceTree = "<group>"; };
+		200000000000000000000071 /* SurfaceScrollEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceScrollEvent.swift; sourceTree = "<group>"; };
 		200000000000000000000072 /* MediaCommandCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaCommandCoordinator.swift; sourceTree = "<group>"; };
 		200000000000000000000073 /* MediaHapticFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaHapticFeedback.swift; sourceTree = "<group>"; };
-		200000000000000000000074 /* MediaGestureRecognizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaGestureRecognizerTests.swift; sourceTree = "<group>"; };
 		200000000000000000000075 /* MediaCommandCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaCommandCoordinatorTests.swift; sourceTree = "<group>"; };
 		200000000000000000000076 /* MediaRemoteAdapterIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRemoteAdapterIntegrationTests.swift; sourceTree = "<group>"; };
 		200000000000000000000077 /* MediaSurfaceInteractionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSurfaceInteractionModel.swift; sourceTree = "<group>"; };
@@ -328,7 +326,7 @@
 				200000000000000000000063 /* MediaSessionCoordinator.swift */,
 				200000000000000000000064 /* WorkspaceApplicationObserver.swift */,
 				20000000000000000000006B /* MediaArtworkDecoder.swift */,
-				200000000000000000000071 /* MediaGestureRecognizer.swift */,
+				200000000000000000000071 /* SurfaceScrollEvent.swift */,
 				200000000000000000000072 /* MediaCommandCoordinator.swift */,
 				200000000000000000000073 /* MediaHapticFeedback.swift */,
 				200000000000000000000077 /* MediaSurfaceInteractionModel.swift */,
@@ -382,7 +380,6 @@
 				200000000000000000000069 /* WorkspaceApplicationObserverTests.swift */,
 				20000000000000000000006A /* ProviderEnrichmentServiceTests.swift */,
 				20000000000000000000006F /* MediaArtworkDecoderTests.swift */,
-				200000000000000000000074 /* MediaGestureRecognizerTests.swift */,
 				200000000000000000000075 /* MediaCommandCoordinatorTests.swift */,
 				200000000000000000000076 /* MediaRemoteAdapterIntegrationTests.swift */,
 				200000000000000000000079 /* MediaSurfaceInteractionModelTests.swift */,
@@ -788,7 +785,7 @@
 				10000000000000000000006D /* MediaWaveformView.swift in Sources */,
 				10000000000000000000006E /* MediaSurfaceView.swift in Sources */,
 				10000000000000000000006F /* MediaSettingsView.swift in Sources */,
-				100000000000000000000072 /* MediaGestureRecognizer.swift in Sources */,
+				100000000000000000000072 /* SurfaceScrollEvent.swift in Sources */,
 				100000000000000000000073 /* MediaCommandCoordinator.swift in Sources */,
 				100000000000000000000074 /* MediaHapticFeedback.swift in Sources */,
 				100000000000000000000078 /* MediaSurfaceInteractionModel.swift in Sources */,
@@ -833,7 +830,6 @@
 				100000000000000000000066 /* ProviderEnrichmentServiceTests.swift in Sources */,
 				100000000000000000000070 /* MediaArtworkDecoderTests.swift in Sources */,
 				100000000000000000000071 /* MediaSurfacePresentationTests.swift in Sources */,
-				100000000000000000000075 /* MediaGestureRecognizerTests.swift in Sources */,
 				100000000000000000000076 /* MediaCommandCoordinatorTests.swift in Sources */,
 				100000000000000000000077 /* MediaRemoteAdapterIntegrationTests.swift in Sources */,
 				10000000000000000000007A /* MediaSurfaceInteractionModelTests.swift in Sources */,
