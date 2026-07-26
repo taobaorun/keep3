@@ -147,6 +147,31 @@ final class MediaSurfacePresentationTests: XCTestCase {
     XCTAssertEqual(visible.applicationName, "网易云音乐")
   }
 
+  func testNotchedCompactWaveformMatchesTheAlcoveEnvelope() {
+    let style = MediaWaveformStyle.notchedCompact
+
+    XCTAssertEqual(style.barCount, 6)
+    XCTAssertEqual(style.intrinsicWidth, 16.5, accuracy: 0.001)
+    XCTAssertEqual(style.maximumHeight, 10, accuracy: 0.001)
+  }
+
+  func testExpandedLayoutMatchesTheAlcoveSpacing() {
+    let metrics = MediaExpandedLayoutMetrics(surfaceWidth: 344)
+    let expectedCenters: [CGFloat] = [
+      40.8, 106.4, 172, 237.6, 303.2,
+    ]
+
+    XCTAssertEqual(metrics.progressTrackLeadingEdge, 54, accuracy: 0.001)
+    XCTAssertEqual(metrics.controlCenters.count, expectedCenters.count)
+    for (actual, expected) in zip(
+      metrics.controlCenters,
+      expectedCenters
+    ) {
+      XCTAssertEqual(actual, expected, accuracy: 0.001)
+    }
+    XCTAssertEqual(metrics.bottomInset, 22, accuracy: 0.001)
+  }
+
   private func payload(
     isExpanded: Bool = false,
     expansionReason: SurfaceExpansionReason = .none,

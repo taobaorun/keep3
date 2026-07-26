@@ -49,12 +49,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   )
   private lazy var mediaSurfaceInteractionModel =
-    MediaSurfaceInteractionModel { [weak self] isExpanded, reason in
-      self?.surfaceModeCoordinator.updateMediaExpansion(
-        isExpanded: isExpanded,
-        reason: reason
-      )
-    }
+    MediaSurfaceInteractionModel(
+      onExpansion: { [weak self] isExpanded, reason in
+        self?.surfaceModeCoordinator.updateMediaExpansion(
+          isExpanded: isExpanded,
+          reason: reason
+        )
+      },
+      onTrackPeek: { [weak self] peek in
+        self?.surfaceModeCoordinator.updateMediaTrackPeek(peek)
+      }
+    )
   private lazy var mediaAdapter: any MediaSessionAdapter =
     makeMediaAdapter()
   private lazy var mediaSessionCoordinator = MediaSessionCoordinator {
@@ -344,6 +349,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     _ action: MediaSurfaceAction?
   ) {
     surfaceModeCoordinator.setMediaControlsEnabled(action == nil)
+    let direction: MediaTrackDirection?
+    switch action {
+    case .previous:
+      direction = .previous
+    case .next:
+      direction = .next
+    default:
+      direction = nil
+    }
+    surfaceModeCoordinator.updateMediaTrackChangeDirection(direction)
   }
 
   private func handleMediaOwnershipChange(_ ownsSurface: Bool) {

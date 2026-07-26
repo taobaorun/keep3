@@ -25,6 +25,8 @@ final class SurfaceModeCoordinator {
   private var mediaExpansionReason = SurfaceExpansionReason.none
   private var isMediaExpanded = false
   private var areMediaControlsEnabled = true
+  private var mediaTrackChangeDirection: MediaTrackDirection?
+  private var mediaTrackPeek: MediaTrackPeek?
   private var frontmostBundleIdentifier: String?
 
   var designatedFocusID: UUID? {
@@ -125,6 +127,10 @@ final class SurfaceModeCoordinator {
     guard snapshot?.subscriptionEpoch == epoch || snapshot == nil else {
       return
     }
+    if mediaSnapshot?.session.sessionID != snapshot?.session.sessionID {
+      mediaTrackChangeDirection = nil
+      mediaTrackPeek = nil
+    }
     mediaSnapshot = snapshot
     reconcileMediaEligibility()
   }
@@ -165,6 +171,24 @@ final class SurfaceModeCoordinator {
       return
     }
     areMediaControlsEnabled = isEnabled
+    reconcileMediaEligibility()
+  }
+
+  func updateMediaTrackChangeDirection(
+    _ direction: MediaTrackDirection?
+  ) {
+    guard mediaTrackChangeDirection != direction else {
+      return
+    }
+    mediaTrackChangeDirection = direction
+    reconcileMediaEligibility()
+  }
+
+  func updateMediaTrackPeek(_ peek: MediaTrackPeek?) {
+    guard mediaTrackPeek != peek else {
+      return
+    }
+    mediaTrackPeek = peek
     reconcileMediaEligibility()
   }
 
@@ -266,7 +290,9 @@ final class SurfaceModeCoordinator {
         playbackState: mediaSnapshot.playbackState,
         capabilityRevision: mediaSnapshot.capabilityRevision,
         expansionReason: mediaExpansionReason,
-        appearance: mediaAppearance
+        appearance: mediaAppearance,
+        trackChangeDirection: mediaTrackChangeDirection,
+        trackPeek: mediaTrackPeek
       )
     )
   }

@@ -21,6 +21,8 @@ struct MediaSurfacePresentation: Equatable, Sendable {
   let primaryActions: [MediaSurfaceAction]
   let secondaryAction: MediaSurfaceAction?
   let appearance: MediaSurfaceAppearance
+  let trackChangeDirection: MediaTrackDirection?
+  let trackPeek: MediaTrackPeek?
 
   init(payload: MediaSurfacePayload) {
     let session = payload.session
@@ -38,6 +40,8 @@ struct MediaSurfacePresentation: Equatable, Sendable {
     isTemporaryExpansion = payload.isTemporaryExpansion
     areControlsEnabled = payload.areControlsEnabled
     appearance = payload.appearance
+    trackChangeDirection = payload.trackChangeDirection
+    trackPeek = payload.trackPeek
     progress = session?.progress
     duration = session?.duration
     canSeek = session?.capabilities.contains(.seek) == true
@@ -98,6 +102,32 @@ struct MediaSurfacePresentation: Equatable, Sendable {
   }
 }
 
+struct MediaExpandedLayoutMetrics: Equatable {
+  let surfaceWidth: CGFloat
+
+  let horizontalInset: CGFloat = 18
+  let progressSpacing: CGFloat = 9
+  let elapsedLabelWidth: CGFloat = 27
+  let remainingLabelWidth: CGFloat = 32
+  let controlsHorizontalInset: CGFloat = 8
+  let bottomInset: CGFloat = 22
+
+  var progressTrackLeadingEdge: CGFloat {
+    horizontalInset + elapsedLabelWidth + progressSpacing
+  }
+
+  var controlCenters: [CGFloat] {
+    let availableWidth = max(
+      0,
+      surfaceWidth - (2 * controlsHorizontalInset)
+    )
+    let slotWidth = availableWidth / 5
+    return (0..<5).map {
+      controlsHorizontalInset + ((CGFloat($0) + 0.5) * slotWidth)
+    }
+  }
+}
+
 struct MediaSurfaceView: View {
   let payload: MediaSurfacePayload
   let presentationStyle: TopSurfacePresentationStyle
@@ -118,6 +148,8 @@ struct MediaSurfaceView: View {
     Group {
       if presentation.isExpanded {
         expandedContent(artwork: artwork)
+      } else if let trackPeek = presentation.trackPeek {
+        trackPeekContent(trackPeek, artwork: artwork)
       } else {
         compactContent(artwork: artwork)
       }
@@ -127,16 +159,20 @@ struct MediaSurfaceView: View {
     .frame(width: surfaceSize.width, height: surfaceSize.height)
     .background { mediaBackground(artwork: artwork) }
     .clipShape(surfaceShape)
-    .overlay(alignment: .top) {
-      if case .notchAttached = presentationStyle {
-        Rectangle().fill(.black).frame(height: 1)
-      }
-    }
     .animation(
       reduceMotion ? nil : .easeInOut(duration: 0.22),
       value: payload.isExpanded
     )
+    .animation(
+      reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.82),
+      value: payload.trackChangeDirection
+    )
+    .animation(
+      reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.86),
+      value: payload.trackPeek
+    )
     .opacity(payload.areControlsEnabled ? 1 : 0.72)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .accessibilityElement(children: .contain)
     .accessibilityLabel(accessibilitySummary)
   }
@@ -147,7 +183,7 @@ struct MediaSurfaceView: View {
     case .floatingCapsule:
       Button(action: onActivateSurface) {
         HStack(spacing: 10) {
-          compactArtwork(artwork: artwork)
+          artworkView(artwork: artwork, size: 28, cornerRadius: 7)
           compactMetadata
           Spacer(minLength: 4)
           compactPlaybackIndicator
@@ -158,23 +194,26 @@ struct MediaSurfaceView: View {
       .buttonStyle(.plain)
       .accessibilityIdentifier("media.compact")
     case .notchAttached(let notchSize):
-      notchedCompactContent(notchSize: notchSize)
+      notchedCompactContent(notchSize: notchSize, artwork: artwork)
     }
   }
 
-  private func notchedCompactContent(notchSize: CGSize) -> some View {
+  private func notchedCompactContent(
+    notchSize: CGSize,
+    artwork: CGImage?
+  ) -> some View {
     let layout = NotchCompactContentLayout(
       surfaceSize: surfaceSize,
       obstructionSize: notchSize
     )
     return Button(action: onActivateSurface) {
       HStack(spacing: 0) {
-        compactPlaybackIndicator
+        artworkView(artwork: artwork, size: 20, cornerRadius: 6)
           .frame(width: layout.leftWingFrame.width)
         Color.clear
           .frame(width: layout.obstructionFrame.width)
           .accessibilityHidden(true)
-        compactMetadata
+        notchedCompactPlaybackIndicator
           .frame(width: layout.rightWingFrame.width)
       }
       .contentShape(Rectangle())
@@ -183,7 +222,67 @@ struct MediaSurfaceView: View {
     .accessibilityIdentifier("media.compact")
   }
 
-  private func compactArtwork(artwork: CGImage?) -> some View {
+  @ViewBuilder
+  private func trackPeekContent(
+    _ peek: MediaTrackPeek,
+    artwork: CGImage?
+  ) -> some View {
+    switch presentationStyle {
+    case .floatingCapsule:
+      trackPeekButton(peek, artwork: artwork, topInset: 0)
+    case .notchAttached(let notchSize):
+      ZStack(alignment: .top) {
+        notchedCompactContent(notchSize: notchSize, artwork: artwork)
+          .frame(height: notchSize.height)
+        trackPeekButton(
+          peek,
+          artwork: nil,
+          topInset: notchSize.height
+        )
+      }
+    }
+  }
+
+  private func trackPeekButton(
+    _ peek: MediaTrackPeek,
+    artwork: CGImage?,
+    topInset: CGFloat
+  ) -> some View {
+    Button(action: onActivateSurface) {
+      HStack(spacing: 9) {
+        if artwork != nil {
+          artworkView(artwork: artwork, size: 34, cornerRadius: 9)
+        }
+        VStack(alignment: .leading, spacing: 1) {
+          Text(peek.title)
+            .font(.system(size: 12, weight: .semibold))
+            .lineLimit(1)
+          if let artist = peek.artist {
+            Text(artist)
+              .font(.system(size: 10.5))
+              .foregroundStyle(.white.opacity(0.58))
+              .lineLimit(1)
+          }
+        }
+        Spacer(minLength: 4)
+        if topInset == 0 {
+          compactPlaybackIndicator
+        }
+      }
+      .padding(.horizontal, 14)
+      .padding(.top, topInset)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityIdentifier("media.track-peek")
+  }
+
+  private func artworkView(
+    artwork: CGImage?,
+    size: CGFloat,
+    cornerRadius: CGFloat
+  ) -> some View {
     Group {
       if let artwork,
         presentation.appearance.artworkTreatment != .gradient
@@ -196,13 +295,15 @@ struct MediaSurfaceView: View {
           )
       } else {
         Image(systemName: "music.note")
-          .font(.system(size: 12, weight: .semibold))
+          .font(.system(size: max(8, size * 0.42), weight: .semibold))
           .frame(maxWidth: .infinity, maxHeight: .infinity)
           .background(.white.opacity(0.1))
       }
     }
-    .frame(width: 28, height: 28)
-    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+    .frame(width: size, height: size)
+    .clipShape(
+      RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    )
     .id(payload.contentRevision)
     .transition(artworkTransition)
   }
@@ -240,97 +341,97 @@ struct MediaSurfaceView: View {
     }
   }
 
+  @ViewBuilder
+  private var notchedCompactPlaybackIndicator: some View {
+    if presentation.appearance.showsWaveform {
+      MediaWaveformView(
+        seed: presentation.sessionID,
+        isPlaying: presentation.isPlaying,
+        style: .notchedCompact
+      )
+      .frame(
+        width: MediaWaveformStyle.notchedCompact.intrinsicWidth,
+        height: MediaWaveformStyle.notchedCompact.maximumHeight
+      )
+    } else {
+      Image(systemName: presentation.isPlaying ? "pause.fill" : "play.fill")
+        .font(.system(size: 9, weight: .bold))
+        .frame(width: 18, height: 18)
+    }
+  }
+
   private func expandedContent(artwork: CGImage?) -> some View {
-    VStack(spacing: 0) {
-      HStack(alignment: .top, spacing: 14) {
+    let metrics = MediaExpandedLayoutMetrics(
+      surfaceWidth: surfaceSize.width
+    )
+
+    return VStack(spacing: 0) {
+      HStack(alignment: .bottom, spacing: 16) {
         expandedArtwork(artwork: artwork)
-        VStack(alignment: .leading, spacing: 5) {
-          if let applicationName = presentation.applicationName {
-            Text(applicationName.uppercased())
-              .font(.caption2.weight(.bold))
-              .tracking(0.7)
-              .foregroundStyle(.white.opacity(0.44))
-          }
+        VStack(alignment: .leading, spacing: 2) {
           Text(presentation.title)
-            .font(.system(size: 17, weight: .semibold))
-            .lineLimit(2)
+            .font(.system(size: 15, weight: .semibold))
+            .lineLimit(1)
           if let artist = presentation.artist {
             Text(artist)
-              .font(.subheadline)
-              .foregroundStyle(.white.opacity(0.64))
-              .lineLimit(1)
-          }
-          if let album = presentation.album {
-            Text(album)
-              .font(.caption)
-              .foregroundStyle(.white.opacity(0.44))
+              .font(.system(size: 13))
+              .foregroundStyle(.white.opacity(0.58))
               .lineLimit(1)
           }
         }
-        Spacer(minLength: 0)
-        if presentation.canHideSource {
-          Button {
-            onAction(.hideSource)
-          } label: {
-            Image(systemName: "xmark")
-              .font(.system(size: 9, weight: .bold))
-              .frame(width: 24, height: 24)
-              .background(.white.opacity(0.08), in: Circle())
-          }
-          .buttonStyle(.plain)
-          .accessibilityLabel("隐藏当前媒体来源")
-        }
-      }
-
-      if let progress = presentation.progressFraction {
-        progressView(progress)
-          .padding(.top, 14)
-      }
-
-      Spacer(minLength: 10)
-
-      HStack(spacing: 15) {
-        if let secondaryAction = presentation.secondaryAction {
-          controlButton(for: secondaryAction, emphasized: false)
-        }
-        Spacer(minLength: 0)
-        ForEach(
-          Array(presentation.primaryActions.enumerated()),
-          id: \.offset
-        ) { _, action in
-          controlButton(
-            for: action,
-            emphasized: action == .togglePlayPause
-          )
-        }
+        .padding(.bottom, 4)
         Spacer(minLength: 0)
         if presentation.appearance.showsWaveform {
           MediaWaveformView(
             seed: presentation.sessionID,
-            isPlaying: presentation.isPlaying
+            isPlaying: presentation.isPlaying,
+            style: .expanded
           )
-          .frame(width: 38, height: 26)
+          .frame(
+            width: MediaWaveformStyle.expanded.intrinsicWidth,
+            height: MediaWaveformStyle.expanded.maximumHeight
+          )
+          .padding(.bottom, 22)
         }
       }
+      .frame(height: 56)
+      .padding(.horizontal, metrics.horizontalInset)
+
+      if let progress = presentation.progressFraction {
+        progressView(progress, metrics: metrics)
+          .padding(.top, 13)
+          .padding(.horizontal, metrics.horizontalInset)
+      }
+
+      Spacer(minLength: 10)
+
+      expandedControls
+        .padding(.horizontal, metrics.controlsHorizontalInset)
     }
-    .padding(.horizontal, 18)
-    .padding(.top, expandedTopInset + 14)
-    .padding(.bottom, 16)
+    .padding(.top, 14)
+    .padding(.bottom, metrics.bottomInset)
     .accessibilityIdentifier("media.expanded")
   }
 
   private func expandedArtwork(artwork: CGImage?) -> some View {
-    compactArtwork(artwork: artwork)
-      .frame(width: 68, height: 68)
+    artworkView(artwork: artwork, size: 56, cornerRadius: 14)
   }
 
-  private func progressView(_ progress: Double) -> some View {
-    VStack(spacing: 5) {
+  private func progressView(
+    _ progress: Double,
+    metrics: MediaExpandedLayoutMetrics
+  ) -> some View {
+    HStack(spacing: metrics.progressSpacing) {
+      Text(presentation.elapsedLabel ?? "")
+        .frame(
+          width: metrics.elapsedLabelWidth,
+          alignment: .trailing
+        )
       GeometryReader { proxy in
         ZStack(alignment: .leading) {
-          Capsule().fill(.white.opacity(0.12))
+          Capsule().fill(.white.opacity(0.18))
           Capsule()
-            .fill(.white.opacity(0.88))
+            .fill(.white.opacity(0.54))
             .frame(width: proxy.size.width * progress)
         }
         .contentShape(Rectangle())
@@ -343,15 +444,16 @@ struct MediaSurfaceView: View {
             }
         )
       }
-      .frame(height: 3)
-      HStack {
-        Text(presentation.elapsedLabel ?? "")
-        Spacer()
-        Text(presentation.remainingLabel ?? "")
-      }
-      .font(.caption2.monospacedDigit())
-      .foregroundStyle(.white.opacity(0.48))
+      .frame(height: 4)
+      Text(presentation.remainingLabel ?? "")
+        .frame(
+          width: metrics.remainingLabelWidth,
+          alignment: .leading
+        )
     }
+    .frame(height: 14)
+    .font(.caption2.monospacedDigit())
+    .foregroundStyle(.white.opacity(0.48))
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("播放进度")
     .accessibilityValue(
@@ -381,24 +483,51 @@ struct MediaSurfaceView: View {
     onAction(.seek(to: duration * fraction))
   }
 
-  private func controlButton(
-    for action: MediaSurfaceAction,
-    emphasized: Bool
-  ) -> some View {
+  private var expandedControls: some View {
+    HStack(spacing: 0) {
+      actionSlot(presentation.secondaryAction)
+      actionSlot(
+        presentation.primaryActions.contains(.previous) ? .previous : nil
+      )
+      actionSlot(
+        presentation.primaryActions.contains(.togglePlayPause)
+          ? .togglePlayPause : nil
+      )
+      actionSlot(
+        presentation.primaryActions.contains(.next) ? .next : nil
+      )
+      Color.clear
+        .frame(maxWidth: .infinity)
+        .accessibilityHidden(true)
+    }
+    .frame(height: 32)
+  }
+
+  @ViewBuilder
+  private func actionSlot(_ action: MediaSurfaceAction?) -> some View {
+    Group {
+      if let action {
+        controlButton(for: action)
+      } else {
+        Color.clear.accessibilityHidden(true)
+      }
+    }
+    .frame(maxWidth: .infinity)
+  }
+
+  private func controlButton(for action: MediaSurfaceAction) -> some View {
     Button {
       onAction(action)
     } label: {
       Image(systemName: symbol(for: action))
-        .font(.system(size: emphasized ? 15 : 11, weight: .bold))
-        .frame(
-          width: emphasized ? 42 : 32,
-          height: emphasized ? 42 : 32
+        .font(
+          .system(
+            size: controlSymbolSize(for: action),
+            weight: .semibold
+          )
         )
-        .background(
-          emphasized ? Color.white : Color.white.opacity(0.08),
-          in: Circle()
-        )
-        .foregroundStyle(emphasized ? .black : .white)
+        .frame(width: 32, height: 32)
+        .foregroundStyle(.white)
     }
     .buttonStyle(.plain)
     .disabled(!presentation.areControlsEnabled)
@@ -408,9 +537,9 @@ struct MediaSurfaceView: View {
 
   private func symbol(for action: MediaSurfaceAction) -> String {
     switch action {
-    case .previous: "backward.fill"
+    case .previous: "backward.end.fill"
     case .togglePlayPause: presentation.isPlaying ? "pause.fill" : "play.fill"
-    case .next: "forward.fill"
+    case .next: "forward.end.fill"
     case .seek: "slider.horizontal.3"
     case .hideSource: "xmark"
     case .favorite: "heart"
@@ -418,6 +547,17 @@ struct MediaSurfaceView: View {
     case .repeatMode: "repeat"
     case .repeatOne: "repeat.1"
     case .copySource: "doc.on.doc"
+    }
+  }
+
+  private func controlSymbolSize(for action: MediaSurfaceAction) -> CGFloat {
+    switch action {
+    case .previous, .next:
+      22
+    case .togglePlayPause:
+      25
+    default:
+      13
     }
   }
 
@@ -474,47 +614,46 @@ struct MediaSurfaceView: View {
     )
   }
 
+  @ViewBuilder
   private func mediaBackground(artwork: CGImage?) -> some View {
-    ZStack {
-      Color.black.opacity(
-        reduceTransparency ? 1 : payload.appearance.backgroundOpacity
-      )
-      if payload.appearance.artworkTreatment == .gradient {
-        LinearGradient(
-          colors: [.purple.opacity(0.42), .blue.opacity(0.2), .clear],
-          startPoint: .topLeading,
-          endPoint: .bottomTrailing
+    switch presentationStyle {
+    case .notchAttached:
+      Color.black
+    case .floatingCapsule:
+      ZStack {
+        Color.black.opacity(
+          reduceTransparency ? 1 : payload.appearance.backgroundOpacity
         )
-      } else if let artwork {
-        Image(decorative: artwork, scale: 1)
-          .resizable()
-          .scaledToFill()
-          .grayscale(
-            payload.appearance.artworkTreatment == .monochrome ? 1 : 0
+        if payload.appearance.artworkTreatment == .gradient {
+          LinearGradient(
+            colors: [.purple.opacity(0.42), .blue.opacity(0.2), .clear],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
           )
-          .blur(radius: 28)
-          .opacity(reduceTransparency ? 0 : 0.28)
+        } else if let artwork {
+          Image(decorative: artwork, scale: 1)
+            .resizable()
+            .scaledToFill()
+            .grayscale(
+              payload.appearance.artworkTreatment == .monochrome ? 1 : 0
+            )
+            .blur(radius: 28)
+            .opacity(reduceTransparency ? 0 : 0.28)
+        }
+        LinearGradient(
+          colors: [.black.opacity(0.06), .black.opacity(0.58)],
+          startPoint: .top,
+          endPoint: .bottom
+        )
       }
-      LinearGradient(
-        colors: [.black.opacity(0.06), .black.opacity(0.58)],
-        startPoint: .top,
-        endPoint: .bottom
-      )
     }
   }
 
   private var surfaceShape: TopSurfaceShape {
     TopSurfaceShape(
       presentationStyle: presentationStyle,
-      isExpanded: presentation.isExpanded
+      isExpanded: presentation.isExpanded || presentation.trackPeek != nil
     )
-  }
-
-  private var expandedTopInset: CGFloat {
-    guard case .notchAttached(let notchSize) = presentationStyle else {
-      return 0
-    }
-    return notchSize.height
   }
 
   private var accessibilitySummary: String {

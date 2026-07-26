@@ -245,4 +245,36 @@ final class DisplayGeometryTests: XCTestCase {
       CGRect(origin: .zero, size: CGSize(width: 344, height: 170))
     )
   }
+
+  func testMediaTrackFeedbackStretchesDirectionallyThenUsesSmallPeek() {
+    let descriptor = DisplayDescriptor(
+      frame: CGRect(x: 0, y: 0, width: 1_728, height: 1_117),
+      visibleFrame: CGRect(x: 0, y: 0, width: 1_728, height: 1_079),
+      safeAreaInsets: DisplayInsets(top: 32, left: 0, bottom: 0, right: 0),
+      auxiliaryTopLeftArea: CGRect(x: 0, y: 1_085, width: 771, height: 32),
+      auxiliaryTopRightArea: CGRect(x: 956, y: 1_085, width: 772, height: 32)
+    )
+    let geometry = DisplayGeometry(descriptor: descriptor, metrics: .media)
+
+    let previous = geometry.mediaLayout(
+      level: .hardware,
+      trackChangeDirection: .previous,
+      showsTrackPeek: false
+    )
+    let next = geometry.mediaLayout(
+      level: .hardware,
+      trackChangeDirection: .next,
+      showsTrackPeek: false
+    )
+    let peek = geometry.mediaLayout(
+      level: .hardware,
+      trackChangeDirection: nil,
+      showsTrackPeek: true
+    )
+
+    XCTAssertEqual(previous.panelFrame, CGRect(x: 743, y: 1_085, width: 213, height: 32))
+    XCTAssertEqual(next.panelFrame, CGRect(x: 771, y: 1_085, width: 213, height: 32))
+    XCTAssertEqual(peek.panelFrame, CGRect(x: 708.5, y: 1_049, width: 310, height: 68))
+    XCTAssertEqual(peek.surfaceFrameInPanel, CGRect(origin: .zero, size: peek.panelFrame.size))
+  }
 }

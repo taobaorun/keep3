@@ -307,6 +307,30 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
     }
   }
 
+  func testMediaTransientFeedbackIsProjectedWithoutFullExpansion() {
+    var presentations: [TopSurfacePresentation] = []
+    let coordinator = SurfaceModeCoordinator {
+      presentations.append($0)
+    }
+    coordinator.beginMediaEpoch(1)
+    coordinator.receiveMediaSnapshot(snapshot(epoch: 1))
+
+    coordinator.updateMediaTrackChangeDirection(.previous)
+    coordinator.updateMediaTrackPeek(
+      MediaTrackPeek(title: "Next Track", artist: "Next Artist")
+    )
+
+    guard case .media(let payload) = presentations.last else {
+      return XCTFail("Media feedback should keep the media component visible")
+    }
+    XCTAssertFalse(payload.isExpanded)
+    XCTAssertEqual(payload.trackChangeDirection, .previous)
+    XCTAssertEqual(
+      payload.trackPeek,
+      MediaTrackPeek(title: "Next Track", artist: "Next Artist")
+    )
+  }
+
   private func focus(_ id: UUID, revision: UInt64) -> FocusSurfacePayload {
     .init(
       visibleItemID: id,
