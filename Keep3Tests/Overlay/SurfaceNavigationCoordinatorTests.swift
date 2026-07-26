@@ -83,4 +83,56 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
     XCTAssertTrue(states.last?.isPresented ?? false)
     XCTAssertEqual(states.last?.selectedComponent, .priorities)
   }
+
+  func testHoverPreviewDoesNotPinCompactAndDirectDepthDoes() {
+    let coordinator = SurfaceNavigationCoordinator()
+
+    coordinator.setHovering(true)
+
+    XCTAssertEqual(coordinator.state.level, .hardware)
+    XCTAssertEqual(coordinator.state.effectiveLevel, .compact)
+
+    coordinator.setHovering(false)
+    XCTAssertEqual(coordinator.state.effectiveLevel, .hardware)
+
+    coordinator.apply(.advanceDepth)
+    coordinator.setHovering(false)
+
+    XCTAssertEqual(coordinator.state.level, .compact)
+    XCTAssertEqual(coordinator.state.effectiveLevel, .compact)
+  }
+
+  func testDepthAndExpandedComponentIntentsFollowThreeLevelContract() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .media)
+
+    coordinator.apply(.advanceDepth)
+    coordinator.apply(.advanceDepth)
+
+    XCTAssertEqual(coordinator.state.level, .expanded)
+
+    coordinator.apply(.nextComponent)
+
+    XCTAssertEqual(coordinator.state.selectedComponent, .media)
+    XCTAssertEqual(coordinator.state.level, .compact)
+
+    coordinator.apply(.retreatDepth)
+
+    XCTAssertEqual(coordinator.state.level, .hardware)
+  }
+
+  func testExpandedComponentSelectionPublishesOneAtomicCompactState() {
+    var states: [SurfaceNavigationState] = []
+    let coordinator = SurfaceNavigationCoordinator { states.append($0) }
+    coordinator.setAvailability(true, for: .media)
+    coordinator.apply(.advanceDepth)
+    coordinator.apply(.advanceDepth)
+    let publicationCount = states.count
+
+    coordinator.apply(.nextComponent)
+
+    XCTAssertEqual(states.count, publicationCount + 1)
+    XCTAssertEqual(states.last?.selectedComponent, .media)
+    XCTAssertEqual(states.last?.level, .compact)
+  }
 }

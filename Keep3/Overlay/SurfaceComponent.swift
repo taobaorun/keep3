@@ -72,6 +72,11 @@ struct SurfaceNavigationState: Equatable, Sendable {
   let selectedComponent: SurfaceComponentID
   let selectionSource: SurfaceSelectionSource
   let level: SurfaceLevel
+  let isHoverPreviewed: Bool
   let isPresented: Bool
   let generation: UInt64
+
+  var effectiveLevel: SurfaceLevel {
+    level == .hardware && isHoverPreviewed ? .compact : level
+  }
 }

@@ -25,7 +25,7 @@ final class TopSurfaceController {
       metrics: metrics
     )
     show(
-      layout: geometry.layout(isExpanded: content.isExpanded),
+      layout: geometry.layout(level: content.level),
       content: content,
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,
@@ -55,7 +55,7 @@ final class TopSurfaceController {
       metrics: metrics
     )
     showMedia(
-      layout: geometry.layout(isExpanded: payload.isExpanded),
+      layout: geometry.layout(level: payload.level),
       payload: payload,
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,

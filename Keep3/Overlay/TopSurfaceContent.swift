@@ -12,6 +12,7 @@ struct TopSurfaceContent: Equatable, Sendable {
   let itemCount: Int
   let isCurrentFocus: Bool
   let isExpanded: Bool
+  let level: SurfaceLevel
   var appearance: SurfaceAppearance = .default
 
   let presentationRevision: UInt64
@@ -34,6 +35,7 @@ struct TopSurfaceContent: Equatable, Sendable {
     itemCount: Int,
     isCurrentFocus: Bool,
     isExpanded: Bool,
+    level: SurfaceLevel? = nil,
     appearance: SurfaceAppearance = .default
   ) {
     self.item = item
@@ -41,6 +43,7 @@ struct TopSurfaceContent: Equatable, Sendable {
     self.itemCount = itemCount
     self.isCurrentFocus = isCurrentFocus
     self.isExpanded = isExpanded
+    self.level = level ?? (isExpanded ? .expanded : .compact)
     self.appearance = appearance
     presentationRevision = 0
   }
@@ -58,6 +61,7 @@ struct TopSurfaceContent: Equatable, Sendable {
     self.itemCount = itemCount
     self.isCurrentFocus = isCurrentFocus
     isExpanded = presentation.isExpanded
+    level = presentation.level
     self.appearance = appearance
     presentationRevision = presentation.revision
   }
