@@ -127,6 +127,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    topSurfaceController.onVisibleInteractionFrameChanged = {
+      [weak self] in
+      self?.synchronizeSurfaceGestureContext()
+    }
     displayLifecycleObserver.start()
     workspaceApplicationObserver.start()
     calendarStoreObserver = NotificationCenter.default.addObserver(
@@ -425,7 +429,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             navigation.isHoverPreviewed
             ? .hover : level == .expanded ? .manual : .none,
           isHovered: navigation.isHovering
-        )
+        ),
+        transitionIntent: navigation.transitionIntent
       )
     case .media:
       guard let sourceMediaPayload else {
@@ -450,7 +455,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           trackChangeDirection: sourceMediaPayload.trackChangeDirection,
           trackPeek: sourceMediaPayload.trackPeek,
           isHovered: navigation.isHovering
-        )
+        ),
+        transitionIntent: navigation.transitionIntent
       )
     case .calendar:
       renderCalendar(
@@ -459,7 +465,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           level: level,
           revision: calendarRevision,
           isHovered: navigation.isHovering
-        )
+        ),
+        transitionIntent: navigation.transitionIntent
       )
     }
     synchronizeSurfaceGestureContext()
@@ -487,7 +494,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
   }
 
-  private func renderFocus(_ payload: FocusSurfacePayload) {
+  private func renderFocus(
+    _ payload: FocusSurfacePayload,
+    transitionIntent: SurfaceTransitionIntent
+  ) {
     guard isSurfaceAvailable,
       let id = payload.visibleItemID,
       let position = state.items.firstIndex(where: { $0.id == id }),
@@ -510,6 +520,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     topSurfaceController.showOnPrimaryDisplay(
       content: content,
       metrics: surfaceMetrics,
+      transitionIntent: transitionIntent,
       onHoverChanged: { [weak self] isInside in
         self?.handleSurfaceHoverChange(isInside)
       },
@@ -537,7 +548,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
   }
 
-  private func renderMedia(_ payload: MediaSurfacePayload) {
+  private func renderMedia(
+    _ payload: MediaSurfacePayload,
+    transitionIntent: SurfaceTransitionIntent
+  ) {
     guard isSurfaceAvailable else {
       topSurfaceController.remove()
       return
@@ -545,6 +559,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     topSurfaceController.showMediaOnPrimaryDisplay(
       payload: payload,
       focusMetrics: surfaceMetrics,
+      transitionIntent: transitionIntent,
       onHoverChanged: { [weak self] isInside in
         self?.handleSurfaceHoverChange(isInside)
       },
@@ -574,7 +589,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
   }
 
-  private func renderCalendar(_ payload: CalendarSurfacePayload) {
+  private func renderCalendar(
+    _ payload: CalendarSurfacePayload,
+    transitionIntent: SurfaceTransitionIntent
+  ) {
     guard isSurfaceAvailable else {
       topSurfaceController.remove()
       return
@@ -582,6 +600,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     topSurfaceController.showCalendarOnPrimaryDisplay(
       payload: payload,
       metrics: surfaceMetrics,
+      transitionIntent: transitionIntent,
       onHoverChanged: { [weak self] isInside in
         self?.handleSurfaceHoverChange(isInside)
       },

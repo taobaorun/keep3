@@ -3,17 +3,19 @@ import AppKit
 @MainActor
 final class TopSurfaceController {
   private(set) var panel: TopSurfacePanel?
+  var onVisibleInteractionFrameChanged: () -> Void = {}
 
   var visibleInteractionFrameInScreen: CGRect? {
     guard let panel, panel.isVisible else {
       return nil
     }
-    return panel.convertToScreen(panel.renderedSurfaceFrameInPanel)
+    return panel.convertToScreen(panel.presentedSurfaceFrameInPanel)
   }
 
   func showOnPrimaryDisplay(
     content: TopSurfaceContent,
     metrics: SurfaceMetrics = .standard,
+    transitionIntent: SurfaceTransitionIntent = .content,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
@@ -39,6 +41,7 @@ final class TopSurfaceController {
         companionMetrics: .media
       ),
       content: content,
+      transitionIntent: transitionIntent,
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,
       onActivateSurface: onActivateSurface,
@@ -54,6 +57,7 @@ final class TopSurfaceController {
     payload: MediaSurfacePayload,
     metrics: SurfaceMetrics = .media,
     focusMetrics: SurfaceMetrics = .standard,
+    transitionIntent: SurfaceTransitionIntent = .content,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
@@ -84,6 +88,7 @@ final class TopSurfaceController {
         companionMetrics: focusMetrics
       ),
       payload: payload,
+      transitionIntent: transitionIntent,
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,
       onActivateSurface: onActivateSurface,
@@ -98,6 +103,7 @@ final class TopSurfaceController {
   func showCalendarOnPrimaryDisplay(
     payload: CalendarSurfacePayload,
     metrics: SurfaceMetrics = .standard,
+    transitionIntent: SurfaceTransitionIntent = .content,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
@@ -121,6 +127,7 @@ final class TopSurfaceController {
         companionMetrics: .media
       ),
       payload: payload,
+      transitionIntent: transitionIntent,
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,
       onActivateSurface: onActivateSurface,
@@ -133,6 +140,7 @@ final class TopSurfaceController {
   func show(
     layout: SurfaceLayout,
     content: TopSurfaceContent,
+    transitionIntent: SurfaceTransitionIntent = .content,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
@@ -151,6 +159,7 @@ final class TopSurfaceController {
       layout: layout,
       content: content,
       presentationStyle: presentationStyle,
+      transitionIntent: transitionIntent,
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,
       onActivateSurface: onActivateSurface,
@@ -165,6 +174,7 @@ final class TopSurfaceController {
   func showMedia(
     layout: SurfaceLayout,
     payload: MediaSurfacePayload,
+    transitionIntent: SurfaceTransitionIntent = .content,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
@@ -187,6 +197,7 @@ final class TopSurfaceController {
         mediaPayload: payload,
         presentationStyle: presentationStyle,
         surfaceFrameInPanel: layout.surfaceFrameInPanel,
+        transitionIntent: transitionIntent,
         onHoverChanged: onHoverChanged,
         onScroll: onScroll,
         onActivateSurface: onActivateSurface,
@@ -213,12 +224,14 @@ final class TopSurfaceController {
       )
       panel = surfacePanel
     }
+    connectPresentedGeometryCallback(to: surfacePanel)
     surfacePanel.orderFrontRegardless()
   }
 
   func showCalendar(
     layout: SurfaceLayout,
     payload: CalendarSurfacePayload,
+    transitionIntent: SurfaceTransitionIntent = .content,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
@@ -239,6 +252,7 @@ final class TopSurfaceController {
         calendarPayload: payload,
         presentationStyle: presentationStyle,
         surfaceFrameInPanel: layout.surfaceFrameInPanel,
+        transitionIntent: transitionIntent,
         onHoverChanged: onHoverChanged,
         onScroll: onScroll,
         onActivateSurface: onActivateSurface,
@@ -261,6 +275,7 @@ final class TopSurfaceController {
       )
       panel = surfacePanel
     }
+    connectPresentedGeometryCallback(to: surfacePanel)
     surfacePanel.orderFrontRegardless()
   }
 
@@ -268,6 +283,7 @@ final class TopSurfaceController {
     frame: CGRect,
     content: TopSurfaceContent,
     presentationStyle: TopSurfacePresentationStyle = .floatingCapsule,
+    transitionIntent: SurfaceTransitionIntent = .content,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
@@ -292,6 +308,7 @@ final class TopSurfaceController {
       ),
       content: content,
       presentationStyle: presentationStyle,
+      transitionIntent: transitionIntent,
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,
       onActivateSurface: onActivateSurface,
@@ -307,6 +324,7 @@ final class TopSurfaceController {
     layout: SurfaceLayout,
     content: TopSurfaceContent,
     presentationStyle: TopSurfacePresentationStyle,
+    transitionIntent: SurfaceTransitionIntent,
     onHoverChanged: @escaping (Bool) -> Void,
     onScroll: @escaping (SurfaceScrollEvent) -> Void,
     onActivateSurface: @escaping () -> Void,
@@ -325,6 +343,7 @@ final class TopSurfaceController {
         content: content,
         presentationStyle: presentationStyle,
         surfaceFrameInPanel: layout.surfaceFrameInPanel,
+        transitionIntent: transitionIntent,
         onHoverChanged: onHoverChanged,
         onScroll: onScroll,
         onActivateSurface: onActivateSurface,
@@ -351,7 +370,16 @@ final class TopSurfaceController {
       )
       panel = surfacePanel
     }
+    connectPresentedGeometryCallback(to: surfacePanel)
     surfacePanel.orderFrontRegardless()
+  }
+
+  private func connectPresentedGeometryCallback(
+    to panel: TopSurfacePanel
+  ) {
+    panel.onPresentedGeometryChanged = { [weak self] in
+      self?.onVisibleInteractionFrameChanged()
+    }
   }
 
   func reposition(frame: CGRect) {
@@ -368,6 +396,7 @@ final class TopSurfaceController {
 
   func remove() {
     panel?.setKeyboardNavigationEnabled(false)
+    panel?.cancelTransitionForLifecycle()
     panel?.orderOut(nil)
     panel = nil
   }
