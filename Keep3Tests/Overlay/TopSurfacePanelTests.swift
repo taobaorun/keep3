@@ -846,6 +846,34 @@ final class TopSurfacePanelTests: XCTestCase {
     )
   }
 
+  func testLifecycleRestoreIsNotDiscardedAsAnUnchangedSnapshot() {
+    let frame = CGRect(x: 0, y: 0, width: 360, height: 44)
+    let snapshot = TopSurfaceHostSnapshot(
+      content: .media(
+        MediaSurfacePayload(
+          sessionID: "session-1",
+          contentRevision: 1,
+          isExpanded: false,
+          areControlsEnabled: true
+        )
+      ),
+      presentationStyle: .floatingCapsule,
+      panelSize: frame.size,
+      surfaceFrameInPanel: frame
+    )
+    let state = TopSurfaceHostState(initialSnapshot: snapshot)
+
+    state.cancelForLifecycle()
+    state.update(
+      snapshot: snapshot,
+      intent: .lifecycleRestore,
+      reduceMotion: false
+    )
+
+    XCTAssertEqual(state.transitionContext.phase, .settled)
+    XCTAssertEqual(state.transitionContext.target, snapshot.presentation)
+  }
+
   func testContentOmitsBlankDetailsAndSubitems() throws {
     let item = try FocusItem(
       title: "设计 Keep3",

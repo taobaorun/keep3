@@ -433,6 +433,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     let level = navigation.effectiveLevel
+    let expansionReason: SurfaceExpansionReason
+    if navigation.isHoverPreviewed {
+      expansionReason = .hover
+    } else if level == .expanded {
+      expansionReason = .manual
+    } else {
+      expansionReason = .none
+    }
     switch navigation.selectedComponent {
     case .priorities:
       guard let sourceFocusPayload else {
@@ -446,9 +454,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           isExpanded: level == .expanded,
           level: level,
           revision: sourceFocusPayload.revision,
-          expansionReason:
-            navigation.isHoverPreviewed
-            ? .hover : level == .expanded ? .manual : .none,
+          expansionReason: expansionReason,
           isHovered: navigation.isHovering
         ),
         transitionIntent: navigation.transitionIntent
@@ -469,9 +475,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           session: sourceMediaPayload.session,
           playbackState: sourceMediaPayload.playbackState,
           capabilityRevision: sourceMediaPayload.capabilityRevision,
-          expansionReason:
-            navigation.isHoverPreviewed
-            ? .hover : level == .expanded ? .manual : .none,
+          expansionReason: expansionReason,
           appearance: sourceMediaPayload.appearance,
           trackChangeDirection: sourceMediaPayload.trackChangeDirection,
           trackPeek: sourceMediaPayload.trackPeek,

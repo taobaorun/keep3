@@ -44,9 +44,6 @@ final class TopSurfacePanel: NSPanel {
   private let actionRouter: TopSurfaceActionRouter
   private let eventView: TopSurfaceEventView
   private let hostState: TopSurfaceHostState
-  private var panelContent: PanelContent
-  private(set) var renderedPresentationStyle: TopSurfacePresentationStyle
-  private(set) var renderedSurfaceFrameInPanel: CGRect
   var onPresentedGeometryChanged: () -> Void = {}
   var onPointerInteractionChanged: (Bool) -> Void = { _ in }
   private var keyboardNavigationEnabled = false
@@ -72,22 +69,30 @@ final class TopSurfacePanel: NSPanel {
     eventView.presentedGeometry.frame
   }
 
+  var renderedPresentationStyle: TopSurfacePresentationStyle {
+    hostState.snapshot.presentationStyle
+  }
+
+  var renderedSurfaceFrameInPanel: CGRect {
+    hostState.snapshot.surfaceFrameInPanel
+  }
+
   var renderedContent: TopSurfaceContent {
-    guard case .focus(let content) = panelContent else {
+    guard case .focus(let content) = hostState.snapshot.content else {
       preconditionFailure("The panel is currently rendering media")
     }
     return content
   }
 
   var renderedMediaPayload: MediaSurfacePayload? {
-    guard case .media(let payload) = panelContent else {
+    guard case .media(let payload) = hostState.snapshot.content else {
       return nil
     }
     return payload
   }
 
   var renderedCalendarPayload: CalendarSurfacePayload? {
-    guard case .calendar(let payload) = panelContent else {
+    guard case .calendar(let payload) = hostState.snapshot.content else {
       return nil
     }
     return payload
@@ -222,9 +227,6 @@ final class TopSurfacePanel: NSPanel {
     )
     self.actionRouter = actionRouter
     self.hostState = hostState
-    self.panelContent = panelContent
-    renderedPresentationStyle = presentationStyle
-    renderedSurfaceFrameInPanel = resolvedSurfaceFrame
     eventView = TopSurfaceEventView(
       frame: CGRect(origin: .zero, size: contentRect.size),
       activeFrame: resolvedSurfaceFrame,
@@ -299,9 +301,6 @@ final class TopSurfacePanel: NSPanel {
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
     onOpenItem: @escaping () -> Void
   ) {
-    panelContent = .focus(content)
-    renderedPresentationStyle = presentationStyle
-    renderedSurfaceFrameInPanel = surfaceFrameInPanel
     hasShadow = presentationStyle.hasPanelShadow
     eventView.onHoverChanged = onHoverChanged
     eventView.onScroll = onScroll
@@ -318,7 +317,7 @@ final class TopSurfacePanel: NSPanel {
     )
     hostState.update(
       snapshot: TopSurfaceHostSnapshot(
-        content: panelContent,
+        content: .focus(content),
         presentationStyle: presentationStyle,
         panelSize: eventView.bounds.size,
         surfaceFrameInPanel: surfaceFrameInPanel
@@ -342,9 +341,6 @@ final class TopSurfacePanel: NSPanel {
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onMediaAction: @escaping (MediaSurfaceAction) -> Void
   ) {
-    panelContent = .media(mediaPayload)
-    renderedPresentationStyle = presentationStyle
-    renderedSurfaceFrameInPanel = surfaceFrameInPanel
     hasShadow = presentationStyle.hasPanelShadow
     eventView.onHoverChanged = onHoverChanged
     eventView.onScroll = onScroll
@@ -361,7 +357,7 @@ final class TopSurfacePanel: NSPanel {
     )
     hostState.update(
       snapshot: TopSurfaceHostSnapshot(
-        content: panelContent,
+        content: .media(mediaPayload),
         presentationStyle: presentationStyle,
         panelSize: eventView.bounds.size,
         surfaceFrameInPanel: surfaceFrameInPanel
@@ -383,9 +379,6 @@ final class TopSurfacePanel: NSPanel {
     onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
     onDismiss: @escaping () -> Void = {}
   ) {
-    panelContent = .calendar(calendarPayload)
-    renderedPresentationStyle = presentationStyle
-    renderedSurfaceFrameInPanel = surfaceFrameInPanel
     hasShadow = presentationStyle.hasPanelShadow
     eventView.onHoverChanged = onHoverChanged
     eventView.onScroll = onScroll
@@ -402,7 +395,7 @@ final class TopSurfacePanel: NSPanel {
     )
     hostState.update(
       snapshot: TopSurfaceHostSnapshot(
-        content: panelContent,
+        content: .calendar(calendarPayload),
         presentationStyle: presentationStyle,
         panelSize: eventView.bounds.size,
         surfaceFrameInPanel: surfaceFrameInPanel
@@ -571,20 +564,12 @@ struct TopSurfaceHostSnapshot: Equatable {
 }
 
 struct SurfaceRendererContext: Equatable, Sendable {
-  let phase: SurfaceTransitionPhase
-  let trigger: SurfaceTransitionTrigger
-  let direction: SurfaceTransitionDirection
-  let generation: UInt64
+  let intent: SurfaceTransitionIntent
   let motion: SignatureSurfaceTransition
-  let targetComponent: SurfaceComponentID?
-  let targetLevel: SurfaceLevel?
   let accessibilityFocusRequest: SurfaceAccessibilityFocusRequest?
 
   static let initial = SurfaceRendererContext(
-    phase: .settled,
-    trigger: .initial,
-    direction: .neutral,
-    generation: 0,
+    intent: .initial,
     motion: SignatureSurfaceTransition.resolve(
       intent: .initial,
       reduceMotion: false,
@@ -592,8 +577,6 @@ struct SurfaceRendererContext: Equatable, Sendable {
       increaseContrast: false,
       differentiateWithoutColor: false
     ),
-    targetComponent: nil,
-    targetLevel: nil,
     accessibilityFocusRequest: nil
   )
 
@@ -601,38 +584,22 @@ struct SurfaceRendererContext: Equatable, Sendable {
     context: SurfaceTransitionContext,
     accessibilityFocusRequest: SurfaceAccessibilityFocusRequest?
   ) {
-    phase = context.phase
-    trigger = context.trigger
-    direction = context.direction
-    generation = context.generation
+    intent = SurfaceTransitionIntent(
+      trigger: context.trigger,
+      direction: context.direction
+    )
     motion = context.motion
-    targetComponent = context.target.componentID
-    targetLevel = context.target.level
     self.accessibilityFocusRequest = accessibilityFocusRequest
   }
 
   private init(
-    phase: SurfaceTransitionPhase,
-    trigger: SurfaceTransitionTrigger,
-    direction: SurfaceTransitionDirection,
-    generation: UInt64,
+    intent: SurfaceTransitionIntent,
     motion: SignatureSurfaceTransition,
-    targetComponent: SurfaceComponentID?,
-    targetLevel: SurfaceLevel?,
     accessibilityFocusRequest: SurfaceAccessibilityFocusRequest?
   ) {
-    self.phase = phase
-    self.trigger = trigger
-    self.direction = direction
-    self.generation = generation
+    self.intent = intent
     self.motion = motion
-    self.targetComponent = targetComponent
-    self.targetLevel = targetLevel
     self.accessibilityFocusRequest = accessibilityFocusRequest
-  }
-
-  var intent: SurfaceTransitionIntent {
-    SurfaceTransitionIntent(trigger: trigger, direction: direction)
   }
 }
 
@@ -664,7 +631,7 @@ struct TopSurfacePresentedGeometry: Equatable {
     to target: TopSurfacePresentedGeometry,
     progress: CGFloat
   ) -> TopSurfacePresentedGeometry {
-    let fraction = min(max(progress, 0), 1)
+    let fraction = progress.clamped(to: 0...1)
     if fraction == 0 {
       return self
     }
@@ -796,6 +763,12 @@ final class TopSurfaceHostState: ObservableObject {
     intent: SurfaceTransitionIntent,
     reduceMotion: Bool
   ) {
+    guard
+      newSnapshot != snapshot
+        || transitionContext.target != newSnapshot.presentation
+    else {
+      return
+    }
     let previousSnapshot = snapshot
     let previousContext = transitionContext
     let nextContext = coordinator.transition(
@@ -1212,14 +1185,15 @@ private struct TopSurfaceHostView: View {
       case .floatingCapsule = snapshot.presentationStyle
     {
       let presentation = MediaSurfacePresentation(payload: payload)
-      let artwork = MediaArtworkDecoder.resolve(presentation.artworkData).image
       if payload.appearance.artworkTreatment == .gradient {
         LinearGradient(
           colors: [.purple.opacity(0.42), .blue.opacity(0.2), .clear],
           startPoint: .topLeading,
           endPoint: .bottomTrailing
         )
-      } else if let artwork {
+      } else if let artwork =
+        MediaArtworkDecoder.resolve(presentation.artworkData).image
+      {
         Image(decorative: artwork, scale: 1)
           .resizable()
           .scaledToFill()
@@ -1494,22 +1468,9 @@ private final class TopSurfaceEventView: NSView {
     fatalError("init(coder:) has not been implemented")
   }
 
-  func updateActiveFrame(_ frame: CGRect) {
-    updatePresentedGeometry(
-      TopSurfacePresentedGeometry(
-        frame: frame,
-        presentationStyle: presentedGeometry.presentationStyle,
-        level: presentedGeometry.level,
-        isQuickPeek: presentedGeometry.isQuickPeek,
-        panelBounds: presentedGeometry.panelBounds
-      )
-    )
-  }
-
   func updatePresentedGeometry(
     _ geometry: TopSurfacePresentedGeometry
   ) {
-    let previousTrackingFrame = presentedGeometry.hoverTrackingFrame
     presentedGeometry = geometry
     let frame = geometry.frame
     if hoverRegion.activeFrame != frame {
@@ -1517,9 +1478,6 @@ private final class TopSurfaceEventView: NSView {
         frame,
         pointerLocation: nil
       )
-    }
-    if previousTrackingFrame != geometry.hoverTrackingFrame {
-      updateTrackingAreas()
     }
     reconcileHover(at: currentPointerLocation())
   }
@@ -1530,8 +1488,13 @@ private final class TopSurfaceEventView: NSView {
     }
 
     let area = NSTrackingArea(
-      rect: presentedGeometry.hoverTrackingFrame,
-      options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways],
+      rect: .zero,
+      options: [
+        .mouseEnteredAndExited,
+        .mouseMoved,
+        .activeAlways,
+        .inVisibleRect,
+      ],
       owner: self,
       userInfo: nil
     )
