@@ -18,6 +18,7 @@ final class MediaSurfaceInteractionModelTests: XCTestCase {
 
     XCTAssertEqual(peeks.compactMap { $0 }.last?.title, "First")
     XCTAssertEqual(peeks.compactMap { $0 }.last?.artist, "Artist")
+    XCTAssertEqual(peeks.compactMap { $0 }.last?.direction, .next)
     XCTAssertEqual(scheduler.activeDelays, [2])
 
     scheduler.fireNext()

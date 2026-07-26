@@ -147,6 +147,52 @@ final class RotationScheduleTests: XCTestCase {
     XCTAssertEqual(visibleIDs.last!, secondaryID)
   }
 
+  func testReturningToFocusResumesRotationWhileMediaRemainsAvailable() {
+    let currentID = UUID()
+    let secondaryID = UUID()
+    let scheduler = ManualRotationTimerScheduler()
+    var visibleIDs: [UUID?] = []
+    let coordinator = RotationCoordinator(scheduler: scheduler) {
+      visibleIDs.append($0)
+    }
+    coordinator.update(
+      itemIDs: [currentID, secondaryID],
+      currentFocusID: currentID
+    )
+
+    coordinator.setMediaSurfacePresented(true)
+
+    XCTAssertEqual(scheduler.activeTimerCount, 0)
+
+    coordinator.setMediaSurfacePresented(false)
+
+    XCTAssertEqual(scheduler.activeDelays, [30])
+
+    scheduler.fireNext()
+    XCTAssertEqual(visibleIDs.last!, secondaryID)
+  }
+
+  func testReturningFromMediaDoesNotOverrideExpandedFocusPause() {
+    let currentID = UUID()
+    let secondaryID = UUID()
+    let scheduler = ManualRotationTimerScheduler()
+    let coordinator = RotationCoordinator(scheduler: scheduler) { _ in }
+    coordinator.update(
+      itemIDs: [currentID, secondaryID],
+      currentFocusID: currentID
+    )
+    coordinator.setMediaSurfacePresented(true)
+    coordinator.setFocusInteractionPaused(true)
+
+    coordinator.setMediaSurfacePresented(false)
+
+    XCTAssertEqual(scheduler.activeTimerCount, 0)
+
+    coordinator.setFocusInteractionPaused(false)
+
+    XCTAssertEqual(scheduler.activeDelays, [30])
+  }
+
   func testDisablingRotationLeavesCurrentFocusVisibleWithoutTimer() {
     let currentID = UUID()
     let secondaryID = UUID()

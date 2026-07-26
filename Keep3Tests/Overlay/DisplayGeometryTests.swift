@@ -233,10 +233,10 @@ final class DisplayGeometryTests: XCTestCase {
     let compact = geometry.layout(isExpanded: false)
     let expanded = geometry.layout(isExpanded: true)
 
-    XCTAssertEqual(compact.panelFrame.size, CGSize(width: 259, height: 32))
+    XCTAssertEqual(compact.panelFrame.size, CGSize(width: 273, height: 32))
     XCTAssertEqual(
       compact.surfaceFrameInPanel.size,
-      CGSize(width: 259, height: 32)
+      CGSize(width: 273, height: 32)
     )
     XCTAssertEqual(compact.surfaceFrameInPanel.origin, .zero)
     XCTAssertEqual(expanded.panelFrame.size, CGSize(width: 344, height: 170))
@@ -246,7 +246,7 @@ final class DisplayGeometryTests: XCTestCase {
     )
   }
 
-  func testMediaTrackFeedbackStretchesDirectionallyThenUsesSmallPeek() {
+  func testMediaTrackFeedbackKeepsStableEdgeThenReturnsToCompactWidth() {
     let descriptor = DisplayDescriptor(
       frame: CGRect(x: 0, y: 0, width: 1_728, height: 1_117),
       visibleFrame: CGRect(x: 0, y: 0, width: 1_728, height: 1_079),
@@ -266,15 +266,152 @@ final class DisplayGeometryTests: XCTestCase {
       trackChangeDirection: .next,
       showsTrackPeek: false
     )
-    let peek = geometry.mediaLayout(
-      level: .hardware,
+    let previousCompact = geometry.mediaLayout(
+      level: .compact,
+      trackChangeDirection: .previous,
+      showsTrackPeek: false
+    )
+    let nextCompact = geometry.mediaLayout(
+      level: .compact,
+      trackChangeDirection: .next,
+      showsTrackPeek: false
+    )
+    let previousPeek = geometry.mediaLayout(
+      level: .compact,
+      trackChangeDirection: .previous,
+      showsTrackPeek: true
+    )
+    let nextPeek = geometry.mediaLayout(
+      level: .compact,
+      trackChangeDirection: .next,
+      showsTrackPeek: true
+    )
+    let settled = geometry.mediaLayout(
+      level: .compact,
       trackChangeDirection: nil,
+      showsTrackPeek: false
+    )
+
+    let panelEnvelope = CGRect(x: 691.5, y: 947, width: 344, height: 170)
+    for layout in [
+      previous,
+      next,
+      previousCompact,
+      nextCompact,
+      previousPeek,
+      nextPeek,
+      settled,
+    ] {
+      XCTAssertEqual(layout.panelFrame, panelEnvelope)
+      XCTAssertEqual(layout.surfaceFrameInScreen.maxY, descriptor.frame.maxY)
+    }
+
+    XCTAssertEqual(
+      previous.surfaceFrameInScreen,
+      CGRect(x: 743, y: 1_085, width: 213, height: 32)
+    )
+    XCTAssertEqual(
+      next.surfaceFrameInScreen,
+      CGRect(x: 771, y: 1_085, width: 213, height: 32)
+    )
+    XCTAssertEqual(
+      previousPeek.surfaceFrameInScreen,
+      CGRect(x: 727, y: 1_053, width: 273, height: 64)
+    )
+    XCTAssertEqual(
+      nextPeek.surfaceFrameInScreen,
+      CGRect(x: 727, y: 1_053, width: 273, height: 64)
+    )
+    XCTAssertEqual(
+      settled.surfaceFrameInScreen,
+      CGRect(x: 727, y: 1_085, width: 273, height: 32)
+    )
+    XCTAssertEqual(
+      nextPeek.surfaceFrameInPanel,
+      CGRect(x: 35.5, y: 106, width: 273, height: 64)
+    )
+  }
+
+  func testSharedEnvelopeStaysFixedAcrossMediaPauseHandoff() {
+    let descriptor = DisplayDescriptor(
+      frame: CGRect(x: 0, y: 0, width: 1_728, height: 1_117),
+      visibleFrame: CGRect(x: 0, y: 0, width: 1_728, height: 1_079),
+      safeAreaInsets: DisplayInsets(top: 32, left: 0, bottom: 0, right: 0),
+      auxiliaryTopLeftArea: CGRect(x: 0, y: 1_085, width: 771, height: 32),
+      auxiliaryTopRightArea: CGRect(x: 956, y: 1_085, width: 772, height: 32)
+    )
+    let focusGeometry = DisplayGeometry(descriptor: descriptor)
+    let mediaGeometry = DisplayGeometry(
+      descriptor: descriptor,
+      metrics: .media
+    )
+    let media = mediaGeometry.sharedEnvelopeLayout(
+      containing: mediaGeometry.mediaLayout(
+        level: .compact,
+        trackChangeDirection: nil,
+        showsTrackPeek: false
+      ),
+      companionMetrics: .standard
+    )
+    let focus = focusGeometry.sharedEnvelopeLayout(
+      containing: focusGeometry.layout(level: .compact),
+      companionMetrics: .media
+    )
+
+    XCTAssertEqual(
+      media.panelFrame,
+      CGRect(x: 675, y: 901, width: 377, height: 216)
+    )
+    XCTAssertEqual(focus.panelFrame, media.panelFrame)
+    XCTAssertEqual(
+      media.surfaceFrameInScreen,
+      CGRect(x: 727, y: 1_085, width: 273, height: 32)
+    )
+    XCTAssertEqual(
+      focus.surfaceFrameInScreen,
+      CGRect(x: 675, y: 1_085, width: 377, height: 32)
+    )
+  }
+
+  func testConstrainedMediaPeekShrinksChangingSideWithoutMovingStableEdge() {
+    let descriptor = DisplayDescriptor(
+      frame: CGRect(x: -320, y: 0, width: 320, height: 180),
+      visibleFrame: CGRect(x: -320, y: 20, width: 320, height: 160),
+      safeAreaInsets: .zero,
+      auxiliaryTopLeftArea: nil,
+      auxiliaryTopRightArea: nil
+    )
+    let geometry = DisplayGeometry(descriptor: descriptor, metrics: .media)
+    let compact = geometry.layout(level: .compact)
+
+    let next = geometry.mediaLayout(
+      level: .compact,
+      trackChangeDirection: .next,
+      showsTrackPeek: true
+    )
+    let previous = geometry.mediaLayout(
+      level: .compact,
+      trackChangeDirection: .previous,
       showsTrackPeek: true
     )
 
-    XCTAssertEqual(previous.panelFrame, CGRect(x: 743, y: 1_085, width: 213, height: 32))
-    XCTAssertEqual(next.panelFrame, CGRect(x: 771, y: 1_085, width: 213, height: 32))
-    XCTAssertEqual(peek.panelFrame, CGRect(x: 708.5, y: 1_049, width: 310, height: 68))
-    XCTAssertEqual(peek.surfaceFrameInPanel, CGRect(origin: .zero, size: peek.panelFrame.size))
+    XCTAssertEqual(next.panelFrame, previous.panelFrame)
+    XCTAssertEqual(next.panelFrame.size, CGSize(width: 320, height: 152))
+    XCTAssertEqual(
+      next.surfaceFrameInScreen.minX,
+      compact.panelFrame.minX,
+      accuracy: 0.001
+    )
+    XCTAssertEqual(
+      previous.surfaceFrameInScreen.maxX,
+      compact.panelFrame.maxX,
+      accuracy: 0.001
+    )
+    XCTAssertLessThan(
+      next.surfaceFrameInScreen.width,
+      SurfaceMetrics.media.expandedSize.width
+    )
+    XCTAssertTrue(descriptor.visibleFrame.contains(next.panelFrame))
+    XCTAssertTrue(descriptor.visibleFrame.contains(previous.panelFrame))
   }
 }

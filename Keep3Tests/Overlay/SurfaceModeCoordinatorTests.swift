@@ -317,7 +317,11 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
 
     coordinator.updateMediaTrackChangeDirection(.previous)
     coordinator.updateMediaTrackPeek(
-      MediaTrackPeek(title: "Next Track", artist: "Next Artist")
+      MediaTrackPeek(
+        direction: .previous,
+        title: "Next Track",
+        artist: "Next Artist"
+      )
     )
 
     guard case .media(let payload) = presentations.last else {
@@ -327,7 +331,11 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
     XCTAssertEqual(payload.trackChangeDirection, .previous)
     XCTAssertEqual(
       payload.trackPeek,
-      MediaTrackPeek(title: "Next Track", artist: "Next Artist")
+      MediaTrackPeek(
+        direction: .previous,
+        title: "Next Track",
+        artist: "Next Artist"
+      )
     )
   }
 

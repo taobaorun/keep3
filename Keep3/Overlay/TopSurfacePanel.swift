@@ -186,7 +186,8 @@ final class TopSurfacePanel: NSPanel {
       rootView: Self.rootView(
         for: panelContent,
         presentationStyle: presentationStyle,
-        surfaceSize: resolvedSurfaceFrame.size,
+        panelSize: contentRect.size,
+        surfaceFrameInPanel: resolvedSurfaceFrame,
         onActivateSurface: onActivateSurface,
         onRequestKeyboardNavigation: onRequestKeyboardNavigation,
         onSurfaceNavigation: onSurfaceNavigation,
@@ -266,7 +267,8 @@ final class TopSurfacePanel: NSPanel {
     eventView.hostingView.rootView = Self.rootView(
       for: panelContent,
       presentationStyle: presentationStyle,
-      surfaceSize: surfaceFrameInPanel.size,
+      panelSize: eventView.bounds.size,
+      surfaceFrameInPanel: surfaceFrameInPanel,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
       onSurfaceNavigation: onSurfaceNavigation,
@@ -302,7 +304,8 @@ final class TopSurfacePanel: NSPanel {
     eventView.hostingView.rootView = Self.rootView(
       for: panelContent,
       presentationStyle: presentationStyle,
-      surfaceSize: surfaceFrameInPanel.size,
+      panelSize: eventView.bounds.size,
+      surfaceFrameInPanel: surfaceFrameInPanel,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
       onSurfaceNavigation: onSurfaceNavigation,
@@ -336,7 +339,8 @@ final class TopSurfacePanel: NSPanel {
     eventView.hostingView.rootView = Self.rootView(
       for: panelContent,
       presentationStyle: presentationStyle,
-      surfaceSize: surfaceFrameInPanel.size,
+      panelSize: eventView.bounds.size,
+      surfaceFrameInPanel: surfaceFrameInPanel,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
       onSurfaceNavigation: onSurfaceNavigation,
@@ -349,7 +353,8 @@ final class TopSurfacePanel: NSPanel {
   private static func rootView(
     for content: PanelContent,
     presentationStyle: TopSurfacePresentationStyle,
-    surfaceSize: CGSize,
+    panelSize: CGSize,
+    surfaceFrameInPanel: CGRect,
     onActivateSurface: @escaping () -> Void,
     onRequestKeyboardNavigation: @escaping () -> Void,
     onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void,
@@ -357,41 +362,59 @@ final class TopSurfacePanel: NSPanel {
     onOpenItem: @escaping () -> Void,
     onMediaAction: @escaping (MediaSurfaceAction) -> Void
   ) -> AnyView {
+    let surfaceSize = surfaceFrameInPanel.size
+    let layout = TopSurfaceHostedLayout(
+      panelSize: panelSize,
+      surfaceFrameInPanel: surfaceFrameInPanel
+    )
+
     switch content {
     case .focus(let focus):
-      AnyView(
-        TopSurfaceView(
-          content: focus,
-          presentationStyle: presentationStyle,
-          surfaceSize: surfaceSize,
-          onActivateSurface: onActivateSurface,
-          onRequestKeyboardNavigation: onRequestKeyboardNavigation,
-          onSurfaceNavigation: onSurfaceNavigation,
-          onNavigate: onNavigate,
-          onOpenItem: onOpenItem
+      return AnyView(
+        TopSurfaceRootView(
+          layout: layout,
+          animatesSurfaceFrame: false,
+          content: TopSurfaceView(
+            content: focus,
+            presentationStyle: presentationStyle,
+            surfaceSize: surfaceSize,
+            onActivateSurface: onActivateSurface,
+            onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+            onSurfaceNavigation: onSurfaceNavigation,
+            onNavigate: onNavigate,
+            onOpenItem: onOpenItem
+          )
         )
       )
     case .media(let media):
-      AnyView(
-        MediaSurfaceView(
-          payload: media,
-          presentationStyle: presentationStyle,
-          surfaceSize: surfaceSize,
-          onAction: onMediaAction,
-          onActivateSurface: onActivateSurface,
-          onRequestKeyboardNavigation: onRequestKeyboardNavigation,
-          onSurfaceNavigation: onSurfaceNavigation
+      return AnyView(
+        TopSurfaceRootView(
+          layout: layout,
+          animatesSurfaceFrame: true,
+          content: MediaSurfaceView(
+            payload: media,
+            presentationStyle: presentationStyle,
+            surfaceSize: surfaceSize,
+            onAction: onMediaAction,
+            onActivateSurface: onActivateSurface,
+            onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+            onSurfaceNavigation: onSurfaceNavigation
+          )
         )
       )
     case .calendar(let calendar):
-      AnyView(
-        CalendarSurfaceView(
-          payload: calendar,
-          presentationStyle: presentationStyle,
-          surfaceSize: surfaceSize,
-          onActivateSurface: onActivateSurface,
-          onRequestKeyboardNavigation: onRequestKeyboardNavigation,
-          onSurfaceNavigation: onSurfaceNavigation
+      return AnyView(
+        TopSurfaceRootView(
+          layout: layout,
+          animatesSurfaceFrame: false,
+          content: CalendarSurfaceView(
+            payload: calendar,
+            presentationStyle: presentationStyle,
+            surfaceSize: surfaceSize,
+            onActivateSurface: onActivateSurface,
+            onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+            onSurfaceNavigation: onSurfaceNavigation
+          )
         )
       )
     }
@@ -458,6 +481,77 @@ private enum PanelContent {
   case calendar(CalendarSurfacePayload)
 }
 
+struct TopSurfaceHostedLayout: Equatable {
+  let panelSize: CGSize
+  let surfaceFrameInPanel: CGRect
+
+  var centerInSwiftUICoordinates: CGPoint {
+    CGPoint(
+      x: surfaceFrameInPanel.midX,
+      y: panelSize.height - surfaceFrameInPanel.midY
+    )
+  }
+}
+
+private struct TopSurfaceRootView<Content: View>: View {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+  let layout: TopSurfaceHostedLayout
+  let animatesSurfaceFrame: Bool
+  let content: Content
+
+  var body: some View {
+    ZStack(alignment: .topLeading) {
+      content
+        .frame(
+          width: layout.surfaceFrameInPanel.width,
+          height: layout.surfaceFrameInPanel.height
+        )
+        .position(layout.centerInSwiftUICoordinates)
+    }
+    .frame(
+      width: layout.panelSize.width,
+      height: layout.panelSize.height,
+      alignment: .topLeading
+    )
+    .animation(
+      animatesSurfaceFrame && !reduceMotion
+        ? .spring(response: 0.4, dampingFraction: 0.68)
+        : nil,
+      value: layout.surfaceFrameInPanel
+    )
+  }
+}
+
+struct TopSurfaceHoverRegion: Equatable {
+  private(set) var activeFrame: CGRect
+  private(set) var isPointerInside = false
+
+  init(activeFrame: CGRect) {
+    self.activeFrame = activeFrame
+  }
+
+  mutating func updateActiveFrame(
+    _ frame: CGRect,
+    pointerLocation: CGPoint?
+  ) -> Bool? {
+    activeFrame = frame
+    return reconcile(pointerLocation: pointerLocation)
+  }
+
+  mutating func reconcile(pointerLocation: CGPoint?) -> Bool? {
+    guard let pointerLocation else {
+      return nil
+    }
+    let isInside = activeFrame.contains(pointerLocation)
+    guard isPointerInside != isInside else {
+      return nil
+    }
+    isPointerInside = isInside
+    return isInside
+  }
+}
+
 @MainActor
 private final class TopSurfaceEventView: NSView {
   override var acceptsFirstResponder: Bool { true }
@@ -470,14 +564,14 @@ private final class TopSurfaceEventView: NSView {
   var onOpenItem: () -> Void = {}
 
   private var hoverTrackingArea: NSTrackingArea?
-  private var activeFrame: CGRect
+  private var hoverRegion: TopSurfaceHoverRegion
 
   init(
     frame: CGRect,
     activeFrame: CGRect,
     rootView: AnyView
   ) {
-    self.activeFrame = activeFrame
+    hoverRegion = TopSurfaceHoverRegion(activeFrame: activeFrame)
     hostingView = NSHostingView(rootView: rootView)
     super.init(frame: frame)
 
@@ -492,11 +586,17 @@ private final class TopSurfaceEventView: NSView {
   }
 
   func updateActiveFrame(_ frame: CGRect) {
-    guard activeFrame != frame else {
+    guard hoverRegion.activeFrame != frame else {
       return
     }
-    activeFrame = frame
+    let hoverChange = hoverRegion.updateActiveFrame(
+      frame,
+      pointerLocation: currentPointerLocation()
+    )
     updateTrackingAreas()
+    if let hoverChange {
+      onHoverChanged(hoverChange)
+    }
   }
 
   override func updateTrackingAreas() {
@@ -505,7 +605,7 @@ private final class TopSurfaceEventView: NSView {
     }
 
     let area = NSTrackingArea(
-      rect: activeFrame,
+      rect: hoverRegion.activeFrame,
       options: [.mouseEnteredAndExited, .activeAlways],
       owner: self,
       userInfo: nil
@@ -516,18 +616,31 @@ private final class TopSurfaceEventView: NSView {
   }
 
   override func hitTest(_ point: NSPoint) -> NSView? {
-    guard activeFrame.contains(point) else {
+    guard hoverRegion.activeFrame.contains(point) else {
       return nil
     }
     return super.hitTest(point)
   }
 
   override func mouseEntered(with event: NSEvent) {
-    onHoverChanged(true)
+    reconcileHover(at: convert(event.locationInWindow, from: nil))
   }
 
   override func mouseExited(with event: NSEvent) {
-    onHoverChanged(false)
+    reconcileHover(at: convert(event.locationInWindow, from: nil))
+  }
+
+  private func reconcileHover(at point: CGPoint) {
+    if let hoverChange = hoverRegion.reconcile(pointerLocation: point) {
+      onHoverChanged(hoverChange)
+    }
+  }
+
+  private func currentPointerLocation() -> CGPoint? {
+    guard let window else {
+      return nil
+    }
+    return convert(window.mouseLocationOutsideOfEventStream, from: nil)
   }
 
   override func scrollWheel(with event: NSEvent) {

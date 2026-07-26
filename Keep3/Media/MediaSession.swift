@@ -58,6 +58,14 @@ enum MediaRemoteCapabilityPolicy {
       return nil
     }
   }
+
+  static func capabilities(
+    forEnabledCommands commands: [Int32],
+    independentTransports: Set<MediaCapability>
+  ) -> Set<MediaCapability> {
+    Set(commands.compactMap(capability(forEnabledCommand:)))
+      .union(independentTransports)
+  }
 }
 
 enum MediaPlaybackState: String, Codable, Equatable, Sendable {
@@ -98,6 +106,7 @@ struct MediaSession: Equatable, Sendable {
   let artworkMIMEType: String?
   let duration: TimeInterval?
   let progress: TimeInterval?
+  let progressSampleDate: Date?
   let capabilities: Set<MediaCapability>
 
   static func normalize(_ wire: MediaSessionWirePayload) -> MediaSession? {
@@ -111,6 +120,12 @@ struct MediaSession: Equatable, Sendable {
     let progress = wire.progress.flatMap {
       $0.isFinite && $0 >= 0 && (duration == nil || $0 <= duration!) ? $0 : nil
     }
+    let progressSampleDate =
+      progress == nil
+      ? nil
+      : wire.progressSampleDate.flatMap {
+        $0.timeIntervalSinceReferenceDate.isFinite ? $0 : nil
+      }
     return .init(
       sessionID: sessionID,
       sourceBundleIdentifier: bounded(
@@ -134,6 +149,7 @@ struct MediaSession: Equatable, Sendable {
       ),
       duration: duration,
       progress: progress,
+      progressSampleDate: progressSampleDate,
       capabilities: Set(wire.capabilities.compactMap(MediaCapability.init(rawValue:)))
     )
   }
@@ -288,6 +304,10 @@ struct MediaAdapterSnapshot: Equatable, Sendable {
             .finiteDoubleExcludingBoolean,
           progress: (propertyList["progress"] as? NSNumber)?
             .finiteDoubleExcludingBoolean,
+          progressSampleDate: (propertyList["progressSampleTimestamp"] as? NSNumber)?
+            .finiteDoubleExcludingBoolean.map {
+              Date(timeIntervalSince1970: $0)
+            },
           capabilities: capabilities
         )
       )
@@ -314,6 +334,7 @@ struct MediaSessionWirePayload: Equatable, Sendable {
   let artworkMIMEType: String?
   let duration: TimeInterval?
   let progress: TimeInterval?
+  let progressSampleDate: Date?
   let capabilities: [String]
 
   init(
@@ -328,6 +349,7 @@ struct MediaSessionWirePayload: Equatable, Sendable {
     artworkMIMEType: String? = nil,
     duration: TimeInterval?,
     progress: TimeInterval?,
+    progressSampleDate: Date? = nil,
     capabilities: [String]
   ) {
     self.sessionID = sessionID
@@ -341,6 +363,7 @@ struct MediaSessionWirePayload: Equatable, Sendable {
     self.artworkMIMEType = artworkMIMEType
     self.duration = duration
     self.progress = progress
+    self.progressSampleDate = progressSampleDate
     self.capabilities = capabilities
   }
 }

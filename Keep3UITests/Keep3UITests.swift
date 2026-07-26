@@ -111,10 +111,9 @@ final class Keep3UITests: XCTestCase {
     XCTAssertTrue(mediaEnabled.waitForExistence(timeout: 2))
     mediaEnabled.click()
 
-    XCTAssertTrue(
-      app.buttons["overlay.openItem"].waitForExistence(timeout: 4)
-    )
-    XCTAssertTrue(app.buttons["overlay.openItem"].label.contains("Focus Returns"))
+    let compactFocus = app.buttons["overlay.compact"]
+    XCTAssertTrue(compactFocus.waitForExistence(timeout: 4))
+    XCTAssertTrue(compactFocus.label.contains("Focus Returns"))
   }
 
   func testCalendarFixtureOwnsSurfaceAndDisablingRestoresFocus() throws {
@@ -131,8 +130,18 @@ final class Keep3UITests: XCTestCase {
     XCTAssertTrue(calendarEnabled.waitForExistence(timeout: 2))
     calendarEnabled.click()
 
+    let expandedCalendarEvent =
+      app.descendants(matching: .any)
+      .matching(
+        NSPredicate(
+          format: "identifier == %@ AND label CONTAINS %@",
+          "calendar.expanded",
+          "UI Fixture Event"
+        )
+      )
+      .firstMatch
     XCTAssertTrue(
-      app.staticTexts["UI Fixture Event"].waitForExistence(timeout: 4),
+      expandedCalendarEvent.waitForExistence(timeout: 4),
       app.debugDescription
     )
 
@@ -152,10 +161,46 @@ final class Keep3UITests: XCTestCase {
     )
   }
 
+  func testRotationResumesAfterPausingMedia() throws {
+    try launchIsolatedApp(
+      mediaFixture: true,
+      surfaceLevel: "compact"
+    )
+    defer { cleanUpIsolatedApp() }
+
+    addItem("Rotation Current")
+    addItem("Rotation Secondary")
+    let compactMedia = app.buttons["media.compact"]
+    XCTAssertTrue(compactMedia.waitForExistence(timeout: 4))
+    compactMedia.click()
+
+    let pause =
+      app.descendants(matching: .any)["media.action.playPause"]
+    XCTAssertTrue(pause.waitForExistence(timeout: 4))
+    pause.click()
+    app.windows["Keep3"]
+      .coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+      .hover()
+
+    let compactFocus = app.buttons["overlay.compact"]
+    XCTAssertTrue(compactFocus.waitForExistence(timeout: 4))
+    XCTAssertTrue(compactFocus.label.contains("Rotation Current"))
+
+    let rotated = expectation(
+      for: NSPredicate(
+        format: "label CONTAINS %@",
+        "Rotation Secondary"
+      ),
+      evaluatedWith: compactFocus
+    )
+    wait(for: [rotated], timeout: 32)
+  }
+
   private func launchIsolatedApp(
     mediaFixture: Bool = false,
     expandedSurface: Bool = false,
-    calendarFixture: Bool = false
+    calendarFixture: Bool = false,
+    surfaceLevel: String? = nil
   ) throws {
     continueAfterFailure = false
 
@@ -166,11 +211,13 @@ final class Keep3UITests: XCTestCase {
       at: testDirectoryURL,
       withIntermediateDirectories: true
     )
+    let stateFileURL =
+      testDirectoryURL.appendingPathComponent("state.json")
     defaultsSuiteName = "Keep3UITests.\(identifier)"
 
     app = XCUIApplication()
     app.launchEnvironment["KEEP3_UI_TEST_STATE_PATH"] =
-      testDirectoryURL.appendingPathComponent("state.json").path
+      stateFileURL.path
     app.launchEnvironment["KEEP3_UI_TEST_DEFAULTS_SUITE"] = defaultsSuiteName
     app.launchEnvironment["KEEP3_UI_TEST_MEDIA_ENABLED"] =
       mediaFixture.description
@@ -182,7 +229,9 @@ final class Keep3UITests: XCTestCase {
     if calendarFixture {
       app.launchEnvironment["KEEP3_UI_TEST_CALENDAR_FIXTURE"] = "authorized"
     }
-    if expandedSurface {
+    if let surfaceLevel {
+      app.launchEnvironment["KEEP3_UI_TEST_SURFACE_LEVEL"] = surfaceLevel
+    } else if expandedSurface {
       app.launchEnvironment["KEEP3_UI_TEST_SURFACE_LEVEL"] = "expanded"
     }
     app.launch()

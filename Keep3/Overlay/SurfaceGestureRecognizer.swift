@@ -10,6 +10,16 @@ enum SurfaceGestureIntent: Equatable, Sendable {
   case nextTrack
 }
 
+struct SurfaceGestureRecognition: Equatable, Sendable {
+  let feedbackIntent: SurfaceGestureIntent?
+  let committedIntent: SurfaceGestureIntent?
+
+  static let none = SurfaceGestureRecognition(
+    feedbackIntent: nil,
+    committedIntent: nil
+  )
+}
+
 struct SurfaceGestureContext: Equatable, Sendable {
   let component: SurfaceComponentID
   let level: SurfaceLevel
@@ -57,54 +67,67 @@ struct SurfaceGestureRecognizer {
   }
 
   mutating func handle(_ event: SurfaceScrollEvent) -> SurfaceGestureIntent? {
+    recognize(event).committedIntent
+  }
+
+  mutating func recognize(
+    _ event: SurfaceScrollEvent
+  ) -> SurfaceGestureRecognition {
     guard context != nil, event.isPrecise, event.momentumPhase == .none else {
       if event.momentumPhase != .none {
         resetGesture()
       }
-      return nil
+      return .none
     }
 
     switch event.physicalPhase {
     case .began:
       resetGesture()
       guard let context else {
-        return nil
+        return .none
       }
       if let location = event.locationInScreen,
         !contextContains(location: location, context: context)
       {
-        return nil
+        return .none
       }
       isTracking = true
       capturedInteractionFrame = context.interactionFrameInScreen
       accumulate(event)
-      lockAndArmIfEligible()
-      return nil
+      return SurfaceGestureRecognition(
+        feedbackIntent: lockAndArmIfEligible(),
+        committedIntent: nil
+      )
     case .changed:
       guard isTracking else {
-        return nil
+        return .none
       }
       guard isInsideCapturedFrame(event.locationInScreen) else {
         resetGesture()
-        return nil
+        return .none
       }
       accumulate(event)
-      lockAndArmIfEligible()
-      return nil
+      return SurfaceGestureRecognition(
+        feedbackIntent: lockAndArmIfEligible(),
+        committedIntent: nil
+      )
     case .ended:
       guard isTracking else {
-        return nil
+        return .none
       }
       guard isInsideCapturedFrame(event.locationInScreen) else {
         resetGesture()
-        return nil
+        return .none
       }
       let intent = armedIntent
       resetGesture()
-      return intent
+      return SurfaceGestureRecognition(
+        feedbackIntent: nil,
+        committedIntent: intent
+      )
     case .cancelled, .none:
       resetGesture()
-      return nil
+      return .none
     }
   }
 
@@ -118,36 +141,41 @@ struct SurfaceGestureRecognizer {
     accumulatedY += event.deltaY
   }
 
-  private mutating func lockAndArmIfEligible() {
+  private mutating func lockAndArmIfEligible() -> SurfaceGestureIntent? {
     if lockedAxis == nil {
       let horizontalMagnitude = abs(accumulatedX)
       let verticalMagnitude = abs(accumulatedY)
       guard max(horizontalMagnitude, verticalMagnitude) >= Self.lockThreshold else {
-        return
+        return nil
       }
       lockedAxis =
         horizontalMagnitude > verticalMagnitude ? .horizontal : .vertical
     }
 
     guard armedIntent == nil, let context else {
-      return
+      return nil
     }
     switch lockedAxis {
     case .horizontal:
       guard context.component == .media, context.mediaSessionID != nil else {
-        return
+        return nil
       }
       armedIntent = accumulatedX < 0 ? .previousTrack : .nextTrack
     case .vertical:
       if context.level == .expanded {
-        armedIntent =
-          accumulatedY < 0 ? .previousComponent : .nextComponent
+        if context.component == .media, accumulatedY < 0 {
+          armedIntent = .retreatDepth
+        } else {
+          armedIntent =
+            accumulatedY < 0 ? .previousComponent : .nextComponent
+        }
       } else {
         armedIntent = accumulatedY < 0 ? .retreatDepth : .advanceDepth
       }
     case nil:
       break
     }
+    return armedIntent
   }
 
   private mutating func resetGesture() {

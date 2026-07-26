@@ -138,13 +138,26 @@ struct TopSurfaceShape: Shape {
 
   init(
     presentationStyle: TopSurfacePresentationStyle,
-    isExpanded: Bool
+    isExpanded: Bool,
+    isQuickPeek: Bool = false
   ) {
     self.presentationStyle = presentationStyle
-    topShoulderInset = isExpanded ? 14 : 6
-    topShoulderDepth = isExpanded ? 14 : 6
-    bottomRadius = isExpanded ? 24 : 14
-    floatingRadius = isExpanded ? 24 : 22
+    if isExpanded {
+      topShoulderInset = 14
+      topShoulderDepth = 14
+      bottomRadius = 24
+      floatingRadius = 24
+    } else if isQuickPeek {
+      topShoulderInset = 7
+      topShoulderDepth = 7
+      bottomRadius = 19
+      floatingRadius = 22
+    } else {
+      topShoulderInset = 6
+      topShoulderDepth = 6
+      bottomRadius = 14
+      floatingRadius = 22
+    }
   }
 
   var animatableData:
@@ -253,9 +266,55 @@ struct TopSurfaceShape: Shape {
   }
 }
 
+enum SurfaceAccessibilityFocusDestination: Equatable, Sendable {
+  case compactMedia
+}
+
+struct SurfaceAccessibilityNavigationAction: Equatable, Sendable {
+  let name: String
+  let intent: SurfaceGestureIntent
+  let focusDestination: SurfaceAccessibilityFocusDestination?
+  let announcement: String?
+
+  static func expandedRetreat(
+    for component: SurfaceComponentID
+  ) -> Self {
+    if component == .media {
+      return Self(
+        name: String(localized: "返回普通播放器"),
+        intent: .retreatDepth,
+        focusDestination: .compactMedia,
+        announcement: String(localized: "已返回普通播放器")
+      )
+    }
+    return Self(
+      name: String(localized: "上一个组件"),
+      intent: .previousComponent,
+      focusDestination: nil,
+      announcement: nil
+    )
+  }
+}
+
 struct SurfaceAccessibilityNavigationModifier: ViewModifier {
+  let component: SurfaceComponentID
   let level: SurfaceLevel
   let onNavigate: (SurfaceGestureIntent) -> Void
+  let onActionPerformed: (SurfaceAccessibilityNavigationAction) -> Void
+
+  init(
+    component: SurfaceComponentID,
+    level: SurfaceLevel,
+    onNavigate: @escaping (SurfaceGestureIntent) -> Void,
+    onActionPerformed: @escaping (
+      SurfaceAccessibilityNavigationAction
+    ) -> Void = { _ in }
+  ) {
+    self.component = component
+    self.level = level
+    self.onNavigate = onNavigate
+    self.onActionPerformed = onActionPerformed
+  }
 
   @ViewBuilder
   func body(content: Content) -> some View {
@@ -273,12 +332,17 @@ struct SurfaceAccessibilityNavigationModifier: ViewModifier {
           onNavigate(.retreatDepth)
         }
     case .expanded:
+      let retreatAction =
+        SurfaceAccessibilityNavigationAction.expandedRetreat(
+          for: component
+        )
       content
         .accessibilityAction(named: Text("下一个组件")) {
           onNavigate(.advanceDepth)
         }
-        .accessibilityAction(named: Text("上一个组件")) {
-          onNavigate(.retreatDepth)
+        .accessibilityAction(named: Text(retreatAction.name)) {
+          onNavigate(retreatAction.intent)
+          onActionPerformed(retreatAction)
         }
     }
   }
@@ -309,6 +373,7 @@ struct TopSurfaceView: View {
       .accessibilityLabel(accessibilitySummary)
       .modifier(
         SurfaceAccessibilityNavigationModifier(
+          component: .priorities,
           level: content.level,
           onNavigate: onSurfaceNavigation
         )

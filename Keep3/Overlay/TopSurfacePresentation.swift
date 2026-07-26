@@ -76,7 +76,8 @@ struct MediaSurfaceAppearance: Equatable, Sendable {
   )
 }
 
-struct MediaTrackPeek: Equatable, Sendable {
+struct MediaTrackPeek: Hashable, Sendable {
+  let direction: MediaTrackDirection
   let title: String
   let artist: String?
 }

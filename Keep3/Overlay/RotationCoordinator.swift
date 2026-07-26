@@ -15,6 +15,18 @@ protocol RotationTimerScheduling {
 
 @MainActor
 final class RotationCoordinator {
+  private enum PauseReason: Hashable {
+    case direct
+    case focusInteraction
+    case mediaSurface
+    case surfaceUnavailable
+  }
+
+  private enum ResumeBehavior {
+    case presentCurrentFocus
+    case currentFocusAlreadyPresented
+  }
+
   private let scheduler: any RotationTimerScheduling
   private let onVisibleItemChange: (UUID?) -> Void
 
@@ -24,7 +36,11 @@ final class RotationCoordinator {
   )
   private var timer: (any RotationTimerCancellation)?
   private var isRotationEnabled = true
-  private var isPaused = false
+  private var pauseReasons: Set<PauseReason> = []
+
+  private var isPaused: Bool {
+    !pauseReasons.isEmpty
+  }
 
   init(
     scheduler: any RotationTimerScheduling = TaskRotationTimerScheduler(),
@@ -58,27 +74,51 @@ final class RotationCoordinator {
   }
 
   func pause() {
-    guard !isPaused else {
-      return
-    }
-    isPaused = true
-    cancelTimer()
+    setPauseReason(.direct, isActive: true)
   }
 
   func resumeResettingToCurrentFocus() {
-    guard isPaused else {
+    guard pauseReasons.contains(.direct) else {
       resetToCurrentFocus()
       return
     }
-    isPaused = false
-    resetToCurrentFocus()
+    setPauseReason(
+      .direct,
+      isActive: false,
+      resumeBehavior: .presentCurrentFocus
+    )
   }
 
   func resumeAfterCurrentFocusWasPresented() {
-    cancelTimer()
-    isPaused = false
-    _ = schedule.reset()
-    scheduleNextDeadlineIfNeeded()
+    setPauseReason(
+      .direct,
+      isActive: false,
+      resumeBehavior: .currentFocusAlreadyPresented
+    )
+  }
+
+  func setFocusInteractionPaused(_ isPaused: Bool) {
+    setPauseReason(
+      .focusInteraction,
+      isActive: isPaused,
+      resumeBehavior: .presentCurrentFocus
+    )
+  }
+
+  func setMediaSurfacePresented(_ isPresented: Bool) {
+    setPauseReason(
+      .mediaSurface,
+      isActive: isPresented,
+      resumeBehavior: .currentFocusAlreadyPresented
+    )
+  }
+
+  func setSurfaceAvailable(_ isAvailable: Bool) {
+    setPauseReason(
+      .surfaceUnavailable,
+      isActive: !isAvailable,
+      resumeBehavior: .currentFocusAlreadyPresented
+    )
   }
 
   private func resetToCurrentFocus() {
@@ -113,6 +153,42 @@ final class RotationCoordinator {
   private func cancelTimer() {
     timer?.cancel()
     timer = nil
+  }
+
+  private func setPauseReason(
+    _ reason: PauseReason,
+    isActive: Bool,
+    resumeBehavior: ResumeBehavior = .currentFocusAlreadyPresented
+  ) {
+    let wasPaused = isPaused
+    if isActive {
+      guard pauseReasons.insert(reason).inserted else {
+        return
+      }
+    } else {
+      guard pauseReasons.remove(reason) != nil else {
+        return
+      }
+    }
+
+    if !wasPaused, isPaused {
+      cancelTimer()
+      return
+    }
+
+    guard wasPaused, !isPaused else {
+      return
+    }
+
+    cancelTimer()
+    let currentFocusID = schedule.reset()?.itemID
+    switch resumeBehavior {
+    case .presentCurrentFocus:
+      onVisibleItemChange(currentFocusID)
+    case .currentFocusAlreadyPresented:
+      break
+    }
+    scheduleNextDeadlineIfNeeded()
   }
 }
 

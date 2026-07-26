@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let calendarPreferences = AppDelegate.makeCalendarPreferences()
   private let launchAtLoginController = LaunchAtLoginController.live()
   private let topSurfaceController = TopSurfaceController()
+  private let surfaceHapticFeedback = AppKitSurfaceHapticFeedback()
   private var state = Keep3State()
   private var isSurfaceAvailable = true
   private var activeMediaEpoch: UInt64?
@@ -48,10 +49,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       self?.handleFocusInteraction(intent)
     },
     onPauseRotation: { [weak self] in
-      self?.pauseRotation()
+      self?.rotationCoordinator.setFocusInteractionPaused(true)
     },
     onResumeRotation: { [weak self] in
-      self?.resumeRotation()
+      self?.rotationCoordinator.setFocusInteractionPaused(false)
     },
     onOpenItem: { [weak self] itemID in
       self?.openEditor(for: itemID)
@@ -89,9 +90,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   )
   private lazy var surfaceNavigationCoordinator =
-    SurfaceNavigationCoordinator { [weak self] state in
-      self?.handleNavigationState(state)
-    }
+    SurfaceNavigationCoordinator(
+      onStateChange: { [weak self] state in
+        self?.handleNavigationState(state)
+      }
+    )
   private lazy var calendarSessionCoordinator = CalendarSessionCoordinator(
     provider: AppDelegate.makeCalendarProvider(),
     onStateChange: { [weak self] state in
@@ -183,7 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     surfaceNavigationCoordinator.setSurfaceAvailable(false)
     surfaceModeCoordinator.setSurfaceAvailable(false)
     interactionModel.suspend()
-    rotationCoordinator.pause()
+    rotationCoordinator.setSurfaceAvailable(false)
     topSurfaceController.remove()
   }
 
@@ -209,6 +212,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
     let navigation = surfaceNavigationCoordinator.state
     interactionModel.synchronizeUnifiedExpansion(
+      navigation.selectedComponent == .priorities
+        && navigation.level == .expanded
+    )
+    rotationCoordinator.setFocusInteractionPaused(
       navigation.selectedComponent == .priorities
         && navigation.level == .expanded
     )
@@ -271,7 +278,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     calendarSessionCoordinator.invalidateAndClear()
     surfaceGestureRecognizer.cancel()
     interactionModel.suspend()
-    rotationCoordinator.pause()
+    rotationCoordinator.setSurfaceAvailable(false)
     stopMediaSubscription()
     topSurfaceController.remove()
   }
@@ -286,20 +293,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     surfaceModeCoordinator.setSurfaceAvailable(true)
     surfaceNavigationCoordinator.reconcileAfterAvailability()
     surfaceModeCoordinator.reconcileAfterAvailability()
+    rotationCoordinator.setSurfaceAvailable(true)
     if calendarPreferences.isEnabled {
       calendarSessionCoordinator.refresh()
     }
     if mediaPreferences.isMediaFirstEnabled {
       startMediaSubscription()
     }
-  }
-
-  private func pauseRotation() {
-    rotationCoordinator.pause()
-  }
-
-  private func resumeRotation() {
-    rotationCoordinator.resumeResettingToCurrentFocus()
   }
 
   private func showRotatedItem(_ itemID: UUID?) {
@@ -367,6 +367,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func handleNavigationState(_ state: SurfaceNavigationState) {
+    let isFocusExpanded =
+      state.selectedComponent == .priorities
+      && state.level == .expanded
     if state.selectedComponent == .priorities {
       interactionModel.synchronizeUnifiedExpansion(
         state.level == .expanded
@@ -374,6 +377,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     } else {
       interactionModel.synchronizeToCurrentFocusWithoutPresentation()
     }
+    rotationCoordinator.setFocusInteractionPaused(isFocusExpanded)
     handleMediaOwnershipChange(
       state.isPresented
         && state.selectedComponent == .media
@@ -524,6 +528,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     topSurfaceController.showMediaOnPrimaryDisplay(
       payload: payload,
+      focusMetrics: surfaceMetrics,
       onHoverChanged: { [weak self] isInside in
         self?.surfaceNavigationCoordinator.setHovering(isInside)
       },
@@ -594,25 +599,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       mediaSurfaceInteractionModel.reset()
     }
     surfaceModeCoordinator.setMediaControlsEnabled(action == nil)
-    let direction: MediaTrackDirection?
-    switch action {
-    case .previous:
-      direction = .previous
-    case .next:
-      direction = .next
-    default:
-      direction = nil
-    }
-    surfaceModeCoordinator.updateMediaTrackChangeDirection(direction)
+    surfaceModeCoordinator.updateMediaTrackChangeDirection(nil)
   }
 
   private func handleMediaOwnershipChange(_ ownsSurface: Bool) {
+    rotationCoordinator.setMediaSurfacePresented(ownsSurface)
     guard isMediaOwningSurface != ownsSurface else {
       return
     }
     isMediaOwningSurface = ownsSurface
     if ownsSurface {
-      pauseRotation()
       if let currentMediaSnapshot {
         mediaCommandCoordinator.updateContext(
           snapshot: currentMediaSnapshot,
@@ -621,7 +617,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
     } else {
       interactionModel.synchronizeToCurrentFocusWithoutPresentation()
-      rotationCoordinator.resumeAfterCurrentFocusWasPresented()
       mediaSurfaceInteractionModel.reset()
       mediaCommandCoordinator.updateContext(
         snapshot: currentMediaSnapshot,
@@ -631,7 +626,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func handleSurfaceScroll(_ event: SurfaceScrollEvent) {
-    guard let intent = surfaceGestureRecognizer.handle(event) else {
+    let recognition = surfaceGestureRecognizer.recognize(event)
+    if let feedbackIntent = recognition.feedbackIntent {
+      performSurfaceGestureFeedback(for: feedbackIntent)
+    }
+    guard let intent = recognition.committedIntent else {
       return
     }
     switch intent {
@@ -641,6 +640,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       handleMediaAction(.next)
     case .advanceDepth, .retreatDepth, .previousComponent, .nextComponent:
       surfaceNavigationCoordinator.apply(intent)
+    }
+  }
+
+  private func performSurfaceGestureFeedback(
+    for intent: SurfaceGestureIntent
+  ) {
+    switch intent {
+    case .advanceDepth, .previousComponent, .nextComponent:
+      surfaceHapticFeedback.performNavigationGesture()
+    case .retreatDepth:
+      let navigation = surfaceNavigationCoordinator.state
+      guard navigation.level != .hardware || navigation.isHoverPreviewed else {
+        return
+      }
+      surfaceHapticFeedback.performNavigationGesture()
+    case .previousTrack:
+      guard
+        currentMediaSnapshot?.session.capabilities.contains(.previous) == true
+      else {
+        return
+      }
+      surfaceHapticFeedback.performTrackGesture()
+    case .nextTrack:
+      guard
+        currentMediaSnapshot?.session.capabilities.contains(.next) == true
+      else {
+        return
+      }
+      surfaceHapticFeedback.performTrackGesture()
     }
   }
 

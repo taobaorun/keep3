@@ -1,17 +1,33 @@
+import AppKit
 import XCTest
 
 @testable import Keep3
 
 @MainActor
 final class MediaCommandCoordinatorTests: XCTestCase {
-  func testAcceptedTrackCommandHapticsOnlyAfterNewSameSessionContent() async {
+  func testTrackGestureUsesImmediateGenericHapticFeedback() {
+    var calls:
+      [(
+        NSHapticFeedbackManager.FeedbackPattern,
+        NSHapticFeedbackManager.PerformanceTime
+      )] = []
+    let haptic = AppKitSurfaceHapticFeedback {
+      calls.append(($0, $1))
+    }
+
+    haptic.performTrackGesture()
+
+    XCTAssertEqual(calls.count, 1)
+    XCTAssertEqual(calls.first?.0, .generic)
+    XCTAssertEqual(calls.first?.1, .now)
+  }
+
+  func testAcceptedTrackCommandConfirmsOnlyAfterNewSameSessionContent() async {
     let sender = CommandSender(result: .accepted)
-    let haptic = HapticRecorder()
     let scheduler = ManualCommandTimerScheduler()
     var confirmations: [ConfirmedMediaTrackChange] = []
     let coordinator = MediaCommandCoordinator(
       sender: sender,
-      haptic: haptic,
       scheduler: scheduler,
       onConfirmedTrackChange: { confirmations.append($0) }
     )
@@ -19,27 +35,26 @@ final class MediaCommandCoordinatorTests: XCTestCase {
 
     let didDispatch = await coordinator.perform(.next)
     XCTAssertTrue(didDispatch)
-    XCTAssertEqual(haptic.count, 0)
+    XCTAssertTrue(confirmations.isEmpty)
     XCTAssertEqual(coordinator.pendingAction, .next)
 
     coordinator.receive(snapshot(revision: 1))
-    XCTAssertEqual(haptic.count, 0)
+    XCTAssertTrue(confirmations.isEmpty)
 
     coordinator.receive(snapshot(revision: 2))
-    XCTAssertEqual(haptic.count, 1)
     XCTAssertEqual(confirmations.map(\.direction), [.next])
     XCTAssertEqual(confirmations.first?.snapshot.contentRevision, 2)
     XCTAssertNil(coordinator.pendingAction)
   }
 
-  func testRejectedTimeoutAndSourceChangeNeverHaptic() async {
+  func testRejectedTimeoutAndSourceChangeNeverConfirm() async {
     let rejectedSender = CommandSender(result: .rejected)
-    let haptic = HapticRecorder()
     let scheduler = ManualCommandTimerScheduler()
+    var confirmations: [ConfirmedMediaTrackChange] = []
     let rejected = MediaCommandCoordinator(
       sender: rejectedSender,
-      haptic: haptic,
-      scheduler: scheduler
+      scheduler: scheduler,
+      onConfirmedTrackChange: { confirmations.append($0) }
     )
     rejected.updateContext(snapshot: snapshot(revision: 1), isMediaActive: true)
     let didReject = await rejected.perform(.previous)
@@ -48,8 +63,8 @@ final class MediaCommandCoordinatorTests: XCTestCase {
     let acceptedSender = CommandSender(result: .accepted)
     let accepted = MediaCommandCoordinator(
       sender: acceptedSender,
-      haptic: haptic,
-      scheduler: scheduler
+      scheduler: scheduler,
+      onConfirmedTrackChange: { confirmations.append($0) }
     )
     accepted.updateContext(snapshot: snapshot(revision: 1), isMediaActive: true)
     let didDispatchBeforeTimeout = await accepted.perform(.next)
@@ -66,16 +81,14 @@ final class MediaCommandCoordinatorTests: XCTestCase {
     )
     accepted.receive(snapshot(sessionID: "replacement", revision: 5))
 
-    XCTAssertEqual(haptic.count, 0)
+    XCTAssertTrue(confirmations.isEmpty)
   }
 
-  func testSnapshotArrivingBeforeRejectedReplyNeverHaptics() async {
+  func testSnapshotArrivingBeforeRejectedReplyNeverConfirms() async {
     let sender = SuspendedCommandSender()
-    let haptic = HapticRecorder()
     var confirmations: [ConfirmedMediaTrackChange] = []
     let coordinator = MediaCommandCoordinator(
       sender: sender,
-      haptic: haptic,
       scheduler: ManualCommandTimerScheduler(),
       onConfirmedTrackChange: { confirmations.append($0) }
     )
@@ -85,38 +98,37 @@ final class MediaCommandCoordinatorTests: XCTestCase {
     await sender.waitUntilSent()
     coordinator.receive(snapshot(revision: 2))
 
-    XCTAssertEqual(haptic.count, 0)
     XCTAssertEqual(coordinator.pendingAction, .next)
 
     await sender.complete(with: .rejected)
 
     let result = await dispatch.value
     XCTAssertFalse(result)
-    XCTAssertEqual(haptic.count, 0)
     XCTAssertTrue(confirmations.isEmpty)
     XCTAssertNil(coordinator.pendingAction)
   }
 
   func testSnapshotArrivingBeforeAcceptedReplyConfirmsAfterAcceptance() async {
     let sender = SuspendedCommandSender()
-    let haptic = HapticRecorder()
+    var confirmations: [ConfirmedMediaTrackChange] = []
     let coordinator = MediaCommandCoordinator(
       sender: sender,
-      haptic: haptic,
-      scheduler: ManualCommandTimerScheduler()
+      scheduler: ManualCommandTimerScheduler(),
+      onConfirmedTrackChange: { confirmations.append($0) }
     )
     coordinator.updateContext(snapshot: snapshot(revision: 1), isMediaActive: true)
 
     let dispatch = Task { await coordinator.perform(.previous) }
     await sender.waitUntilSent()
     coordinator.receive(snapshot(revision: 2))
-    XCTAssertEqual(haptic.count, 0)
+    XCTAssertTrue(confirmations.isEmpty)
 
     await sender.complete(with: .accepted)
 
     let result = await dispatch.value
     XCTAssertTrue(result)
-    XCTAssertEqual(haptic.count, 1)
+    XCTAssertEqual(confirmations.map(\.direction), [.previous])
+    XCTAssertEqual(confirmations.first?.snapshot.contentRevision, 2)
     XCTAssertNil(coordinator.pendingAction)
   }
 
@@ -124,7 +136,6 @@ final class MediaCommandCoordinatorTests: XCTestCase {
     let sender = CommandSender(result: .accepted)
     let coordinator = MediaCommandCoordinator(
       sender: sender,
-      haptic: HapticRecorder(),
       scheduler: ManualCommandTimerScheduler()
     )
     coordinator.updateContext(snapshot: snapshot(revision: 1), isMediaActive: true)
@@ -216,15 +227,6 @@ private actor SuspendedCommandSender: MediaCommandSending {
   func complete(with result: MediaCommandDispatchResult) {
     resultContinuation?.resume(returning: result)
     resultContinuation = nil
-  }
-}
-
-@MainActor
-private final class HapticRecorder: MediaHapticPerforming {
-  var count = 0
-
-  func performConfirmedTrackChange() {
-    count += 1
   }
 }
 

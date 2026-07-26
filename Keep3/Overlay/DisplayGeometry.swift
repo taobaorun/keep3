@@ -64,6 +64,9 @@ enum SurfacePlacement: Equatable {
 }
 
 struct SurfaceMetrics: Equatable {
+  static let mediaNotchedWingWidth: CGFloat = 44
+  static let mediaQuickPeekAdditionalHeight: CGFloat = 32
+
   enum NotchedCompactSizing: Equatable {
     case flexible(minimumWingWidth: CGFloat)
     case fixedWingWidth(CGFloat)
@@ -125,7 +128,7 @@ struct SurfaceMetrics: Equatable {
     compactSize: CGSize(width: 310, height: 44),
     expandedSize: CGSize(width: 344, height: 170),
     floatingTopSpacing: 8,
-    notchedCompactSizing: .fixedWingWidth(37)
+    notchedCompactSizing: .fixedWingWidth(mediaNotchedWingWidth)
   )
 }
 
@@ -213,52 +216,107 @@ struct DisplayGeometry: Equatable {
     showsTrackPeek: Bool
   ) -> SurfaceLayout {
     let base = layout(level: level)
-    guard level != .expanded else {
-      return base
-    }
+    let activeLayout: SurfaceLayout
 
-    if showsTrackPeek {
+    if level == .expanded {
+      activeLayout = base
+    } else if showsTrackPeek {
+      let quickPeekBase =
+        level == .hardware
+        ? layout(level: .compact)
+        : base
       let bounds = placementBounds
       let size = CGSize(
-        width: min(
-          max(base.panelFrame.width, metrics.compactSize.width),
-          bounds.width
-        ),
-        height: min(max(base.panelFrame.height, 68), bounds.height)
+        width: min(quickPeekBase.panelFrame.width, bounds.width),
+        height: min(
+          quickPeekBase.panelFrame.height
+            + SurfaceMetrics.mediaQuickPeekAdditionalHeight,
+          bounds.height
+        )
       )
       let frame = topAlignedFrame(
         size: size,
-        anchorX: base.panelFrame.midX,
+        anchorX: quickPeekBase.panelFrame.midX,
         bounds: bounds,
-        maximumY: base.panelFrame.maxY
+        maximumY: quickPeekBase.panelFrame.maxY
       )
-      return SurfaceLayout(
+      activeLayout = SurfaceLayout(
         panelFrame: frame,
-        surfaceFrameInPanel: CGRect(origin: .zero, size: size),
+        surfaceFrameInPanel: CGRect(origin: .zero, size: frame.size),
         obstructionSize: base.obstructionSize
       )
+    } else if let trackChangeDirection {
+      let bounds = placementBounds
+      let extendedWidth = min(base.panelFrame.width + 28, bounds.width)
+      let frame = horizontallyExtendedFrame(
+        from: base.panelFrame,
+        to: CGSize(
+          width: extendedWidth,
+          height: base.panelFrame.height
+        ),
+        direction: trackChangeDirection,
+        bounds: bounds
+      )
+      activeLayout = SurfaceLayout(
+        panelFrame: frame,
+        surfaceFrameInPanel: CGRect(origin: .zero, size: frame.size),
+        obstructionSize: base.obstructionSize
+      )
+    } else {
+      activeLayout = base
     }
 
-    guard let trackChangeDirection else {
-      return base
+    return mediaEnvelopeLayout(containing: activeLayout)
+  }
+
+  func sharedEnvelopeLayout(
+    containing activeLayout: SurfaceLayout,
+    companionMetrics: SurfaceMetrics
+  ) -> SurfaceLayout {
+    let envelopeLayouts = [metrics, companionMetrics].flatMap { metrics in
+      let geometry = DisplayGeometry(
+        descriptor: descriptor,
+        metrics: metrics
+      )
+      return [
+        geometry.layout(level: .compact),
+        geometry.layout(level: .expanded),
+      ]
     }
     let bounds = placementBounds
-    let extendedWidth = min(base.panelFrame.width + 28, bounds.width)
-    let extensionWidth = extendedWidth - base.panelFrame.width
-    let proposedX =
-      trackChangeDirection == .previous
-      ? base.panelFrame.minX - extensionWidth
-      : base.panelFrame.minX
-    let frame = CGRect(
-      x: min(max(proposedX, bounds.minX), bounds.maxX - extendedWidth),
-      y: base.panelFrame.minY,
-      width: extendedWidth,
-      height: base.panelFrame.height
+    let envelopeSize = CGSize(
+      width: min(
+        envelopeLayouts.map(\.panelFrame.width).max() ?? 0,
+        bounds.width
+      ),
+      height: min(
+        envelopeLayouts.map(\.panelFrame.height).max() ?? 0,
+        bounds.height
+      )
     )
+    let anchorX =
+      envelopeLayouts.first?.panelFrame.midX
+      ?? activeLayout.panelFrame.midX
+    let maximumY =
+      envelopeLayouts.map(\.panelFrame.maxY).max()
+      ?? activeLayout.panelFrame.maxY
+    let panelFrame = topAlignedFrame(
+      size: envelopeSize,
+      anchorX: anchorX,
+      bounds: bounds,
+      maximumY: maximumY
+    )
+    let activeFrame = activeLayout.surfaceFrameInScreen
+
     return SurfaceLayout(
-      panelFrame: frame,
-      surfaceFrameInPanel: CGRect(origin: .zero, size: frame.size),
-      obstructionSize: base.obstructionSize
+      panelFrame: panelFrame,
+      surfaceFrameInPanel: CGRect(
+        x: activeFrame.minX - panelFrame.minX,
+        y: activeFrame.minY - panelFrame.minY,
+        width: activeFrame.width,
+        height: activeFrame.height
+      ),
+      obstructionSize: activeLayout.obstructionSize
     )
   }
 
@@ -289,6 +347,61 @@ struct DisplayGeometry: Equatable {
       y: leftArea.minY,
       width: rightArea.minX - leftArea.maxX,
       height: screenFrame.maxY - leftArea.minY
+    )
+  }
+
+  private func horizontallyExtendedFrame(
+    from baseFrame: CGRect,
+    to size: CGSize,
+    direction: MediaTrackDirection?,
+    bounds: CGRect
+  ) -> CGRect {
+    let maximumWidth: CGFloat
+    switch direction {
+    case .previous:
+      maximumWidth = baseFrame.maxX - bounds.minX
+    case .next:
+      maximumWidth = bounds.maxX - baseFrame.minX
+    case nil:
+      maximumWidth = bounds.width
+    }
+    let resolvedSize = CGSize(
+      width: min(size.width, max(0, maximumWidth)),
+      height: min(size.height, bounds.height)
+    )
+    let proposedX: CGFloat
+    switch direction {
+    case .previous:
+      proposedX = baseFrame.maxX - resolvedSize.width
+    case .next:
+      proposedX = baseFrame.minX
+    case nil:
+      proposedX = baseFrame.midX - (resolvedSize.width / 2)
+    }
+    return CGRect(
+      x: min(max(proposedX, bounds.minX), bounds.maxX - resolvedSize.width),
+      y: min(baseFrame.maxY, bounds.maxY) - resolvedSize.height,
+      width: resolvedSize.width,
+      height: resolvedSize.height
+    )
+  }
+
+  private func mediaEnvelopeLayout(
+    containing activeLayout: SurfaceLayout
+  ) -> SurfaceLayout {
+    let envelope = layout(level: .expanded)
+    let activeFrame = activeLayout.surfaceFrameInScreen
+    let surfaceFrameInPanel = CGRect(
+      x: activeFrame.minX - envelope.panelFrame.minX,
+      y: activeFrame.minY - envelope.panelFrame.minY,
+      width: activeFrame.width,
+      height: activeFrame.height
+    )
+
+    return SurfaceLayout(
+      panelFrame: envelope.panelFrame,
+      surfaceFrameInPanel: surfaceFrameInPanel,
+      obstructionSize: activeLayout.obstructionSize
     )
   }
 

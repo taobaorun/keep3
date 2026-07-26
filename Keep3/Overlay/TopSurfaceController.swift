@@ -32,8 +32,12 @@ final class TopSurfaceController {
       descriptor: DisplayDescriptor(screen: screen),
       metrics: metrics
     )
+    let activeLayout = geometry.layout(level: content.level)
     show(
-      layout: geometry.layout(level: content.level),
+      layout: geometry.sharedEnvelopeLayout(
+        containing: activeLayout,
+        companionMetrics: .media
+      ),
       content: content,
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,
@@ -49,6 +53,7 @@ final class TopSurfaceController {
   func showMediaOnPrimaryDisplay(
     payload: MediaSurfacePayload,
     metrics: SurfaceMetrics = .media,
+    focusMetrics: SurfaceMetrics = .standard,
     onHoverChanged: @escaping (Bool) -> Void = { _ in },
     onScroll: @escaping (SurfaceScrollEvent) -> Void = { _ in },
     onActivateSurface: @escaping () -> Void = {},
@@ -67,11 +72,16 @@ final class TopSurfaceController {
       descriptor: DisplayDescriptor(screen: screen),
       metrics: metrics
     )
+    let activeLayout = geometry.mediaLayout(
+      level: payload.level,
+      trackChangeDirection:
+        payload.trackChangeDirection ?? payload.trackPeek?.direction,
+      showsTrackPeek: payload.trackPeek != nil
+    )
     showMedia(
-      layout: geometry.mediaLayout(
-        level: payload.level,
-        trackChangeDirection: payload.trackChangeDirection,
-        showsTrackPeek: payload.trackPeek != nil
+      layout: geometry.sharedEnvelopeLayout(
+        containing: activeLayout,
+        companionMetrics: focusMetrics
       ),
       payload: payload,
       onHoverChanged: onHoverChanged,
@@ -104,8 +114,12 @@ final class TopSurfaceController {
       descriptor: DisplayDescriptor(screen: screen),
       metrics: metrics
     )
+    let activeLayout = geometry.layout(level: payload.level)
     showCalendar(
-      layout: geometry.layout(level: payload.level),
+      layout: geometry.sharedEnvelopeLayout(
+        containing: activeLayout,
+        companionMetrics: .media
+      ),
       payload: payload,
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,
@@ -166,9 +180,9 @@ final class TopSurfaceController {
       } ?? .floatingCapsule
 
     let surfacePanel: TopSurfacePanel
-    let previousMediaPayload = panel?.renderedMediaPayload
     if let panel {
       surfacePanel = panel
+      surfacePanel.setFrame(layout.panelFrame, display: true)
       surfacePanel.update(
         mediaPayload: payload,
         presentationStyle: presentationStyle,
@@ -199,16 +213,6 @@ final class TopSurfaceController {
       )
       panel = surfacePanel
     }
-    let hadTransientFeedback =
-      previousMediaPayload?.trackChangeDirection != nil
-      || previousMediaPayload?.trackPeek != nil
-    let hasTransientFeedback =
-      payload.trackChangeDirection != nil || payload.trackPeek != nil
-    surfacePanel.setFrame(
-      layout.panelFrame,
-      display: true,
-      animate: hadTransientFeedback || hasTransientFeedback
-    )
     surfacePanel.orderFrontRegardless()
   }
 
@@ -230,6 +234,7 @@ final class TopSurfaceController {
     let surfacePanel: TopSurfacePanel
     if let panel {
       surfacePanel = panel
+      surfacePanel.setFrame(layout.panelFrame, display: true)
       surfacePanel.update(
         calendarPayload: payload,
         presentationStyle: presentationStyle,
@@ -256,7 +261,6 @@ final class TopSurfaceController {
       )
       panel = surfacePanel
     }
-    surfacePanel.setFrame(layout.panelFrame, display: true)
     surfacePanel.orderFrontRegardless()
   }
 
@@ -316,6 +320,7 @@ final class TopSurfaceController {
 
     if let panel {
       surfacePanel = panel
+      surfacePanel.setFrame(layout.panelFrame, display: true)
       surfacePanel.update(
         content: content,
         presentationStyle: presentationStyle,
@@ -346,7 +351,6 @@ final class TopSurfaceController {
       )
       panel = surfacePanel
     }
-    surfacePanel.setFrame(layout.panelFrame, display: true)
     surfacePanel.orderFrontRegardless()
   }
 

@@ -304,9 +304,15 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     propertyList["duration"] = nonnegativeFiniteNumber(
       information["kMRMediaRemoteNowPlayingInfoDuration"]
     )
-    propertyList["progress"] = nonnegativeFiniteNumber(
+    let progress = nonnegativeFiniteNumber(
       information["kMRMediaRemoteNowPlayingInfoElapsedTime"]
     )
+    propertyList["progress"] = progress
+    if progress != nil {
+      propertyList["progressSampleTimestamp"] = NSNumber(
+        value: Date().timeIntervalSince1970
+      )
+    }
     if let bundleIdentifier {
       propertyList["sourceBundleIdentifier"] = bundleIdentifier
     }
@@ -582,11 +588,15 @@ private final class MediaRemoteRuntime {
     on queue: DispatchQueue,
     completion: @escaping (Set<MediaCapability>) -> Void
   ) {
+    let independentTransports: Set<MediaCapability> =
+      setElapsedTimeFunction == nil ? [] : [.seek]
     guard let supportedCommands else {
-      completion([])
+      completion(independentTransports)
       return
     }
-    supportedCommands.getCapabilities(on: queue, completion: completion)
+    supportedCommands.getCapabilities(on: queue) { capabilities in
+      completion(capabilities.union(independentTransports))
+    }
   }
 
   func send(command: MediaRemoteCommandName, value: NSNumber?) -> Bool {
@@ -667,16 +677,18 @@ private final class SupportedCommandsRuntime {
     let getEnabled = getEnabled
     let completion = UncheckedClosure(completion)
     let block: CommandsCompletion = { commands in
-      let capabilities = Set<MediaCapability>(
-        (commands as? [AnyObject] ?? []).compactMap { commandInfo in
+      let enabledCommands =
+        (commands as? [AnyObject] ?? []).compactMap { commandInfo -> Int32? in
           let pointer = Unmanaged.passUnretained(commandInfo).toOpaque()
           guard getEnabled(pointer) != 0 else {
             return nil
           }
-          return MediaRemoteCapabilityPolicy.capability(
-            forEnabledCommand: getCommand(pointer)
-          )
-        })
+          return getCommand(pointer)
+        }
+      let capabilities = MediaRemoteCapabilityPolicy.capabilities(
+        forEnabledCommands: enabledCommands,
+        independentTransports: []
+      )
       queue.async {
         completion.call(capabilities)
       }

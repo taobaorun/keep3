@@ -3,6 +3,135 @@ import XCTest
 @testable import Keep3
 
 final class SurfaceGestureRecognizerTests: XCTestCase {
+  func testFeedbackEmitsWhenThresholdIsCrossedBeforeGestureCommit() {
+    var recognizer = SurfaceGestureRecognizer()
+    recognizer.updateContext(
+      .init(
+        component: .media,
+        level: .compact,
+        generation: 1,
+        mediaSessionID: "session-1"
+      )
+    )
+
+    XCTAssertEqual(
+      recognizer.recognize(event(x: 12, phase: .began)),
+      .none
+    )
+    XCTAssertEqual(
+      recognizer.recognize(event(x: 13, phase: .changed)),
+      SurfaceGestureRecognition(
+        feedbackIntent: .nextTrack,
+        committedIntent: nil
+      )
+    )
+    XCTAssertEqual(
+      recognizer.recognize(event(x: 30, phase: .changed)),
+      .none
+    )
+    XCTAssertEqual(
+      recognizer.recognize(event(phase: .ended)),
+      SurfaceGestureRecognition(
+        feedbackIntent: nil,
+        committedIntent: .nextTrack
+      )
+    )
+  }
+
+  func testNavigationFeedbackAlsoPrecedesGestureCommit() {
+    var recognizer = SurfaceGestureRecognizer()
+    recognizer.updateContext(
+      .init(component: .priorities, level: .compact, generation: 1)
+    )
+
+    XCTAssertEqual(
+      recognizer.recognize(event(y: -25, phase: .began)),
+      SurfaceGestureRecognition(
+        feedbackIntent: .retreatDepth,
+        committedIntent: nil
+      )
+    )
+    XCTAssertEqual(
+      recognizer.recognize(event(phase: .ended)),
+      SurfaceGestureRecognition(
+        feedbackIntent: nil,
+        committedIntent: .retreatDepth
+      )
+    )
+  }
+
+  func testExpandedMediaUpEmitsOneRetreatFeedbackThenCommitsRetreat() {
+    var recognizer = SurfaceGestureRecognizer()
+    recognizer.updateContext(
+      .init(
+        component: .media,
+        level: .expanded,
+        generation: 1,
+        mediaSessionID: "session-1"
+      )
+    )
+
+    XCTAssertEqual(
+      recognizer.recognize(event(y: -12, phase: .began)),
+      .none
+    )
+    XCTAssertEqual(
+      recognizer.recognize(event(y: -13, phase: .changed)),
+      SurfaceGestureRecognition(
+        feedbackIntent: .retreatDepth,
+        committedIntent: nil
+      )
+    )
+    XCTAssertEqual(
+      recognizer.recognize(event(y: -30, phase: .changed)),
+      .none
+    )
+    XCTAssertEqual(
+      recognizer.recognize(event(phase: .ended)),
+      SurfaceGestureRecognition(
+        feedbackIntent: nil,
+        committedIntent: .retreatDepth
+      )
+    )
+  }
+
+  func testExpandedVerticalIntentMatrixOnlyChangesMediaUp() {
+    let scenarios:
+      [(
+        component: SurfaceComponentID,
+        deltaY: CGFloat,
+        expected: SurfaceGestureIntent
+      )] = [
+        (.media, 30, .nextComponent),
+        (.priorities, -30, .previousComponent),
+        (.priorities, 30, .nextComponent),
+        (.calendar, -30, .previousComponent),
+        (.calendar, 30, .nextComponent),
+      ]
+
+    for (index, scenario) in scenarios.enumerated() {
+      var recognizer = SurfaceGestureRecognizer()
+      recognizer.updateContext(
+        .init(
+          component: scenario.component,
+          level: .expanded,
+          generation: UInt64(index + 1)
+        )
+      )
+
+      XCTAssertNil(
+        recognizer.handle(
+          event(y: scenario.deltaY, phase: .began)
+        )
+      )
+      XCTAssertEqual(
+        recognizer.handle(event(phase: .ended)),
+        scenario.expected,
+        "Unexpected vertical intent for \(scenario.component), delta \(scenario.deltaY)"
+      )
+    }
+  }
+
   func testVerticalIntentAdvancesDepthThenSelectsFromExpanded() {
     var recognizer = SurfaceGestureRecognizer()
     recognizer.updateContext(
