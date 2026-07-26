@@ -47,15 +47,18 @@ struct MediaWaveformStyle: Equatable {
 struct MediaWaveformView: View {
   let isPlaying: Bool
   let style: MediaWaveformStyle
-  private let scalarSeed: Int
+  let accent: MediaArtworkAccent
+  let scalarSeed: Int
 
   init(
     seed: String,
     isPlaying: Bool,
-    style: MediaWaveformStyle = .regular
+    style: MediaWaveformStyle = .regular,
+    accent: MediaArtworkAccent
   ) {
     self.isPlaying = isPlaying
     self.style = style
+    self.accent = accent
     scalarSeed = seed.utf8.reduce(0) {
       (($0 &* 31) &+ Int($1)) & 0x7FFF
     }
@@ -84,7 +87,15 @@ struct MediaWaveformView: View {
         }
       }
     }
-    .foregroundStyle(.white.opacity(0.82))
+    .foregroundStyle(
+      Color(
+        .sRGB,
+        red: accent.red,
+        green: accent.green,
+        blue: accent.blue,
+        opacity: accent.alpha
+      )
+    )
     .accessibilityHidden(true)
   }
 

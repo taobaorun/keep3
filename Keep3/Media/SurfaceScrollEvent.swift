@@ -33,7 +33,7 @@ struct SurfaceScrollEvent: Equatable, Sendable {
   }
 }
 
-enum MediaTrackDirection: Equatable, Sendable {
+enum MediaTrackDirection: Hashable, Sendable {
   case previous
   case next
 }

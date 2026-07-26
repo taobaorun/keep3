@@ -6,7 +6,9 @@ import XCTest
 final class SurfaceNavigationCoordinatorTests: XCTestCase {
   func testNewMediaSessionAutoSelectsOnceAndManualSelectionWinsWithinSession() {
     var states: [SurfaceNavigationState] = []
-    let coordinator = SurfaceNavigationCoordinator { states.append($0) }
+    let coordinator = SurfaceNavigationCoordinator(
+      onStateChange: { states.append($0) }
+    )
 
     coordinator.setAvailability(true, for: .priorities)
     coordinator.setAvailability(true, for: .media)
@@ -73,9 +75,23 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
     XCTAssertFalse(coordinator.isAvailable(.media))
   }
 
+  func testExpandedMediaExitReturnsPrioritiesAtCompactLevel() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .priorities)
+    coordinator.beginMediaSession("session-1")
+    coordinator.setLevel(.expanded)
+
+    coordinator.endMediaSession("session-1")
+
+    XCTAssertEqual(coordinator.state.selectedComponent, .priorities)
+    XCTAssertEqual(coordinator.state.level, .compact)
+  }
+
   func testDisplayRecoveryRequiresFreshReconciliation() {
     var states: [SurfaceNavigationState] = []
-    let coordinator = SurfaceNavigationCoordinator { states.append($0) }
+    let coordinator = SurfaceNavigationCoordinator(
+      onStateChange: { states.append($0) }
+    )
 
     coordinator.setSurfaceAvailable(false)
     coordinator.setSurfaceAvailable(true)
@@ -127,7 +143,9 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
 
   func testExpandedComponentSelectionPublishesOneAtomicCompactState() {
     var states: [SurfaceNavigationState] = []
-    let coordinator = SurfaceNavigationCoordinator { states.append($0) }
+    let coordinator = SurfaceNavigationCoordinator(
+      onStateChange: { states.append($0) }
+    )
     coordinator.setAvailability(true, for: .priorities)
     coordinator.setAvailability(true, for: .media)
     coordinator.apply(.advanceDepth)
@@ -139,6 +157,62 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
     XCTAssertEqual(states.count, publicationCount + 1)
     XCTAssertEqual(states.last?.selectedComponent, .media)
     XCTAssertEqual(states.last?.level, .compact)
+  }
+
+  func testExpandedMediaRetreatPublishesOneSameComponentCompactState() {
+    var states: [SurfaceNavigationState] = []
+    let coordinator = SurfaceNavigationCoordinator(
+      onStateChange: { states.append($0) }
+    )
+    coordinator.setAvailability(true, for: .priorities)
+    coordinator.beginMediaSession("session-1")
+    coordinator.setLevel(.expanded)
+    let originalSelectionSource = coordinator.state.selectionSource
+    let publicationCount = states.count
+
+    coordinator.apply(.retreatDepth)
+
+    XCTAssertEqual(states.count, publicationCount + 1)
+    XCTAssertEqual(states.last?.selectedComponent, .media)
+    XCTAssertEqual(states.last?.selectionSource, originalSelectionSource)
+    XCTAssertEqual(states.last?.level, .compact)
+    XCTAssertTrue(coordinator.isAvailable(.media))
+  }
+
+  func testPointerExitReturnsExpandedMediaToCompact() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.beginMediaSession("session-1")
+    coordinator.setLevel(.expanded)
+
+    coordinator.setHovering(false)
+
+    XCTAssertEqual(coordinator.state.selectedComponent, .media)
+    XCTAssertEqual(coordinator.state.level, .compact)
+  }
+
+  func testPointerExitDoesNotCollapseAnotherExpandedComponent() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .priorities)
+    coordinator.select(.priorities)
+    coordinator.setLevel(.expanded)
+
+    coordinator.setHovering(false)
+
+    XCTAssertEqual(coordinator.state.selectedComponent, .priorities)
+    XCTAssertEqual(coordinator.state.level, .expanded)
+  }
+
+  func testExpandedMediaNextComponentBehaviorRemainsUnchanged() {
+    let coordinator = SurfaceNavigationCoordinator()
+    coordinator.setAvailability(true, for: .priorities)
+    coordinator.beginMediaSession("session-1")
+    coordinator.setLevel(.expanded)
+
+    coordinator.apply(.nextComponent)
+
+    XCTAssertEqual(coordinator.state.selectedComponent, .priorities)
+    XCTAssertEqual(coordinator.state.selectionSource, .manual)
+    XCTAssertEqual(coordinator.state.level, .compact)
   }
 
   func testCalendarBecomesFallbackWhenPrioritiesAreEmpty() {

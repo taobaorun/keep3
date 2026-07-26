@@ -176,6 +176,7 @@ struct CalendarSurfaceView: View {
     .accessibilityLabel(presentation.accessibilitySummary)
     .modifier(
       SurfaceAccessibilityNavigationModifier(
+        component: .calendar,
         level: payload.level,
         onNavigate: onSurfaceNavigation
       )

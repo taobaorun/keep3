@@ -138,6 +138,38 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertTrue(path.contains(CGPoint(x: 10, y: 16)))
   }
 
+  func testHostedMediaSurfaceConvertsTopAnchoredPanelCoordinatesToSwiftUI() {
+    let layout = TopSurfaceHostedLayout(
+      panelSize: CGSize(width: 344, height: 170),
+      surfaceFrameInPanel: CGRect(x: 35.5, y: 106, width: 273, height: 64)
+    )
+
+    XCTAssertEqual(
+      layout.centerInSwiftUICoordinates,
+      CGPoint(x: 172, y: 32)
+    )
+  }
+
+  func testHoverRegionStaysEnteredWhenTheSurfaceExpandsUnderThePointer() {
+    var region = TopSurfaceHoverRegion(
+      activeFrame: CGRect(x: 79.5, y: 184, width: 185, height: 32)
+    )
+    let pointer = CGPoint(x: 172, y: 200)
+
+    XCTAssertEqual(region.reconcile(pointerLocation: pointer), true)
+    XCTAssertNil(
+      region.updateActiveFrame(
+        CGRect(x: 35.5, y: 184, width: 273, height: 32),
+        pointerLocation: pointer
+      )
+    )
+    XCTAssertTrue(region.isPointerInside)
+    XCTAssertEqual(
+      region.reconcile(pointerLocation: CGPoint(x: 20, y: 200)),
+      false
+    )
+  }
+
   func testCompactNotchContentReservesThePhysicalCameraHousing() {
     let layout = NotchCompactContentLayout(
       surfaceSize: CGSize(width: 377, height: 32),

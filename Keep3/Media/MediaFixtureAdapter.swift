@@ -5,6 +5,7 @@ import Foundation
     private let onSnapshot: MediaAdapterSnapshotDelivery
     private var contentRevision: UInt64 = 1
     private var isStarted = false
+    private var playbackState = MediaPlaybackState.playing
 
     init(onSnapshot: @escaping MediaAdapterSnapshotDelivery) {
       self.onSnapshot = onSnapshot
@@ -39,6 +40,9 @@ import Foundation
       if action == .next || action == .previous {
         contentRevision &+= 1
         await onSnapshot(makeSnapshot())
+      } else if action == .togglePlayPause {
+        playbackState = playbackState == .playing ? .paused : .playing
+        await onSnapshot(makeSnapshot())
       }
       return .accepted
     }
@@ -58,7 +62,7 @@ import Foundation
             capabilities: MediaCapability.allCases.map(\.rawValue)
           )
         )!,
-        playbackState: .playing,
+        playbackState: playbackState,
         capabilityRevision: 1,
         contentRevision: contentRevision
       )

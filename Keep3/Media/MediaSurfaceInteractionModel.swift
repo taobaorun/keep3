@@ -52,6 +52,7 @@ final class MediaSurfaceInteractionModel {
     }
     beginTrackPeek(
       MediaTrackPeek(
+        direction: change.direction,
         title: snapshot.session.title ?? "正在播放",
         artist: snapshot.session.artist
       )

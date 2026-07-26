@@ -39,7 +39,6 @@ final class MediaCommandCoordinator {
   }
 
   private let sender: any MediaCommandSending
-  private let haptic: any MediaHapticPerforming
   private let scheduler: any AppTimerScheduling
   private let onPendingActionChange: (MediaSurfaceAction?) -> Void
   private let onConfirmedTrackChange: (ConfirmedMediaTrackChange) -> Void
@@ -51,7 +50,6 @@ final class MediaCommandCoordinator {
 
   init(
     sender: any MediaCommandSending,
-    haptic: any MediaHapticPerforming = AppKitMediaHapticFeedback(),
     scheduler: any AppTimerScheduling =
       TaskAppTimerScheduler(),
     onPendingActionChange: @escaping (MediaSurfaceAction?) -> Void = {
@@ -62,7 +60,6 @@ final class MediaCommandCoordinator {
     }
   ) {
     self.sender = sender
-    self.haptic = haptic
     self.scheduler = scheduler
     self.onPendingActionChange = onPendingActionChange
     self.onConfirmedTrackChange = onConfirmedTrackChange
@@ -233,7 +230,6 @@ final class MediaCommandCoordinator {
       else {
         return
       }
-      haptic.performConfirmedTrackChange()
       onConfirmedTrackChange(
         ConfirmedMediaTrackChange(
           direction: direction,

@@ -113,6 +113,16 @@ final class SurfaceNavigationCoordinator {
   }
 
   func setHovering(_ isHovering: Bool) {
+    if !isHovering,
+      selectedComponent == .media,
+      level == .expanded
+    {
+      isHoverPreviewed = false
+      level = .compact
+      publish()
+      return
+    }
+
     let shouldPreview = isHovering && level == .hardware
     guard isHoverPreviewed != shouldPreview else {
       return
@@ -122,6 +132,13 @@ final class SurfaceNavigationCoordinator {
   }
 
   func apply(_ intent: SurfaceGestureIntent) {
+    switch intent {
+    case .previousTrack, .nextTrack:
+      return
+    case .advanceDepth, .retreatDepth, .previousComponent, .nextComponent:
+      break
+    }
+
     var didChange = isHoverPreviewed
     isHoverPreviewed = false
     switch intent {
@@ -148,11 +165,8 @@ final class SurfaceNavigationCoordinator {
         level = .hardware
         didChange = true
       case .expanded:
-        didChange = moveSelection(.previous)
-        if level != .compact {
-          level = .compact
-          didChange = true
-        }
+        level = .compact
+        didChange = true
       }
     case .previousComponent:
       didChange = moveSelection(.previous)
@@ -167,7 +181,7 @@ final class SurfaceNavigationCoordinator {
         didChange = true
       }
     case .previousTrack, .nextTrack:
-      break
+      return
     }
     if didChange {
       publish()
@@ -206,6 +220,8 @@ final class SurfaceNavigationCoordinator {
       selectedComponent = .priorities
     }
     selectionSource = .mediaExit
+    isHoverPreviewed = false
+    level = .compact
     publish()
   }
 

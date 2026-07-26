@@ -3,6 +3,102 @@ import XCTest
 @testable import Keep3
 
 final class MediaSurfacePresentationTests: XCTestCase {
+  func testExpandedMediaAccessibilityRetreatTargetsCompactMedia() {
+    let action = SurfaceAccessibilityNavigationAction.expandedRetreat(
+      for: .media
+    )
+
+    XCTAssertEqual(action.name, "返回普通播放器")
+    XCTAssertEqual(action.intent, .retreatDepth)
+    XCTAssertEqual(action.focusDestination, .compactMedia)
+    XCTAssertEqual(action.announcement, "已返回普通播放器")
+  }
+
+  func testExpandedNonMediaAccessibilityRetreatKeepsComponentNavigation() {
+    for component in [SurfaceComponentID.priorities, .calendar] {
+      let action = SurfaceAccessibilityNavigationAction.expandedRetreat(
+        for: component
+      )
+
+      XCTAssertEqual(action.name, "上一个组件")
+      XCTAssertEqual(action.intent, .previousComponent)
+      XCTAssertNil(action.focusDestination)
+      XCTAssertNil(action.announcement)
+    }
+  }
+
+  func testTrackPeekRetainsUnicodeTitleAndArtistForCompactMetadata() {
+    let peek = MediaTrackPeek(
+      direction: .next,
+      title: "很长的歌名 🎵 with Unicode that must truncate",
+      artist: "歌手 Artist"
+    )
+
+    XCTAssertEqual(peek.title, "很长的歌名 🎵 with Unicode that must truncate")
+    XCTAssertEqual(peek.artist, "歌手 Artist")
+  }
+
+  func testDirectionalNotchLayoutKeepsTheOppositeWingStable() {
+    let previous = DirectionalMediaNotchLayout(
+      surfaceSize: CGSize(width: 344, height: 68),
+      obstructionSize: CGSize(width: 185, height: 32),
+      baseWingWidth: SurfaceMetrics.mediaNotchedWingWidth,
+      extensionDirection: .previous
+    )
+    let next = DirectionalMediaNotchLayout(
+      surfaceSize: CGSize(width: 344, height: 68),
+      obstructionSize: CGSize(width: 185, height: 32),
+      baseWingWidth: SurfaceMetrics.mediaNotchedWingWidth,
+      extensionDirection: .next
+    )
+
+    XCTAssertEqual(previous.leftWingFrame.width, 115)
+    XCTAssertEqual(previous.rightWingFrame.width, 44)
+    XCTAssertEqual(next.leftWingFrame.width, 44)
+    XCTAssertEqual(next.rightWingFrame.width, 115)
+    XCTAssertEqual(previous.rightWingFrame.size, next.leftWingFrame.size)
+  }
+
+  func testNotchedQuickPeekKeepsSymmetricWingsAndPlacesMetadataBelowNotch() {
+    let layout = MediaNotchQuickPeekLayout(
+      surfaceSize: CGSize(width: 273, height: 64),
+      obstructionSize: CGSize(width: 185, height: 32),
+    )
+
+    XCTAssertEqual(layout.leftWingFrame, CGRect(x: 0, y: 0, width: 44, height: 32))
+    XCTAssertEqual(layout.obstructionFrame, CGRect(x: 44, y: 0, width: 185, height: 32))
+    XCTAssertEqual(
+      layout.rightWingFrame,
+      CGRect(x: 229, y: 0, width: 44, height: 32)
+    )
+    XCTAssertEqual(layout.metadataFrame, CGRect(x: 52, y: 32, width: 169, height: 32))
+    XCTAssertFalse(layout.metadataFrame.intersects(layout.obstructionFrame))
+  }
+
+  func testQuickPeekShapeRemainsContinuousAcrossBothWings() {
+    let layout = MediaNotchQuickPeekLayout(
+      surfaceSize: CGSize(width: 273, height: 64),
+      obstructionSize: CGSize(width: 185, height: 32),
+    )
+    let path = TopSurfaceShape(
+      presentationStyle: .notchAttached(
+        notchSize: layout.obstructionFrame.size
+      ),
+      isExpanded: false,
+      isQuickPeek: true
+    ).path(
+      in: CGRect(origin: .zero, size: layout.surfaceSize)
+    )
+
+    XCTAssertTrue(path.contains(CGPoint(x: layout.leftWingFrame.midX, y: 16)))
+    XCTAssertTrue(path.contains(CGPoint(x: layout.rightWingFrame.midX, y: 16)))
+    XCTAssertTrue(path.contains(CGPoint(x: layout.leftWingFrame.midX, y: 48)))
+    XCTAssertTrue(path.contains(CGPoint(x: layout.rightWingFrame.midX, y: 48)))
+    XCTAssertTrue(path.contains(CGPoint(x: layout.metadataFrame.midX, y: 48)))
+    XCTAssertFalse(path.contains(CGPoint(x: 1, y: 48)))
+    XCTAssertFalse(path.contains(CGPoint(x: 272, y: 48)))
+  }
+
   func testOmitsUnsupportedControlsWithoutLeavingPlaceholderActions() {
     let presentation = MediaSurfacePresentation(
       payload: payload(
@@ -37,6 +133,53 @@ final class MediaSurfacePresentationTests: XCTestCase {
     XCTAssertEqual(presentation.elapsedLabel, "0:50")
     XCTAssertEqual(presentation.remainingLabel, "-2:30")
     XCTAssertFalse(presentation.canSeek)
+  }
+
+  func testPlayingProgressAdvancesFromItsTimestampAndClampsAtDuration()
+    throws
+  {
+    let sampledAt = Date(timeIntervalSince1970: 1_000)
+    let presentation = MediaSurfacePresentation(
+      payload: payload(
+        duration: 60,
+        progress: 55,
+        progressSampleDate: sampledAt
+      )
+    )
+
+    let advancedProgress = try XCTUnwrap(
+      presentation.resolvedProgress(
+        at: Date(timeIntervalSince1970: 1_003)
+      )
+    )
+    let clampedProgress = try XCTUnwrap(
+      presentation.resolvedProgress(
+        at: Date(timeIntervalSince1970: 1_010)
+      )
+    )
+
+    XCTAssertEqual(advancedProgress, 58, accuracy: 0.001)
+    XCTAssertEqual(clampedProgress, 60, accuracy: 0.001)
+  }
+
+  func testPausedProgressDoesNotAdvancePastItsSample() throws {
+    let sampledAt = Date(timeIntervalSince1970: 1_000)
+    let presentation = MediaSurfacePresentation(
+      payload: payload(
+        duration: 60,
+        progress: 20,
+        progressSampleDate: sampledAt,
+        playbackState: .paused
+      )
+    )
+
+    let resolvedProgress = try XCTUnwrap(
+      presentation.resolvedProgress(
+        at: Date(timeIntervalSince1970: 1_010)
+      )
+    )
+
+    XCTAssertEqual(resolvedProgress, 20, accuracy: 0.001)
   }
 
   func testSeekingRequiresTheExplicitCapability() {
@@ -155,13 +298,49 @@ final class MediaSurfacePresentationTests: XCTestCase {
     XCTAssertEqual(style.maximumHeight, 10, accuracy: 0.001)
   }
 
+  @MainActor
+  func testEveryWaveformStyleRetainsTheResolvedArtworkAccent() {
+    let accent = MediaArtworkAccent(
+      red: 0.24,
+      green: 0.54,
+      blue: 0.94
+    )
+
+    let regular = MediaWaveformView(
+      seed: "session-1",
+      isPlaying: true,
+      accent: accent
+    )
+    let notched = MediaWaveformView(
+      seed: "session-1",
+      isPlaying: true,
+      style: .notchedCompact,
+      accent: accent
+    )
+    let expanded = MediaWaveformView(
+      seed: "session-1",
+      isPlaying: true,
+      style: .expanded,
+      accent: accent
+    )
+
+    XCTAssertEqual(regular.accent, accent)
+    XCTAssertEqual(notched.accent, accent)
+    XCTAssertEqual(expanded.accent, accent)
+    XCTAssertEqual(regular.scalarSeed, notched.scalarSeed)
+    XCTAssertEqual(notched.scalarSeed, expanded.scalarSeed)
+  }
+
   func testExpandedLayoutMatchesTheAlcoveSpacing() {
     let metrics = MediaExpandedLayoutMetrics(surfaceWidth: 344)
     let expectedCenters: [CGFloat] = [
       40.8, 106.4, 172, 237.6, 303.2,
     ]
 
-    XCTAssertEqual(metrics.progressTrackLeadingEdge, 54, accuracy: 0.001)
+    XCTAssertEqual(metrics.horizontalInset, 22, accuracy: 0.001)
+    XCTAssertEqual(metrics.progressTrackLeadingEdge, 58, accuracy: 0.001)
+    XCTAssertEqual(metrics.progressTrackHeight, 4, accuracy: 0.001)
+    XCTAssertEqual(metrics.progressHitTargetHeight, 14, accuracy: 0.001)
     XCTAssertEqual(metrics.controlCenters.count, expectedCenters.count)
     for (actual, expected) in zip(
       metrics.controlCenters,
@@ -177,11 +356,13 @@ final class MediaSurfacePresentationTests: XCTestCase {
     expansionReason: SurfaceExpansionReason = .none,
     duration: TimeInterval? = nil,
     progress: TimeInterval? = nil,
+    progressSampleDate: Date? = nil,
     capabilities: Set<MediaCapability> = [.playPause],
     secondaryAction: MediaSecondaryAction = .none,
     sourceBundleIdentifier: String? = "com.netease.163music",
     publicShareURL: String? = nil,
-    showsMediaTitleExtras: Bool = false
+    showsMediaTitleExtras: Bool = false,
+    playbackState: MediaPlaybackState = .playing
   ) -> MediaSurfacePayload {
     let session = MediaSession.normalize(
       .init(
@@ -194,6 +375,7 @@ final class MediaSurfacePresentationTests: XCTestCase {
         publicShareURL: publicShareURL,
         duration: duration,
         progress: progress,
+        progressSampleDate: progressSampleDate,
         capabilities: capabilities.map(\.rawValue)
       )
     )
@@ -203,7 +385,7 @@ final class MediaSurfacePresentationTests: XCTestCase {
       isExpanded: isExpanded,
       areControlsEnabled: true,
       session: session,
-      playbackState: .playing,
+      playbackState: playbackState,
       capabilityRevision: 1,
       expansionReason: expansionReason,
       appearance: MediaSurfaceAppearance(

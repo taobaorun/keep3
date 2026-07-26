@@ -179,6 +179,15 @@ final class MediaSessionNormalizationTests: XCTestCase {
     )
   }
 
+  func testCapabilityPolicyComplementsSourceCommandsWithIndependentSeekTransport() {
+    let capabilities = MediaRemoteCapabilityPolicy.capabilities(
+      forEnabledCommands: [2, 4, 999],
+      independentTransports: [.seek]
+    )
+
+    XCTAssertEqual(capabilities, [.playPause, .next, .seek])
+  }
+
   private func snapshotPropertyList() -> NSMutableDictionary {
     [
       "protocolVersion": NSNumber(
