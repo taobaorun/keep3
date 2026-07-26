@@ -214,6 +214,9 @@ Additional rules:
    settings.
 5. Color is not the only indicator of current focus or selection.
 6. Reduced Motion and Reduce Transparency system settings are respected.
+7. In expanded Media, the keyboard and VoiceOver retreat action is labeled
+   "Return to normal player", collapses to compact Media, moves accessibility
+   focus to that compact player, and announces the resulting state once.
 
 ### FR-10: Resource Use and Privacy
 
@@ -238,19 +241,30 @@ Additional rules:
 3. Compact media shows artwork or a fallback, title, artist, and a playback
    indicator. Expanded media shows metadata, progress, capability-gated
    controls, and the configured secondary action.
-4. A confirmed new track triggers a bounded artwork/title/artist peek without
-   opening full controls. Hover or click expansion remains under direct user
-   control.
-5. Precise horizontal two-finger gestures dispatch at most one previous/next
+4. A confirmed new track triggers a bounded peek without opening full controls.
+   On notched displays, a continuously rounded 68-point metadata shelf extends
+   below the hardware notch with separate, bounded title and artist lines;
+   metadata never replaces artwork or waveform content in either wing. Next
+   preserves the baseline left edge and left wing while changing only the
+   right and lower regions; Previous mirrors this by preserving the right edge
+   and right wing. Floating placement uses the same hierarchy in a rounded
+   capsule. Hover or click expansion remains under direct user control.
+5. Every media waveform uses a readable accent derived and cached from the
+   current confirmed cover. Missing, malformed, transparent, grayscale, or
+   low-contrast artwork uses a deterministic readable fallback.
+6. Precise horizontal two-finger gestures dispatch at most one previous/next
    command per physical gesture. Vertical intent belongs to surface depth and
-   component switching; momentum never switches tracks.
-6. Track-change haptics occur only after a newer content identity is observed
-   for the same media session and capability revision. Rejected, timed-out, and
-   stale commands do not produce success feedback.
-7. The global media boundary runs in an embedded XPC service. Failure,
+   component navigation rather than track switching; momentum never switches
+   tracks. From expanded Media, Up returns to compact Media without selecting
+   another component, while Down retains next-component navigation.
+7. A supported track gesture emits one haptic when its precise two-finger
+   displacement first crosses the gesture lock threshold, while the gesture is
+   still active. Command completion emits no second haptic; newer same-session
+   content remains required for the metadata peek.
+8. The global media boundary runs in an embedded XPC service. Failure,
    interruption, incompatible symbols, or malformed payloads retract media
    state without affecting priorities or the editor.
-8. Media settings include the master switch, Quick Peek, manual expansion,
+9. Media settings include the master switch, Quick Peek, manual expansion,
    artwork treatment, waveform, secondary action, opacity, frontmost-player
    suppression, and persisted per-source suppression.
 
@@ -262,7 +276,9 @@ Additional rules:
    Media pause, exit, or session loss returns to the latest designated priority.
 3. A notched display has hardware-aligned, compact, and expanded levels.
    Hover previews compact, click expands, and deliberate vertical gestures
-   advance depth or select the next/previous component from expanded.
+   advance depth. From expanded Media, Up collapses to compact Media while Down
+   selects the next available component in compact; expanded non-media
+   components retain their established directional component navigation.
 4. Calendar is disabled by default, requests EventKit access only from Settings,
    keeps no event persistence, and publishes at most five non-cancelled
    title/time projections from the next 24 hours.

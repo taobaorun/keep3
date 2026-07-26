@@ -57,7 +57,7 @@ The current surface also jumps from compact to fully expanded for a track change
 - R8. Pointer exit returns a hover-only glance to hardware-aligned, while a compact level reached by a gesture remains pinned; clicking visible non-interactive surface chrome enters expanded, and only non-interactive expanded chrome or an explicit dismiss action returns to compact. Component controls and Calendar rows consume their own clicks without collapsing the surface.
 - R9. A deliberate precise two-finger downward gesture advances `hardware → compact → expanded`; from expanded, vertical gestures select the next or previous available component and land that component in compact.
 - R10. A deliberate upward gesture retreats `compact → hardware`; vertical gestures at expanded select the component in the gesture direction rather than navigating inside component content.
-- R11. Gesture recognition locks to one axis, ignores momentum, cancels on component/session change, and emits no more than one action for one physical gesture.
+- R11. Gesture recognition locks to one axis, ignores momentum, cancels on component/session change, and emits no more than one action for one physical gesture. A valid gesture emits one haptic when it first crosses the lock threshold, while the fingers remain on the input surface.
 - R12. Surface transitions keep one top-aligned visual surface, animate content and shape without stealing focus, and resize the owning panel to the current visible interaction envelope so transparent unused canvas never covers unrelated menu-bar regions.
 
 #### Media track changes
@@ -66,7 +66,7 @@ The current surface also jumps from compact to fully expanded for a track change
 - R14. The pending direction extends the media capsule toward the gesture direction and retracts if the command is rejected or times out.
 - R15. A confirmed content revision shows a temporary compact metadata peek containing artwork, title, and artist; it must not reveal the full progress/control layout.
 - R16. The metadata peek begins only after the new content identity arrives, has a bounded duration, and returns to the current persistent surface level.
-- R17. Track-change haptics remain bound to the existing session, epoch, capability-revision, and content-revision confirmation chain; stale or failed commands produce no success feedback.
+- R17. A supported track gesture emits one haptic at lock-threshold crossing before gesture-end command dispatch. Command acceptance, rejection, timeout, and confirmed content emit no second haptic; the existing session, epoch, capability-revision, and content-revision chain remains authoritative for the metadata peek.
 
 #### Calendar component
 
@@ -103,7 +103,7 @@ The current surface also jumps from compact to fully expanded for a track change
 - F3. Track navigation
   - **Trigger:** A horizontal two-finger gesture completes while media is selected.
   - **Actors:** A1, A3.
-  - **Steps:** The capsule extends in the pending direction; the existing command coordinator dispatches once; confirmed content produces haptic feedback and the small metadata peek; failure retracts silently.
+  - **Steps:** Crossing the gesture lock threshold emits one haptic while the fingers remain down; the capsule extends in the pending direction; the existing command coordinator dispatches once at gesture end; confirmed content produces the small metadata peek, while failure retracts without another haptic.
   - **Outcome:** Track changes feel directional and informative without a disruptive full expansion.
   - **Covered by:** R13-R17, R24.
 - F4. Calendar authorization and display
@@ -118,11 +118,11 @@ The current surface also jumps from compact to fully expanded for a track change
 - AE1. Given hardware-aligned rest, when the pointer briefly enters and exits, then compact content appears only during hover and the surface returns to the hardware outline without becoming pinned. Covers R6-R8.
 - AE2. Given hardware-aligned rest, when two completed downward gestures occur, then the first pins compact and the second opens the selected component's expanded presentation. Covers R9-R11.
 - AE3. Given expanded priorities and eligible media plus Calendar, when the user gestures downward, then media becomes selected in compact form; when the user gestures downward through expanded again, Calendar becomes selected without media immediately taking the surface back. Covers R1-R5, R9.
-- AE4. Given selected playing media, when a horizontal previous gesture is accepted but no newer content arrives, then the capsule extends left, retracts on timeout, and produces neither metadata peek nor haptic. Covers R13-R17.
-- AE5. Given selected playing media, when a horizontal next gesture is confirmed by a newer content revision, then the capsule extends right and shows only artwork, title, and artist for a bounded interval before returning to its prior persistent level. Covers R13-R17.
+- AE4. Given selected playing media, when a supported horizontal previous gesture crosses the lock threshold but no newer content arrives, then one haptic occurs during the gesture, the capsule extends left, retracts on timeout, and produces no metadata peek or completion haptic. Covers R13-R17.
+- AE5. Given selected playing media, when a horizontal next gesture crosses the lock threshold and is confirmed by a newer content revision, then one haptic occurs during the gesture and the capsule extends right and shows only artwork, title, and artist for a bounded interval before returning to its prior persistent level. Covers R13-R17.
 - AE6. Given Calendar access is not determined, when Keep3 launches, then no Calendar prompt appears; when the user enables Calendar in Settings, then the system prompt appears once. Covers R18, R21.
 - AE7. Given denied or revoked Calendar access and playing media, when Calendar refresh fails, then previously published Calendar titles are cleared, media and priorities remain navigable, and Settings explains how to restore access. Covers R21, R23, R27.
-- AE8. Given Reduce Motion is enabled, when a track gesture succeeds, then the metadata peek changes without directional geometry travel and the same command/haptic rules apply. Covers R17, R24.
+- AE8. Given Reduce Motion is enabled, when a track gesture crosses the lock threshold and succeeds, then the recognition haptic still occurs during the gesture and the metadata peek changes without directional geometry travel. Covers R17, R24.
 - AE9. Given the hardware-aligned surface leaves a neighboring menu-bar item outside the panel's current interaction envelope, when the pointer clicks or scrolls over that item, then Keep3 receives no event and the underlying system item retains it. Covers R12, R28.
 - AE10. Given the media helper already has its Keep3 client, when another local process or stale connection attempts to monitor or command media, then the helper rejects it without executing the command. Covers R23, R29.
 - AE11. Given Calendar is enabled with all-day context plus an imminent timed event, when Calendar becomes compact, then the non-cancelled timed event wins the relevance ranking and its time and title are recoverable without opening Calendar or activating Keep3. Covers R19-R22.
@@ -236,7 +236,7 @@ sequenceDiagram
   participant U as Media UI State
   participant C as Media Command Coordinator
   participant P as Player via XPC
-  G->>U: pending direction
+  G->>U: threshold haptic and pending direction
   G->>C: previous / next
   C->>P: capability-bound command
   alt rejected or timeout
@@ -244,7 +244,6 @@ sequenceDiagram
   else accepted and newer content
     P-->>C: newer content revision
     C-->>U: token-bound confirmed metadata
-    C-->>U: success haptic
     U-->>U: bounded metadata peek then restore
   end
 ```
@@ -272,7 +271,7 @@ sequenceDiagram
 
 - `Keep3/Overlay/SurfaceModeCoordinator.swift` is the current hard-coded ownership arbiter and media handoff implementation.
 - `Keep3/Overlay/DisplayGeometry.swift` and `Keep3/Overlay/TopSurfacePanel.swift` establish the fixed top canvas and active-frame hit testing.
-- `Keep3/Media/MediaCommandCoordinator.swift` is the authoritative session/revision confirmation and haptic chain.
+- `Keep3/Overlay/SurfaceGestureRecognizer.swift` owns threshold-crossing gesture feedback timing, while `Keep3/Media/MediaCommandCoordinator.swift` remains authoritative for session/revision confirmation and metadata peeks.
 - `Keep3/Media/MediaGestureRecognizer.swift` provides the current pure scroll-event test pattern but assigns the wrong axis for the new design.
 - `Keep3/Media/MediaSurfaceInteractionModel.swift` provides timer ownership and content-identity patterns but currently maps track changes to full expansion.
 - `Keep3Tests/Overlay/TopSurfaceInteractionTests.swift`, `Keep3Tests/Overlay/SurfaceModeCoordinatorTests.swift`, and `Keep3Tests/Media/MediaGestureRecognizerTests.swift` establish manual-scheduler and pure gesture test patterns.
@@ -371,17 +370,17 @@ sequenceDiagram
 - **Approach:**
   1. Publish a token-bound pending previous/next event without marking the media surface expanded.
   2. Clear pending geometry on the matching failed, rejected, timeout, context-invalidated, or cancelled event.
-  3. Start the metadata peek only from the matching confirmed-content event and retain success-only haptics.
-  4. Render a bounded-height metadata row and direction-biased shape extension by atomically resizing the top-aligned panel around the transient visible envelope.
+  3. Emit one haptic at supported gesture lock-threshold crossing and start the metadata peek only from the matching confirmed-content event.
+  4. Render title and artist in one right-to-left inline transition, preserve the current panel height, and extend only toward the requested direction by atomically resizing the top-aligned panel around the transient visible envelope.
   5. Use opacity and content replacement without directional travel under Reduce Motion.
-- **Execution note:** Characterize the current confirmation/haptic tests before changing presentation state.
+- **Execution note:** Characterize gesture-threshold timing and command-confirmation tests before changing presentation state.
 - **Patterns to follow:** Generation-safe pending commands in `MediaCommandCoordinator`; manual timers in `MediaSurfaceInteractionModelTests`; current dirty Alcove-aligned media layout as the visual baseline.
 - **Test scenarios:**
   - A previous gesture creates left pending direction and a next gesture creates right pending direction.
-  - Accepted-without-content-change and rejected commands retract without peek or haptic.
+  - Accepted-without-content-change and rejected commands retract without a peek or completion haptic.
   - Pre-ack content candidates still wait for command acceptance before confirmation.
   - Unsolicited external track changes never satisfy or imitate a pending Keep3 command's metadata peek.
-  - Confirmed newer content publishes the new title/artist, emits one haptic, and collapses after the bounded timer.
+  - Confirmed newer content publishes the new title/artist without a second haptic and collapses after the bounded timer.
   - A second session, stale capability revision, media pause, source suppression, or display deactivation clears all transient feedback.
   - The metadata peek never exposes progress or the full control row.
   - Reduce Motion produces the same state outcomes without direction-dependent geometry.
@@ -512,7 +511,7 @@ sequenceDiagram
 | Media boundary | U3, U6 | `otool`/`nm` checks plus helper integration and client-admission tests | Main app has no static MediaRemote dependency; helper remains the sole private boundary and accepts only the containing active client |
 | Calendar privacy | U4, U6 | Unit payload inspection plus installed Settings/TCC/lock flow | No launch prompt, persistence, network, stale accessibility title, attendee access, or published field beyond the bounded title/time projection |
 | Native geometry and input | U2, U3, U5, U6 | CGWindow/Accessibility frame inspection, pass-through probes, and screenshots on notched hardware | Each level remains top-aligned and the panel frame matches its visible interaction envelope; neighboring menu-bar input never enters Keep3's window |
-| Trackpad and haptic | U2, U3, U6 | Real two-finger vertical/horizontal gestures in NetEase Cloud Music or another supported player | Axes are exclusive, one command fires, direction matches intent, and haptic follows confirmed content only |
+| Trackpad and haptic | U2, U3, U6 | Real two-finger vertical/horizontal gestures in NetEase Cloud Music or another supported player | Axes are exclusive, one command fires, direction matches intent, and exactly one haptic occurs at lock-threshold crossing before the fingers lift |
 | Idle resources | U6 | Activity Monitor sample after Release warm-up | No continuous polling or unexpected idle animation outside active media waveform |
 | Diff hygiene | All | `git diff --check` and review of pre-existing dirty files | No whitespace errors and no user baseline reverted |
 
@@ -525,7 +524,7 @@ sequenceDiagram
 - Manual component navigation works while media is playing and is not immediately undone by recurring media snapshots.
 - Hardware-aligned, compact, and expanded levels follow the pointer, click, dismissal, and vertical gesture rules in R6-R12.
 - Horizontal media gestures produce directional pending feedback and confirmed compact metadata without opening full controls.
-- Rejected, timed-out, stale, and cancelled media commands produce no success haptic or metadata peek.
+- Rejected, timed-out, stale, and cancelled media commands produce no completion haptic or metadata peek; a supported gesture may already have emitted its single threshold-recognition haptic.
 - Calendar authorization is explicit, denial-safe, network-free, non-persistent, and limited to bounded title/time presentation.
 - Calendar disable, revocation, lock, and stale queries cannot leave event titles visible or accessible.
 - The panel frame never covers unused transparent menu-bar space, gesture ownership begins only inside the visible envelope, and neighboring menu-bar input remains with the underlying process.
