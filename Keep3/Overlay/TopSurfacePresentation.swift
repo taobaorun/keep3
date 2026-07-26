@@ -76,6 +76,11 @@ struct MediaSurfaceAppearance: Equatable, Sendable {
   )
 }
 
+struct MediaTrackPeek: Equatable, Sendable {
+  let title: String
+  let artist: String?
+}
+
 struct MediaSurfacePayload: Equatable, Sendable {
   let sessionID: String
   let contentRevision: UInt64
@@ -87,6 +92,8 @@ struct MediaSurfacePayload: Equatable, Sendable {
   let capabilityRevision: UInt64
   let expansionReason: SurfaceExpansionReason
   let appearance: MediaSurfaceAppearance
+  let trackChangeDirection: MediaTrackDirection?
+  let trackPeek: MediaTrackPeek?
 
   init(
     sessionID: String,
@@ -98,7 +105,9 @@ struct MediaSurfacePayload: Equatable, Sendable {
     playbackState: MediaPlaybackState = .unknown,
     capabilityRevision: UInt64 = 0,
     expansionReason: SurfaceExpansionReason = .none,
-    appearance: MediaSurfaceAppearance = .standard
+    appearance: MediaSurfaceAppearance = .standard,
+    trackChangeDirection: MediaTrackDirection? = nil,
+    trackPeek: MediaTrackPeek? = nil
   ) {
     self.sessionID = sessionID
     self.contentRevision = contentRevision
@@ -110,6 +119,8 @@ struct MediaSurfacePayload: Equatable, Sendable {
     self.capabilityRevision = capabilityRevision
     self.expansionReason = expansionReason
     self.appearance = appearance
+    self.trackChangeDirection = trackChangeDirection
+    self.trackPeek = trackPeek
   }
 
   var isTemporaryExpansion: Bool {

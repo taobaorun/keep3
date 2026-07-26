@@ -207,6 +207,61 @@ struct DisplayGeometry: Equatable {
     }
   }
 
+  func mediaLayout(
+    level: SurfaceLevel,
+    trackChangeDirection: MediaTrackDirection?,
+    showsTrackPeek: Bool
+  ) -> SurfaceLayout {
+    let base = layout(level: level)
+    guard level != .expanded else {
+      return base
+    }
+
+    if showsTrackPeek {
+      let bounds = placementBounds
+      let size = CGSize(
+        width: min(
+          max(base.panelFrame.width, metrics.compactSize.width),
+          bounds.width
+        ),
+        height: min(max(base.panelFrame.height, 68), bounds.height)
+      )
+      let frame = topAlignedFrame(
+        size: size,
+        anchorX: base.panelFrame.midX,
+        bounds: bounds,
+        maximumY: base.panelFrame.maxY
+      )
+      return SurfaceLayout(
+        panelFrame: frame,
+        surfaceFrameInPanel: CGRect(origin: .zero, size: size),
+        obstructionSize: base.obstructionSize
+      )
+    }
+
+    guard let trackChangeDirection else {
+      return base
+    }
+    let bounds = placementBounds
+    let extendedWidth = min(base.panelFrame.width + 28, bounds.width)
+    let extensionWidth = extendedWidth - base.panelFrame.width
+    let proposedX =
+      trackChangeDirection == .previous
+      ? base.panelFrame.minX - extensionWidth
+      : base.panelFrame.minX
+    let frame = CGRect(
+      x: min(max(proposedX, bounds.minX), bounds.maxX - extendedWidth),
+      y: base.panelFrame.minY,
+      width: extendedWidth,
+      height: base.panelFrame.height
+    )
+    return SurfaceLayout(
+      panelFrame: frame,
+      surfaceFrameInPanel: CGRect(origin: .zero, size: frame.size),
+      obstructionSize: base.obstructionSize
+    )
+  }
+
   private var obstructionFrame: CGRect? {
     let screenFrame = descriptor.frame.standardized
 
@@ -246,6 +301,15 @@ struct DisplayGeometry: Equatable {
     }
 
     return visibleFrame
+  }
+
+  private var placementBounds: CGRect {
+    switch placement {
+    case .notched:
+      descriptor.frame.standardized
+    case .floating:
+      usableFrame
+    }
   }
 
   private func notchedLayout(
@@ -318,6 +382,20 @@ struct DisplayGeometry: Equatable {
     anchorX: CGFloat,
     bounds: CGRect
   ) -> CGRect {
+    topAlignedFrame(
+      size: size,
+      anchorX: anchorX,
+      bounds: bounds,
+      maximumY: bounds.maxY
+    )
+  }
+
+  private func topAlignedFrame(
+    size: CGSize,
+    anchorX: CGFloat,
+    bounds: CGRect,
+    maximumY: CGFloat
+  ) -> CGRect {
     let maximumX = bounds.maxX - size.width
     let x = min(
       max(anchorX - (size.width / 2), bounds.minX),
@@ -325,7 +403,7 @@ struct DisplayGeometry: Equatable {
     )
     return CGRect(
       x: x,
-      y: bounds.maxY - size.height,
+      y: min(maximumY, bounds.maxY) - size.height,
       width: size.width,
       height: size.height
     )

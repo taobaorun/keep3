@@ -3,28 +3,30 @@ import XCTest
 @testable import Keep3
 
 final class MediaGestureRecognizerTests: XCTestCase {
-  func testUpwardPreciseGestureDispatchesNextOnlyOnPhysicalEnd() {
+  func testHorizontalPreciseGestureDispatchesOnlyOnPhysicalEnd() {
     var recognizer = MediaGestureRecognizer()
     recognizer.updateSession("session-1")
 
-    XCTAssertNil(recognizer.handle(event(y: 10, phase: .began)))
-    XCTAssertNil(recognizer.handle(event(y: 18, phase: .changed)))
+    XCTAssertNil(recognizer.handle(event(x: 10, phase: .began)))
+    XCTAssertNil(recognizer.handle(event(x: 18, phase: .changed)))
     XCTAssertEqual(
-      recognizer.handle(event(y: 0, phase: .ended)),
+      recognizer.handle(event(phase: .ended)),
       .next
     )
+    XCTAssertNil(recognizer.handle(event(x: -30, phase: .began)))
+    XCTAssertEqual(recognizer.handle(event(phase: .ended)), .previous)
     XCTAssertNil(
       recognizer.handle(
-        event(y: 40, phase: .changed, momentum: .changed)
+        event(x: 40, phase: .changed, momentum: .changed)
       )
     )
   }
 
-  func testHorizontalCancelledLegacyAndMomentumEventsNeverSwitchTracks() {
+  func testVerticalCancelledLegacyAndMomentumEventsNeverSwitchTracks() {
     var recognizer = MediaGestureRecognizer()
     recognizer.updateSession("session-1")
 
-    XCTAssertNil(recognizer.handle(event(x: 40, y: 20, phase: .began)))
+    XCTAssertNil(recognizer.handle(event(x: 20, y: 40, phase: .began)))
     XCTAssertNil(recognizer.handle(event(phase: .ended)))
     XCTAssertNil(
       recognizer.handle(
@@ -42,7 +44,7 @@ final class MediaGestureRecognizerTests: XCTestCase {
   func testSessionChangeMidGestureCancelsArmedDirection() {
     var recognizer = MediaGestureRecognizer()
     recognizer.updateSession("session-1")
-    XCTAssertNil(recognizer.handle(event(y: -30, phase: .began)))
+    XCTAssertNil(recognizer.handle(event(x: -30, phase: .began)))
 
     recognizer.updateSession("session-2")
 

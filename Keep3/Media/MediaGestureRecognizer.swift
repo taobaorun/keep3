@@ -35,7 +35,7 @@ enum MediaTrackDirection: Equatable, Sendable {
 }
 
 struct MediaGestureRecognizer {
-  static let verticalThreshold: CGFloat = 24
+  static let horizontalThreshold: CGFloat = 24
 
   private(set) var sessionID: String?
   private var accumulatedX: CGFloat = 0
@@ -87,12 +87,12 @@ struct MediaGestureRecognizer {
 
   private mutating func armIfEligible() {
     guard armedDirection == nil,
-      abs(accumulatedY) >= Self.verticalThreshold,
-      abs(accumulatedY) > abs(accumulatedX)
+      abs(accumulatedX) >= Self.horizontalThreshold,
+      abs(accumulatedX) > abs(accumulatedY)
     else {
       return
     }
-    armedDirection = accumulatedY > 0 ? .next : .previous
+    armedDirection = accumulatedX > 0 ? .next : .previous
   }
 
   private mutating func resetGesture() {

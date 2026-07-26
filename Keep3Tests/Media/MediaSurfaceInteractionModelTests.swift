@@ -4,58 +4,64 @@ import XCTest
 
 @MainActor
 final class MediaSurfaceInteractionModelTests: XCTestCase {
-  func testNewPlayingContentQuickPeeksThenCollapses() {
+  func testNewPlayingContentShowsMetadataPeekWithoutFullExpansion() {
     let scheduler = ManualMediaInteractionTimerScheduler()
     var expansions: [(Bool, SurfaceExpansionReason)] = []
+    var peeks: [MediaTrackPeek?] = []
     let model = MediaSurfaceInteractionModel(
-      scheduler: scheduler
-    ) { isExpanded, reason in
-      expansions.append((isExpanded, reason))
-    }
+      scheduler: scheduler,
+      onExpansion: { isExpanded, reason in
+        expansions.append((isExpanded, reason))
+      },
+      onTrackPeek: { peeks.append($0) }
+    )
 
     model.receive(snapshot(title: "First"))
 
-    XCTAssertEqual(expansions.count, 1)
-    XCTAssertTrue(expansions[0].0)
-    XCTAssertEqual(expansions[0].1, .quickPeek)
+    XCTAssertTrue(expansions.isEmpty)
+    XCTAssertEqual(peeks.compactMap { $0 }.last?.title, "First")
+    XCTAssertEqual(peeks.compactMap { $0 }.last?.artist, "Artist")
     XCTAssertEqual(scheduler.activeDelays, [2])
 
     scheduler.fireNext()
 
-    XCTAssertEqual(expansions.count, 2)
-    XCTAssertFalse(expansions[1].0)
-    XCTAssertEqual(expansions[1].1, .none)
+    XCTAssertNil(peeks.last!)
+    XCTAssertTrue(expansions.isEmpty)
   }
 
   func testProgressOnlyRevisionDoesNotRestartQuickPeek() {
     let scheduler = ManualMediaInteractionTimerScheduler()
-    var expansions: [(Bool, SurfaceExpansionReason)] = []
+    var peeks: [MediaTrackPeek?] = []
     let model = MediaSurfaceInteractionModel(
-      scheduler: scheduler
-    ) { isExpanded, reason in
-      expansions.append((isExpanded, reason))
-    }
+      scheduler: scheduler,
+      onExpansion: { _, _ in },
+      onTrackPeek: { peeks.append($0) }
+    )
 
     model.receive(snapshot(title: "First", contentRevision: 1))
     model.receive(snapshot(title: "First", contentRevision: 2))
 
-    XCTAssertEqual(expansions.count, 1)
+    XCTAssertEqual(peeks.compactMap { $0 }.count, 1)
     XCTAssertEqual(scheduler.activeTimerCount, 1)
   }
 
   func testHoverSupersedesQuickPeekAndOwnsCollapse() {
     let scheduler = ManualMediaInteractionTimerScheduler()
     var expansions: [(Bool, SurfaceExpansionReason)] = []
+    var peeks: [MediaTrackPeek?] = []
     let model = MediaSurfaceInteractionModel(
-      scheduler: scheduler
-    ) { isExpanded, reason in
-      expansions.append((isExpanded, reason))
-    }
+      scheduler: scheduler,
+      onExpansion: { isExpanded, reason in
+        expansions.append((isExpanded, reason))
+      },
+      onTrackPeek: { peeks.append($0) }
+    )
 
     model.receive(snapshot(title: "First"))
     model.pointerEntered()
 
     XCTAssertEqual(expansions.last?.1, .hover)
+    XCTAssertNil(peeks.last!)
     XCTAssertEqual(scheduler.activeTimerCount, 0)
 
     model.pointerExited()
@@ -70,11 +76,14 @@ final class MediaSurfaceInteractionModelTests: XCTestCase {
   func testDisablingQuickPeekCollapsesOnlyTemporaryExpansion() {
     let scheduler = ManualMediaInteractionTimerScheduler()
     var expansions: [(Bool, SurfaceExpansionReason)] = []
+    var peeks: [MediaTrackPeek?] = []
     let model = MediaSurfaceInteractionModel(
-      scheduler: scheduler
-    ) { isExpanded, reason in
-      expansions.append((isExpanded, reason))
-    }
+      scheduler: scheduler,
+      onExpansion: { isExpanded, reason in
+        expansions.append((isExpanded, reason))
+      },
+      onTrackPeek: { peeks.append($0) }
+    )
 
     model.receive(snapshot(title: "First"))
     model.updatePreferences(
@@ -83,11 +92,8 @@ final class MediaSurfaceInteractionModelTests: XCTestCase {
       quickPeekDuration: 2
     )
 
-    XCTAssertEqual(expansions.last?.0, false)
-    XCTAssertEqual(
-      expansions.last?.1,
-      SurfaceExpansionReason.none
-    )
+    XCTAssertTrue(expansions.isEmpty)
+    XCTAssertNil(peeks.last!)
     XCTAssertEqual(scheduler.activeTimerCount, 0)
   }
 

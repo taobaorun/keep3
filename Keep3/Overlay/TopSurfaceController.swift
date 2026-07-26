@@ -55,7 +55,11 @@ final class TopSurfaceController {
       metrics: metrics
     )
     showMedia(
-      layout: geometry.layout(level: payload.level),
+      layout: geometry.mediaLayout(
+        level: payload.level,
+        trackChangeDirection: payload.trackChangeDirection,
+        showsTrackPeek: payload.trackPeek != nil
+      ),
       payload: payload,
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,
@@ -108,6 +112,7 @@ final class TopSurfaceController {
       } ?? .floatingCapsule
 
     let surfacePanel: TopSurfacePanel
+    let previousMediaPayload = panel?.renderedMediaPayload
     if let panel {
       surfacePanel = panel
     } else {
@@ -133,7 +138,16 @@ final class TopSurfaceController {
       onActivateSurface: onActivateSurface,
       onMediaAction: onAction
     )
-    surfacePanel.setFrame(layout.panelFrame, display: true)
+    let hadTransientFeedback =
+      previousMediaPayload?.trackChangeDirection != nil
+      || previousMediaPayload?.trackPeek != nil
+    let hasTransientFeedback =
+      payload.trackChangeDirection != nil || payload.trackPeek != nil
+    surfacePanel.setFrame(
+      layout.panelFrame,
+      display: true,
+      animate: hadTransientFeedback || hasTransientFeedback
+    )
     surfacePanel.orderFrontRegardless()
   }
 
