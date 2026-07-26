@@ -7,9 +7,16 @@ enum MediaArtworkDecoder {
   static let maximumSourceDimension = 8_192
   static let maximumSourcePixels = 16_000_000
   static let thumbnailDimension = 512
+  private static let cache = MediaArtworkCache()
 
   static func decode(_ data: Data?) -> CGImage? {
-    guard let data,
+    guard let data else {
+      return nil
+    }
+    if let cached = cache.image(for: data) {
+      return cached
+    }
+    guard
       isMetadataAllowed(byteCount: data.count, frameCount: 1),
       let source = CGImageSourceCreateWithData(data as CFData, nil)
     else {
@@ -41,11 +48,17 @@ enum MediaArtworkDecoder {
       kCGImageSourceThumbnailMaxPixelSize: thumbnailDimension,
       kCGImageSourceShouldCacheImmediately: true,
     ]
-    return CGImageSourceCreateThumbnailAtIndex(
-      source,
-      0,
-      options as CFDictionary
-    )
+    guard
+      let image = CGImageSourceCreateThumbnailAtIndex(
+        source,
+        0,
+        options as CFDictionary
+      )
+    else {
+      return nil
+    }
+    cache.insert(image, for: data)
+    return image
   }
 
   static func isMetadataAllowed(
@@ -73,5 +86,34 @@ enum MediaArtworkDecoder {
 
   private static func number(_ value: Any?) -> Int? {
     (value as? NSNumber)?.intValue
+  }
+}
+
+private final class MediaArtworkCache: @unchecked Sendable {
+  private final class ImageBox {
+    let image: CGImage
+
+    init(_ image: CGImage) {
+      self.image = image
+    }
+  }
+
+  private let storage = NSCache<NSData, ImageBox>()
+
+  init() {
+    storage.countLimit = 8
+    storage.totalCostLimit = 24_000_000
+  }
+
+  func image(for data: Data) -> CGImage? {
+    storage.object(forKey: data as NSData)?.image
+  }
+
+  func insert(_ image: CGImage, for data: Data) {
+    storage.setObject(
+      ImageBox(image),
+      forKey: data as NSData,
+      cost: image.bytesPerRow * image.height
+    )
   }
 }

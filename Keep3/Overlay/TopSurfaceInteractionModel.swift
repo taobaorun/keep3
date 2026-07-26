@@ -105,6 +105,14 @@ final class TopSurfaceInteractionModel {
     emitPresentation()
   }
 
+  func synchronizeToCurrentFocusWithoutPresentation() {
+    cancelTimer()
+    visibleIndex = currentFocusID.flatMap { itemIDs.firstIndex(of: $0) }
+    isExpanded = false
+    scrollAccumulator = 0
+    didNavigateDuringScrollGesture = false
+  }
+
   func pointerEntered() {
     guard !isPointerInside else {
       return

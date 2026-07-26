@@ -99,6 +99,22 @@ struct MediaSettingsView: View {
           )
         )
 
+        Toggle(
+          "切歌时翻转封面",
+          isOn: binding(
+            get: { preferences.showsArtworkFlip },
+            set: preferences.setShowsArtworkFlip
+          )
+        )
+
+        Toggle(
+          "显示媒体标题附加信息",
+          isOn: binding(
+            get: { preferences.showsMediaTitleExtras },
+            set: preferences.setShowsMediaTitleExtras
+          )
+        )
+
         Picker(
           "辅助按钮",
           selection: binding(
@@ -107,9 +123,16 @@ struct MediaSettingsView: View {
           )
         ) {
           Text("自动隐藏").tag(MediaSecondaryAction.none)
+          Text("收藏").tag(MediaSecondaryAction.favorite)
           Text("随机播放").tag(MediaSecondaryAction.shuffle)
           Text("循环模式").tag(MediaSecondaryAction.repeatMode)
+          Text("单曲循环").tag(MediaSecondaryAction.repeatOne)
+          Text("复制来源链接").tag(MediaSecondaryAction.copySource)
         }
+
+        Text("只有当前播放器明确提供对应能力时，辅助按钮才会出现。")
+          .font(.caption)
+          .foregroundStyle(.secondary)
 
         HStack {
           Text("背景浓度")
@@ -220,14 +243,15 @@ private struct MediaSettingsPreview: View {
         title: "夏夜晚风",
         artist: "Keep3 Radio",
         applicationName: "网易云音乐",
+        publicShareURL: "https://music.163.com/song?id=keep3-preview",
         duration: 238,
         progress: 72,
-        capabilities: ["previous", "playPause", "next", "seek", "shuffle"]
+        capabilities: MediaCapability.allCases.map(\.rawValue)
       )
     )
     return MediaSurfacePayload(
       sessionID: "media-settings-preview",
-      contentRevision: 1,
+      contentRevision: preferences.showsArtworkFlip ? 2 : 1,
       isExpanded: false,
       areControlsEnabled: true,
       session: session,

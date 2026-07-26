@@ -9,7 +9,8 @@ actor UnavailableMediaRemoteAdapter: MediaSessionAdapter {
 
   func send(
     _: MediaSurfaceAction,
-    to _: String
+    to _: String,
+    capabilityRevision _: UInt64
   ) -> MediaCommandDispatchResult {
     .rejected
   }
@@ -22,23 +23,29 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
   private let onSnapshot: MediaAdapterSnapshotDelivery
   private var connection: NSXPCConnection?
   private var receiver: MediaRemoteClientReceiver?
+  private var connectionGeneration = MediaAdapterConnectionGeneration()
 
   init(onSnapshot: @escaping MediaAdapterSnapshotDelivery = { _ in }) {
     self.onSnapshot = onSnapshot
   }
 
   func start() async -> MediaCompatibilityReport {
-    disconnect()
+    invalidateConnection()
+    let generation = connectionGeneration.advance()
 
     let compatibilityRequest = OneShotRequest<MediaCompatibilityReport>()
     let connection = NSXPCConnection(serviceName: Self.serviceName)
     connection.remoteObjectInterface = MediaRemoteXPCInterface.service()
     connection.exportedInterface = MediaRemoteXPCInterface.client()
 
-    let receiver = MediaRemoteClientReceiver { [onSnapshot] propertyList in
-      let snapshot = MediaAdapterSnapshot(propertyList: propertyList)
-      Task { @MainActor in
-        onSnapshot(snapshot)
+    let receiver = MediaRemoteClientReceiver(
+      connectionGeneration: generation
+    ) { [weak self] deliveryGeneration, snapshot in
+      Task {
+        await self?.receive(
+          snapshot,
+          from: deliveryGeneration
+        )
       }
     }
     connection.exportedObject = receiver
@@ -62,7 +69,7 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
         }
       )
     else {
-      disconnect()
+      invalidateConnection()
       return .unavailable
     }
 
@@ -79,7 +86,7 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
       fallback: .unavailable
     )
     guard report.status == .available else {
-      disconnect()
+      invalidateConnection()
       return report
     }
 
@@ -93,7 +100,7 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
         fallback: false
       )
     else {
-      disconnect()
+      invalidateConnection()
       return .unavailable
     }
     return report
@@ -106,13 +113,14 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
       service.stopMonitoring()
     }
     let receiver = receiver
-    disconnect()
+    invalidateConnection()
     receiver?.publishUnavailable()
   }
 
   func send(
     _ action: MediaSurfaceAction,
-    to sessionID: String
+    to sessionID: String,
+    capabilityRevision: UInt64
   ) async -> MediaCommandDispatchResult {
     guard let command = action.remoteCommand,
       let connection,
@@ -125,6 +133,7 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
     service.sendCommand(
       command.name.rawValue,
       sessionID: sessionID,
+      capabilityRevision: NSNumber(value: capabilityRevision),
       value: command.value
     ) { accepted in
       request.complete(with: accepted)
@@ -145,7 +154,18 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
     } as? MediaRemoteServiceProtocol
   }
 
-  private func disconnect() {
+  private func receive(
+    _ snapshot: MediaAdapterSnapshot?,
+    from generation: UInt64
+  ) async {
+    guard connectionGeneration.accepts(generation) else {
+      return
+    }
+    await onSnapshot(snapshot)
+  }
+
+  private func invalidateConnection() {
+    connectionGeneration.invalidate()
     let connection = connection
     self.connection = nil
     receiver = nil
@@ -159,18 +179,54 @@ private final class MediaRemoteClientReceiver: NSObject,
   MediaRemoteClientProtocol, @unchecked Sendable
 {
   private let lock = NSLock()
-  private let onUpdate: @Sendable (NSDictionary) -> Void
+  private let connectionGeneration: UInt64
+  private let onUpdate: @Sendable (UInt64, MediaAdapterSnapshot?) -> Void
   private var didPublishUnavailable = false
+  private var retainedArtwork: MediaArtworkPayload?
 
-  init(onUpdate: @escaping @Sendable (NSDictionary) -> Void) {
+  init(
+    connectionGeneration: UInt64,
+    onUpdate: @escaping @Sendable (UInt64, MediaAdapterSnapshot?) -> Void
+  ) {
+    self.connectionGeneration = connectionGeneration
     self.onUpdate = onUpdate
   }
 
   func mediaRemoteDidUpdate(_ propertyList: NSDictionary) {
-    lock.withLock {
+    let snapshot = lock.withLock { () -> MediaAdapterSnapshot? in
       didPublishUnavailable = false
+      guard propertyList["isPresent"] as? Bool == true else {
+        retainedArtwork = nil
+        return nil
+      }
+      let artworkUpdate =
+        (propertyList["artworkUpdate"] as? String)
+        .flatMap(MediaArtworkWireUpdate.init(rawValue:))
+        ?? (propertyList["artworkData"] is Data ? .replace : .clear)
+      guard
+        let snapshot = MediaAdapterSnapshot(
+          propertyList: propertyList,
+          retainedArtwork: retainedArtwork
+        )
+      else {
+        return nil
+      }
+      switch artworkUpdate {
+      case .unchanged:
+        break
+      case .replace:
+        retainedArtwork = snapshot.session.artworkData.map {
+          MediaArtworkPayload(
+            data: $0,
+            mimeType: snapshot.session.artworkMIMEType
+          )
+        }
+      case .clear:
+        retainedArtwork = nil
+      }
+      return snapshot
     }
-    onUpdate(propertyList)
+    onUpdate(connectionGeneration, snapshot)
   }
 
   func publishUnavailable() {
@@ -179,17 +235,13 @@ private final class MediaRemoteClientReceiver: NSObject,
         return false
       }
       didPublishUnavailable = true
+      retainedArtwork = nil
       return true
     }
     guard shouldPublish else {
       return
     }
-    onUpdate([
-      "protocolVersion": NSNumber(
-        value: MediaCompatibilityReport.protocolVersion
-      ),
-      "isPresent": false,
-    ])
+    onUpdate(connectionGeneration, nil)
   }
 }
 
@@ -219,7 +271,7 @@ extension MediaSurfaceAction {
       return MediaRemoteCommand(name: .shuffle, value: nil)
     case .repeatMode:
       return MediaRemoteCommand(name: .repeatMode, value: nil)
-    case .hideSource:
+    case .hideSource, .favorite, .repeatOne, .copySource:
       return nil
     }
   }

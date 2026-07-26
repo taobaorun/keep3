@@ -15,6 +15,7 @@ final class SignatureSurfaceTransitionTests: XCTestCase {
     XCTAssertEqual(transition.duration, 0.76, accuracy: 0.001)
     XCTAssertTrue(transition.animatesShape)
     XCTAssertTrue(transition.usesProgressiveTitleBlur)
+    XCTAssertEqual(transition.outgoingTitleBlurRadius, 7)
     XCTAssertEqual(transition.backgroundOpacity, 0.82)
     XCTAssertEqual(transition.markerStyle(isCurrentFocus: true), .filledLozenge)
     XCTAssertEqual(transition.markerStyle(isCurrentFocus: false), .outlinedOrdinal)
@@ -31,6 +32,7 @@ final class SignatureSurfaceTransitionTests: XCTestCase {
     XCTAssertEqual(transition.duration, 0.12, accuracy: 0.001)
     XCTAssertFalse(transition.animatesShape)
     XCTAssertFalse(transition.usesProgressiveTitleBlur)
+    XCTAssertEqual(transition.outgoingTitleBlurRadius, 0)
     XCTAssertEqual(transition.backgroundOpacity, 1)
     XCTAssertTrue(transition.usesHighContrastMarkers)
   }

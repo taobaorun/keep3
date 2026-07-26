@@ -193,6 +193,28 @@ final class TopSurfaceInteractionTests: XCTestCase {
     XCTAssertEqual(recorder.presentations.last?.visibleItemID, currentID)
   }
 
+  func testSynchronizingMediaExitResetsVisibleFocusWithoutEmitting() {
+    let currentID = UUID()
+    let secondaryID = UUID()
+    let recorder = InteractionRecorder()
+    let coordinator = makeCoordinator(
+      scheduler: ManualInteractionTimerScheduler(),
+      recorder: recorder
+    )
+    coordinator.update(
+      itemIDs: [currentID, secondaryID],
+      currentFocusID: currentID
+    )
+    coordinator.showRotatedItem(secondaryID)
+    let publicationCountBeforeSync = recorder.presentations.count
+
+    coordinator.synchronizeToCurrentFocusWithoutPresentation()
+
+    XCTAssertEqual(recorder.presentations.count, publicationCountBeforeSync)
+    coordinator.activateVisibleItem()
+    XCTAssertEqual(recorder.openedIDs, [currentID])
+  }
+
   func testSuspendingCancelsPendingInteractionAndAllowsFreshHover() {
     let currentID = UUID()
     let scheduler = ManualInteractionTimerScheduler()
@@ -278,7 +300,7 @@ final class TopSurfaceInteractionTests: XCTestCase {
       onResumeRotation: {
         recorder.resumeCount += 1
       },
-      onOpenItem: { _ in }
+      onOpenItem: { recorder.openedIDs.append($0) }
     )
   }
 }
@@ -286,6 +308,7 @@ final class TopSurfaceInteractionTests: XCTestCase {
 @MainActor
 private final class InteractionRecorder {
   var presentations: [TopSurfacePresentationState] = []
+  var openedIDs: [UUID] = []
   var pauseCount = 0
   var resumeCount = 0
 }

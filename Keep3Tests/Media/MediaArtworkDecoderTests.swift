@@ -13,6 +13,18 @@ final class MediaArtworkDecoderTests: XCTestCase {
     XCTAssertNotNil(MediaArtworkDecoder.decode(png))
   }
 
+  func testCachesDecodedArtworkByPayload() {
+    let png = Data(
+      base64Encoded:
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    )!
+
+    let first = MediaArtworkDecoder.decode(png)
+    let second = MediaArtworkDecoder.decode(Data(png))
+
+    XCTAssertTrue(first === second)
+  }
+
   func testRejectsMalformedAnimatedAndOversizedInputs() {
     XCTAssertNil(MediaArtworkDecoder.decode(Data("not-an-image".utf8)))
     XCTAssertFalse(

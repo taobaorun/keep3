@@ -19,6 +19,8 @@ final class MediaPreferences: ObservableObject {
   @Published private(set) var expansionTrigger: SurfaceExpansionTrigger
   @Published private(set) var artworkTreatment: MediaArtworkTreatment
   @Published private(set) var showsWaveform: Bool
+  @Published private(set) var showsArtworkFlip: Bool
+  @Published private(set) var showsMediaTitleExtras: Bool
   @Published private(set) var secondaryAction: MediaSecondaryAction
   @Published private(set) var backgroundOpacity: Double
   @Published private(set) var suppressedBundleIdentifiers: Set<String>
@@ -36,6 +38,8 @@ final class MediaPreferences: ObservableObject {
     static let expansionTrigger = "mediaExpansionTrigger"
     static let artworkTreatment = "mediaArtworkTreatment"
     static let waveform = "mediaShowsWaveform"
+    static let artworkFlip = "mediaShowsArtworkFlip"
+    static let titleExtras = "mediaShowsTitleExtras"
     static let secondaryAction = "mediaSecondaryAction"
     static let backgroundOpacity = "mediaBackgroundOpacity"
     static let suppressed = "mediaSuppressedSources"
@@ -59,6 +63,10 @@ final class MediaPreferences: ObservableObject {
       .flatMap(MediaArtworkTreatment.init(rawValue:)) ?? .artwork
     showsWaveform =
       defaults.object(forKey: Key.waveform) as? Bool ?? true
+    showsArtworkFlip =
+      defaults.object(forKey: Key.artworkFlip) as? Bool ?? false
+    showsMediaTitleExtras =
+      defaults.object(forKey: Key.titleExtras) as? Bool ?? false
     secondaryAction =
       defaults.string(forKey: Key.secondaryAction)
       .flatMap(MediaSecondaryAction.init(rawValue:)) ?? .none
@@ -121,6 +129,14 @@ final class MediaPreferences: ObservableObject {
 
   func setShowsWaveform(_ value: Bool) {
     update(\.showsWaveform, value: value, key: Key.waveform)
+  }
+
+  func setShowsArtworkFlip(_ value: Bool) {
+    update(\.showsArtworkFlip, value: value, key: Key.artworkFlip)
+  }
+
+  func setShowsMediaTitleExtras(_ value: Bool) {
+    update(\.showsMediaTitleExtras, value: value, key: Key.titleExtras)
   }
 
   func setSecondaryAction(_ value: MediaSecondaryAction) {
@@ -198,6 +214,8 @@ final class MediaPreferences: ObservableObject {
     MediaSurfaceAppearance(
       artworkTreatment: artworkTreatment,
       showsWaveform: showsWaveform,
+      showsArtworkFlip: showsArtworkFlip,
+      showsMediaTitleExtras: showsMediaTitleExtras,
       secondaryAction: secondaryAction,
       backgroundOpacity: backgroundOpacity
     )
@@ -217,7 +235,7 @@ final class MediaPreferences: ObservableObject {
     onChange?()
   }
 
-  private static func isPersistableBundleIdentifier(
+  nonisolated static func isPersistableBundleIdentifier(
     _ identifier: String
   ) -> Bool {
     guard !identifier.isEmpty, identifier.utf8.count <= 255,

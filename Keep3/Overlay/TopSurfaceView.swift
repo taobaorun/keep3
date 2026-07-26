@@ -287,13 +287,20 @@ struct TopSurfaceView: View {
           .transition(surfaceTransition)
       }
     }
+    .animation(contentAnimation, value: content.transitionIdentity)
+    .animation(contentAnimation, value: content.isExpanded)
     .foregroundStyle(.white)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background {
       surfaceShape
         .fill(.black.opacity(surfaceBackgroundOpacity))
+        .animation(shapeAnimation, value: content.isExpanded)
     }
-    .clipShape(surfaceShape)
+    .mask {
+      surfaceShape
+        .fill(.white)
+        .animation(shapeAnimation, value: content.isExpanded)
+    }
     .overlay(alignment: .top) {
       if case .notchAttached = presentationStyle {
         Rectangle()
@@ -301,7 +308,6 @@ struct TopSurfaceView: View {
           .frame(height: 1)
       }
     }
-    .animation(surfaceAnimation, value: content)
   }
 
   @ViewBuilder
@@ -323,10 +329,10 @@ struct TopSurfaceView: View {
           .font(.subheadline.weight(.medium))
           .lineLimit(1)
           .truncationMode(.tail)
+          .id(content.transitionIdentity)
+          .transition(titleTransition)
       }
       .padding(.horizontal, 16)
-      .id(content.transitionIdentity)
-      .transition(surfaceTransition)
     }
   }
 
@@ -352,9 +358,9 @@ struct TopSurfaceView: View {
           .truncationMode(.tail)
           .minimumScaleFactor(0.72)
           .frame(width: layout.rightWingFrame.width)
+          .id(content.transitionIdentity)
+          .transition(titleTransition)
       }
-      .id(content.transitionIdentity)
-      .transition(surfaceTransition)
     }
   }
 
@@ -443,6 +449,8 @@ struct TopSurfaceView: View {
           .lineLimit(1)
           .truncationMode(.tail)
           .minimumScaleFactor(0.75)
+          .id(content.transitionIdentity)
+          .transition(titleTransition)
 
         Image(systemName: "arrow.up.right")
           .font(.system(size: 9, weight: .bold))
@@ -614,12 +622,38 @@ struct TopSurfaceView: View {
     )
   }
 
-  private var surfaceAnimation: Animation {
+  private var contentAnimation: Animation {
     .easeInOut(duration: signatureTransition.duration)
+  }
+
+  private var shapeAnimation: Animation? {
+    guard signatureTransition.animatesShape else {
+      return nil
+    }
+    return .easeInOut(duration: signatureTransition.duration)
   }
 
   private var surfaceTransition: AnyTransition {
     .opacity
+  }
+
+  private var titleTransition: AnyTransition {
+    guard signatureTransition.usesProgressiveTitleBlur else {
+      return .opacity
+    }
+    return .asymmetric(
+      insertion: .opacity,
+      removal: .modifier(
+        active: ProgressiveTitleBlurModifier(
+          blurRadius: signatureTransition.outgoingTitleBlurRadius,
+          opacity: 0
+        ),
+        identity: ProgressiveTitleBlurModifier(
+          blurRadius: 0,
+          opacity: 1
+        )
+      )
+    )
   }
 
   @ViewBuilder
@@ -641,5 +675,16 @@ struct TopSurfaceView: View {
         }
         .accessibilityLabel("次要重点，第 \(content.position) 项")
     }
+  }
+}
+
+private struct ProgressiveTitleBlurModifier: ViewModifier {
+  let blurRadius: Double
+  let opacity: Double
+
+  func body(content: Content) -> some View {
+    content
+      .blur(radius: blurRadius)
+      .opacity(opacity)
   }
 }

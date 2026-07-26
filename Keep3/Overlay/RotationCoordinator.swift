@@ -74,6 +74,13 @@ final class RotationCoordinator {
     resetToCurrentFocus()
   }
 
+  func resumeAfterCurrentFocusWasPresented() {
+    cancelTimer()
+    isPaused = false
+    _ = schedule.reset()
+    scheduleNextDeadlineIfNeeded()
+  }
+
   private func resetToCurrentFocus() {
     cancelTimer()
     onVisibleItemChange(schedule.reset()?.itemID)

@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var currentMediaSnapshot: MediaSessionSnapshot?
   private var mediaLifecycleGeneration: UInt64 = 0
   private var isMediaSubscriptionStarting = false
+  private let mediaLifecycleQueue = SerialMediaLifecycleQueue()
   private var mediaGestureRecognizer = MediaGestureRecognizer()
   private var isMediaOwningSurface = false
   private lazy var editorWindowController = EditorWindowController(
@@ -153,6 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func resetSurfaceToCurrentFocus() {
     interactionModel.setExpansionTrigger(preferences.expansionTrigger)
+    surfaceModeCoordinator.updateDesignatedFocusID(state.currentFocusID)
     interactionModel.update(
       itemIDs: state.items.map(\.id),
       currentFocusID: state.currentFocusID
@@ -358,7 +360,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
       }
     } else {
-      resumeRotation()
+      interactionModel.synchronizeToCurrentFocusWithoutPresentation()
+      rotationCoordinator.resumeAfterCurrentFocusWasPresented()
       mediaGestureRecognizer.cancel()
       mediaCommandCoordinator.updateContext(
         snapshot: currentMediaSnapshot,
@@ -384,6 +387,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       )
       return
     }
+    if case .copySource(let url) = action {
+      NSPasteboard.general.clearContents()
+      NSPasteboard.general.writeObjects([url as NSURL])
+      return
+    }
     Task { @MainActor [weak self] in
       _ = await self?.mediaCommandCoordinator.perform(action)
     }
@@ -400,7 +408,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     isMediaSubscriptionStarting = true
     mediaLifecycleGeneration &+= 1
     let generation = mediaLifecycleGeneration
-    Task { @MainActor [weak self] in
+    mediaLifecycleQueue.enqueue { [weak self] in
       guard let self else {
         return
       }
@@ -435,7 +443,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     if let epoch {
       surfaceModeCoordinator.endMediaEpoch(epoch)
     }
-    Task { [mediaAdapter, mediaSessionCoordinator] in
+    mediaLifecycleQueue.enqueue { [mediaAdapter, mediaSessionCoordinator] in
       await mediaAdapter.stop()
       await mediaSessionCoordinator.endSubscription()
     }

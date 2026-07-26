@@ -4,6 +4,7 @@ struct MediaSurfacePresentation: Equatable, Sendable {
   let sessionID: String
   let title: String
   let artist: String?
+  let album: String?
   let applicationName: String?
   let artworkData: Data?
   let isPlaying: Bool
@@ -16,6 +17,7 @@ struct MediaSurfacePresentation: Equatable, Sendable {
   let canSeek: Bool
   let elapsedLabel: String?
   let remainingLabel: String?
+  let canHideSource: Bool
   let primaryActions: [MediaSurfaceAction]
   let secondaryAction: MediaSurfaceAction?
   let appearance: MediaSurfaceAppearance
@@ -25,7 +27,11 @@ struct MediaSurfacePresentation: Equatable, Sendable {
     sessionID = payload.sessionID
     title = session?.title ?? "正在播放"
     artist = session?.artist
-    applicationName = session?.applicationName
+    album =
+      payload.appearance.showsMediaTitleExtras ? session?.album : nil
+    applicationName =
+      payload.appearance.showsMediaTitleExtras
+      ? session?.applicationName : nil
     artworkData = session?.artworkData
     isPlaying = payload.playbackState == .playing
     isExpanded = payload.isExpanded
@@ -35,6 +41,10 @@ struct MediaSurfacePresentation: Equatable, Sendable {
     progress = session?.progress
     duration = session?.duration
     canSeek = session?.capabilities.contains(.seek) == true
+    canHideSource =
+      session?.sourceBundleIdentifier.map(
+        MediaPreferences.isPersistableBundleIdentifier
+      ) == true
 
     if let progress,
       let duration,
@@ -63,10 +73,20 @@ struct MediaSurfacePresentation: Equatable, Sendable {
     primaryActions = actions
 
     switch payload.appearance.secondaryAction {
+    case .favorite where capabilities.contains(.favorite):
+      secondaryAction = .favorite
     case .shuffle where capabilities.contains(.shuffle):
       secondaryAction = .shuffle
     case .repeatMode where capabilities.contains(.repeatMode):
       secondaryAction = .repeatMode
+    case .repeatOne where capabilities.contains(.repeatOne):
+      secondaryAction = .repeatOne
+    case .copySource:
+      if let publicShareURL = session?.publicShareURL {
+        secondaryAction = .copySource(publicShareURL)
+      } else {
+        secondaryAction = nil
+      }
     default:
       secondaryAction = nil
     }
@@ -102,6 +122,7 @@ struct MediaSurfaceView: View {
         compactContent(artwork: artwork)
       }
     }
+    .animation(artworkAnimation, value: payload.contentRevision)
     .foregroundStyle(.white)
     .frame(width: surfaceSize.width, height: surfaceSize.height)
     .background { mediaBackground(artwork: artwork) }
@@ -182,6 +203,8 @@ struct MediaSurfaceView: View {
     }
     .frame(width: 28, height: 28)
     .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+    .id(payload.contentRevision)
+    .transition(artworkTransition)
   }
 
   private var compactMetadata: some View {
@@ -190,10 +213,14 @@ struct MediaSurfaceView: View {
         .font(.caption.weight(.semibold))
         .lineLimit(1)
       if let artist = presentation.artist {
-        Text(artist)
-          .font(.caption2)
-          .foregroundStyle(.white.opacity(0.58))
-          .lineLimit(1)
+        Text(
+          [artist, presentation.album]
+            .compactMap { $0 }
+            .joined(separator: " · ")
+        )
+        .font(.caption2)
+        .foregroundStyle(.white.opacity(0.58))
+        .lineLimit(1)
       }
     }
   }
@@ -233,18 +260,26 @@ struct MediaSurfaceView: View {
               .foregroundStyle(.white.opacity(0.64))
               .lineLimit(1)
           }
+          if let album = presentation.album {
+            Text(album)
+              .font(.caption)
+              .foregroundStyle(.white.opacity(0.44))
+              .lineLimit(1)
+          }
         }
         Spacer(minLength: 0)
-        Button {
-          onAction(.hideSource)
-        } label: {
-          Image(systemName: "xmark")
-            .font(.system(size: 9, weight: .bold))
-            .frame(width: 24, height: 24)
-            .background(.white.opacity(0.08), in: Circle())
+        if presentation.canHideSource {
+          Button {
+            onAction(.hideSource)
+          } label: {
+            Image(systemName: "xmark")
+              .font(.system(size: 9, weight: .bold))
+              .frame(width: 24, height: 24)
+              .background(.white.opacity(0.08), in: Circle())
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel("隐藏当前媒体来源")
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("隐藏当前媒体来源")
       }
 
       if let progress = presentation.progressFraction {
@@ -378,8 +413,11 @@ struct MediaSurfaceView: View {
     case .next: "forward.fill"
     case .seek: "slider.horizontal.3"
     case .hideSource: "xmark"
+    case .favorite: "heart"
     case .shuffle: "shuffle"
     case .repeatMode: "repeat"
+    case .repeatOne: "repeat.1"
+    case .copySource: "doc.on.doc"
     }
   }
 
@@ -390,8 +428,11 @@ struct MediaSurfaceView: View {
     case .next: "下一首"
     case .seek: "调整播放进度"
     case .hideSource: "隐藏来源"
+    case .favorite: "收藏"
     case .shuffle: "随机播放"
     case .repeatMode: "循环模式"
+    case .repeatOne: "单曲循环"
+    case .copySource: "复制来源链接"
     }
   }
 
@@ -402,9 +443,35 @@ struct MediaSurfaceView: View {
     case .next: "next"
     case .seek: "seek"
     case .hideSource: "hideSource"
+    case .favorite: "favorite"
     case .shuffle: "shuffle"
     case .repeatMode: "repeat"
+    case .repeatOne: "repeatOne"
+    case .copySource: "copySource"
     }
+  }
+
+  private var artworkAnimation: Animation? {
+    guard presentation.appearance.showsArtworkFlip, !reduceMotion else {
+      return .easeInOut(duration: 0.12)
+    }
+    return .easeInOut(duration: 0.46)
+  }
+
+  private var artworkTransition: AnyTransition {
+    guard presentation.appearance.showsArtworkFlip, !reduceMotion else {
+      return .opacity
+    }
+    return .asymmetric(
+      insertion: .modifier(
+        active: ArtworkFlipModifier(angle: -88, opacity: 0.25),
+        identity: ArtworkFlipModifier(angle: 0, opacity: 1)
+      ),
+      removal: .modifier(
+        active: ArtworkFlipModifier(angle: 88, opacity: 0),
+        identity: ArtworkFlipModifier(angle: 0, opacity: 1)
+      )
+    )
   }
 
   private func mediaBackground(artwork: CGImage?) -> some View {
@@ -454,5 +521,20 @@ struct MediaSurfaceView: View {
     [presentation.title, presentation.artist, presentation.applicationName]
       .compactMap { $0 }
       .joined(separator: "，")
+  }
+}
+
+private struct ArtworkFlipModifier: ViewModifier {
+  let angle: Double
+  let opacity: Double
+
+  func body(content: Content) -> some View {
+    content
+      .rotation3DEffect(
+        .degrees(angle),
+        axis: (x: 0, y: 1, z: 0),
+        perspective: 0.72
+      )
+      .opacity(opacity)
   }
 }
