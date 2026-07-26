@@ -98,6 +98,13 @@
 		100000000000000000000044 /* SettingsSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000046 /* SettingsSidebarView.swift */; };
 		100000000000000000000045 /* FocusSurfaceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000047 /* FocusSurfaceSettingsView.swift */; };
 		100000000000000000000046 /* SurfacePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000048 /* SurfacePreview.swift */; };
+		A42000000000000000000001 /* CalendarEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41000000000000000000001 /* CalendarEvent.swift */; };
+		A42000000000000000000002 /* CalendarEventProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41000000000000000000002 /* CalendarEventProviding.swift */; };
+		A42000000000000000000003 /* EventKitCalendarAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41000000000000000000003 /* EventKitCalendarAdapter.swift */; };
+		A42000000000000000000004 /* CalendarSessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41000000000000000000004 /* CalendarSessionCoordinator.swift */; };
+		A42000000000000000000005 /* CalendarPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41000000000000000000005 /* CalendarPreferences.swift */; };
+		A42000000000000000000006 /* CalendarSessionCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41000000000000000000006 /* CalendarSessionCoordinatorTests.swift */; };
+		A42000000000000000000007 /* CalendarPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41000000000000000000007 /* CalendarPreferencesTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -229,6 +236,14 @@
 		20000000000000000000007C /* SurfaceNavigationCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceNavigationCoordinatorTests.swift; sourceTree = "<group>"; };
 		20000000000000000000007D /* SurfaceGestureRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceGestureRecognizer.swift; sourceTree = "<group>"; };
 		20000000000000000000007E /* SurfaceGestureRecognizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceGestureRecognizerTests.swift; sourceTree = "<group>"; };
+		A41000000000000000000001 /* CalendarEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarEvent.swift; sourceTree = "<group>"; };
+		A41000000000000000000002 /* CalendarEventProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarEventProviding.swift; sourceTree = "<group>"; };
+		A41000000000000000000003 /* EventKitCalendarAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventKitCalendarAdapter.swift; sourceTree = "<group>"; };
+		A41000000000000000000004 /* CalendarSessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSessionCoordinator.swift; sourceTree = "<group>"; };
+		A41000000000000000000005 /* CalendarPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarPreferences.swift; sourceTree = "<group>"; };
+		A41000000000000000000006 /* CalendarSessionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSessionCoordinatorTests.swift; sourceTree = "<group>"; };
+		A41000000000000000000007 /* CalendarPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarPreferencesTests.swift; sourceTree = "<group>"; };
+		A41000000000000000000008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -285,6 +300,7 @@
 				400000000000000000000012 /* Features */,
 				400000000000000000000008 /* Overlay */,
 				400000000000000000000015 /* Persistence */,
+				A43000000000000000000001 /* Calendar */,
 				400000000000000000000018 /* Resources */,
 				400000000000000000000020 /* Media */,
 				200000000000000000000065 /* Keep3.entitlements */,
@@ -345,6 +361,7 @@
 				400000000000000000000007 /* Overlay */,
 				400000000000000000000014 /* Persistence */,
 				400000000000000000000019 /* Media */,
+				A43000000000000000000002 /* Calendar */,
 			);
 			path = Keep3Tests;
 			sourceTree = "<group>";
@@ -459,6 +476,7 @@
 				200000000000000000000033 /* AppPreferencesTests.swift */,
 				200000000000000000000020 /* JSONStateStoreTests.swift */,
 				200000000000000000000067 /* MediaPreferencesTests.swift */,
+				A41000000000000000000007 /* CalendarPreferencesTests.swift */,
 			);
 			path = Persistence;
 			sourceTree = "<group>";
@@ -470,6 +488,7 @@
 				200000000000000000000021 /* StateStore.swift */,
 				200000000000000000000022 /* JSONStateStore.swift */,
 				200000000000000000000062 /* MediaPreferences.swift */,
+				A41000000000000000000005 /* CalendarPreferences.swift */,
 			);
 			path = Persistence;
 			sourceTree = "<group>";
@@ -498,6 +517,7 @@
 			isa = PBXGroup;
 			children = (
 				200000000000000000000040 /* Assets.xcassets */,
+				A41000000000000000000008 /* Info.plist */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -519,6 +539,25 @@
 				200000000000000000000059 /* Keep3MediaService.xpc */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A43000000000000000000001 /* Calendar */ = {
+			isa = PBXGroup;
+			children = (
+				A41000000000000000000001 /* CalendarEvent.swift */,
+				A41000000000000000000002 /* CalendarEventProviding.swift */,
+				A41000000000000000000003 /* EventKitCalendarAdapter.swift */,
+				A41000000000000000000004 /* CalendarSessionCoordinator.swift */,
+			);
+			path = Calendar;
+			sourceTree = "<group>";
+		};
+		A43000000000000000000002 /* Calendar */ = {
+			isa = PBXGroup;
+			children = (
+				A41000000000000000000006 /* CalendarSessionCoordinatorTests.swift */,
+			);
+			path = Calendar;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -748,6 +787,11 @@
 				10000000000000000000007B /* SurfaceComponent.swift in Sources */,
 				10000000000000000000007C /* SurfaceNavigationCoordinator.swift in Sources */,
 				10000000000000000000007E /* SurfaceGestureRecognizer.swift in Sources */,
+				A42000000000000000000001 /* CalendarEvent.swift in Sources */,
+				A42000000000000000000002 /* CalendarEventProviding.swift in Sources */,
+				A42000000000000000000003 /* EventKitCalendarAdapter.swift in Sources */,
+				A42000000000000000000004 /* CalendarSessionCoordinator.swift in Sources */,
+				A42000000000000000000005 /* CalendarPreferences.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -784,6 +828,8 @@
 				10000000000000000000007A /* MediaSurfaceInteractionModelTests.swift in Sources */,
 				10000000000000000000007D /* SurfaceNavigationCoordinatorTests.swift in Sources */,
 				10000000000000000000007F /* SurfaceGestureRecognizerTests.swift in Sources */,
+				A42000000000000000000006 /* CalendarSessionCoordinatorTests.swift in Sources */,
+				A42000000000000000000007 /* CalendarPreferencesTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -928,9 +974,8 @@
 				CODE_SIGNING_ALLOWED = YES;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Keep3 uses Automation only after you explicitly enable provider enhancements.";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Keep3/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -951,9 +996,8 @@
 				CODE_SIGNING_ALLOWED = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Keep3 uses Automation only after you explicitly enable provider enhancements.";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Keep3/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
