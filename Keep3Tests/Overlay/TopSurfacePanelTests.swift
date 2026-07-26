@@ -654,6 +654,176 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertEqual(panel.liveHostedLayerCount, 2)
   }
 
+  func testRapidRetargetPreservesOriginalVisualSourceAndHandoffProgress()
+    throws
+  {
+    let frame = CGRect(x: 0, y: 0, width: 360, height: 216)
+    let focusSnapshot = TopSurfaceHostSnapshot(
+      content: .focus(try makeContent(title: "Focus")),
+      presentationStyle: .floatingCapsule,
+      panelSize: frame.size,
+      surfaceFrameInPanel: frame
+    )
+    let state = TopSurfaceHostState(initialSnapshot: focusSnapshot)
+
+    state.update(
+      snapshot: TopSurfaceHostSnapshot(
+        content: .media(
+          MediaSurfacePayload(
+            sessionID: "session-1",
+            contentRevision: 1,
+            isExpanded: false,
+            areControlsEnabled: true
+          )
+        ),
+        presentationStyle: .floatingCapsule,
+        panelSize: frame.size,
+        surfaceFrameInPanel: frame
+      ),
+      intent: .manualComponent(.next),
+      reduceMotion: false
+    )
+    let firstHandoffGeneration = state.handoffStartGeneration
+
+    state.update(
+      snapshot: TopSurfaceHostSnapshot(
+        content: .calendar(
+          CalendarSurfacePayload(
+            state: .content(
+              events: [],
+              isRefreshing: false,
+              refreshFailure: nil
+            ),
+            level: .compact,
+            revision: 1
+          )
+        ),
+        presentationStyle: .floatingCapsule,
+        panelSize: frame.size,
+        surfaceFrameInPanel: frame
+      ),
+      intent: .manualComponent(.next),
+      reduceMotion: false
+    )
+
+    XCTAssertEqual(state.sourceSnapshot, focusSnapshot)
+    XCTAssertEqual(
+      state.handoffStartGeneration,
+      firstHandoffGeneration
+    )
+    XCTAssertGreaterThan(
+      state.shellGeneration,
+      firstHandoffGeneration
+    )
+    XCTAssertEqual(state.liveLayerCount, 2)
+  }
+
+  func testSameIdentityLayoutChangePublishesLayoutOnlyVisualUpdate() {
+    let compactFrame = CGRect(x: 40, y: 172, width: 280, height: 44)
+    let peekFrame = CGRect(x: 8, y: 152, width: 344, height: 64)
+    let initialSnapshot = TopSurfaceHostSnapshot(
+      content: .media(
+        MediaSurfacePayload(
+          sessionID: "session-1",
+          contentRevision: 1,
+          isExpanded: false,
+          areControlsEnabled: true
+        )
+      ),
+      presentationStyle: .floatingCapsule,
+      panelSize: CGSize(width: 360, height: 216),
+      surfaceFrameInPanel: compactFrame
+    )
+    let state = TopSurfaceHostState(initialSnapshot: initialSnapshot)
+
+    state.update(
+      snapshot: TopSurfaceHostSnapshot(
+        content: .media(
+          MediaSurfacePayload(
+            sessionID: "session-1",
+            contentRevision: 2,
+            isExpanded: false,
+            areControlsEnabled: true,
+            trackPeek: MediaTrackPeek(
+              direction: .next,
+              title: "Next",
+              artist: "Artist"
+            )
+          )
+        ),
+        presentationStyle: .floatingCapsule,
+        panelSize: CGSize(width: 360, height: 216),
+        surfaceFrameInPanel: peekFrame
+      ),
+      intent: .content,
+      reduceMotion: false
+    )
+
+    XCTAssertEqual(state.transitionContext.phase, .settled)
+    XCTAssertEqual(state.liveLayerCount, 1)
+    XCTAssertEqual(state.layoutOnlyGeneration, state.shellGeneration)
+    XCTAssertEqual(state.snapshot.layout.surfaceFrameInPanel, peekFrame)
+  }
+
+  func testComponentActionRouterWaitsForTransitionSettlement() throws {
+    let frame = CGRect(x: 0, y: 0, width: 360, height: 216)
+    let state = TopSurfaceHostState(
+      initialSnapshot: TopSurfaceHostSnapshot(
+        content: .focus(try makeContent(title: "Focus")),
+        presentationStyle: .floatingCapsule,
+        panelSize: frame.size,
+        surfaceFrameInPanel: frame
+      )
+    )
+    var browsed: [TopSurfaceBrowseDirection] = []
+    var mediaActions: [MediaSurfaceAction] = []
+    var shellNavigation: [SurfaceGestureIntent] = []
+    let router = TopSurfaceActionRouter(
+      onActivateSurface: {},
+      onRequestKeyboardNavigation: {},
+      onSurfaceNavigation: { shellNavigation.append($0) },
+      onNavigate: { browsed.append($0) },
+      onOpenItem: {},
+      onMediaAction: { mediaActions.append($0) },
+      areComponentControlsEnabled: {
+        state.transitionContext.phase == .settled
+      },
+      onAccessibilityNavigationAction: { _ in }
+    )
+    state.update(
+      snapshot: TopSurfaceHostSnapshot(
+        content: .media(
+          MediaSurfacePayload(
+            sessionID: "session-1",
+            contentRevision: 1,
+            isExpanded: false,
+            areControlsEnabled: true
+          )
+        ),
+        presentationStyle: .floatingCapsule,
+        panelSize: frame.size,
+        surfaceFrameInPanel: frame
+      ),
+      intent: .manualComponent(.next),
+      reduceMotion: false
+    )
+
+    router.navigate(.next)
+    router.performMediaAction(.next)
+    router.navigateSurface(.nextComponent)
+
+    XCTAssertEqual(browsed, [])
+    XCTAssertEqual(mediaActions, [])
+    XCTAssertEqual(shellNavigation, [.nextComponent])
+
+    state.complete(shellGeneration: state.shellGeneration)
+    router.navigate(.next)
+    router.performMediaAction(.next)
+
+    XCTAssertEqual(browsed, [.next])
+    XCTAssertEqual(mediaActions, [.next])
+  }
+
   func testShellNavigationRemainsAvailableWhileControlsAreInert() throws {
     let frame = CGRect(x: 0, y: 0, width: 360, height: 216)
     var navigation: [SurfaceGestureIntent] = []
@@ -843,6 +1013,59 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertEqual(
       state.rendererContext.accessibilityFocusRequest,
       state.accessibilityFocusRequest
+    )
+  }
+
+  func testAccessibilityInteractionPinsOnlyUntilItsHandoffSettles() {
+    let frame = CGRect(x: 0, y: 0, width: 360, height: 216)
+    let state = TopSurfaceHostState(
+      initialSnapshot: TopSurfaceHostSnapshot(
+        content: .media(
+          MediaSurfacePayload(
+            sessionID: "session-1",
+            contentRevision: 1,
+            isExpanded: true,
+            areControlsEnabled: true
+          )
+        ),
+        presentationStyle: .floatingCapsule,
+        panelSize: frame.size,
+        surfaceFrameInPanel: frame
+      )
+    )
+    var deferralChanges: [Bool] = []
+    state.onAccessibilityInteractionChanged = {
+      deferralChanges.append($0)
+    }
+
+    state.requestAccessibilityFocus(
+      for: .expandedRetreat(for: .media)
+    )
+    state.update(
+      snapshot: TopSurfaceHostSnapshot(
+        content: .media(
+          MediaSurfacePayload(
+            sessionID: "session-1",
+            contentRevision: 1,
+            isExpanded: false,
+            areControlsEnabled: true
+          )
+        ),
+        presentationStyle: .floatingCapsule,
+        panelSize: frame.size,
+        surfaceFrameInPanel: frame
+      ),
+      intent: .collapse,
+      reduceMotion: false
+    )
+
+    XCTAssertEqual(deferralChanges, [true])
+    state.complete(shellGeneration: state.shellGeneration)
+
+    XCTAssertEqual(deferralChanges, [true, false])
+    XCTAssertEqual(
+      state.accessibilityFocusRequest?.destination,
+      .compactMedia
     )
   }
 

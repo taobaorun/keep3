@@ -35,7 +35,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var calendarState: CalendarSessionState = .disabled
   private var calendarRevision: UInt64 = 0
   private var calendarStoreObserver: NSObjectProtocol?
-  private var voiceOverObservation: NSKeyValueObservation?
   private lazy var editorWindowController = EditorWindowController(
     model: appModel,
     preferences: preferences,
@@ -139,18 +138,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         reason: reason
       )
     }
-    voiceOverObservation = NSWorkspace.shared.observe(
-      \.isVoiceOverEnabled,
-      options: [.initial, .new]
-    ) { [weak self] workspace, _ in
-      let isEnabled = workspace.isVoiceOverEnabled
-      Task { @MainActor [weak self] in
-        self?.surfaceNavigationCoordinator.setAutomaticTransitionDeferred(
-          isEnabled,
-          reason: .voiceOver
-        )
-      }
-    }
     displayLifecycleObserver.start()
     workspaceApplicationObserver.start()
     calendarStoreObserver = NotificationCenter.default.addObserver(
@@ -204,7 +191,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationWillTerminate(_ notification: Notification) {
     displayLifecycleObserver.stop()
     workspaceApplicationObserver.stop()
-    voiceOverObservation = nil
     if let calendarStoreObserver {
       NotificationCenter.default.removeObserver(calendarStoreObserver)
       self.calendarStoreObserver = nil
@@ -514,7 +500,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mediaSessionID:
           navigation.selectedComponent == .media
           ? sourceMediaPayload?.sessionID : nil,
-        interactionFrameInScreen: interactionFrame
+        interactionFrameInScreen: interactionFrame,
+        componentControlsEnabled:
+          topSurfaceController.areComponentControlsEnabled
       )
     )
   }

@@ -72,8 +72,8 @@ an explicit personal-build exception and is not Mac App Store compatible.
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Focused transition coverage | Pass | 123 tests cover latest-wins retargeting, two-layer bounds, hover geometry, automatic deferral, focus transfer, and Media/Calendar invariants |
-| Full unit suite | Pass | 241 executed, 240 passed, 1 live-media snapshot probe skipped, 0 failed |
+| Focused transition coverage | Pass | 123 tests passed before review; 64 focused tests passed after adding in-flight retarget, layout-only shell update, bounded VoiceOver ownership, and gesture-gating regressions |
+| Full unit suite | Pass | 247 executed, 246 passed, 1 live-media snapshot probe skipped, 0 failed |
 | Static analysis | Pass | Debug analyzer completed without findings |
 | arm64 Release build | Pass | The optimized application built and launched from the isolated build product |
 | Stable native host | Pass | The Release process retained one 377×216 top panel at the physical top edge; QA state, defaults, and process were cleaned up |

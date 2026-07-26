@@ -15,6 +15,10 @@ final class TopSurfaceController {
     return panel.convertToScreen(panel.presentedSurfaceFrameInPanel)
   }
 
+  var areComponentControlsEnabled: Bool {
+    panel?.areComponentControlsEnabled ?? false
+  }
+
   func showOnPrimaryDisplay(
     content: TopSurfaceContent,
     metrics: SurfaceMetrics = .standard,
@@ -386,6 +390,10 @@ final class TopSurfaceController {
     panel.onPointerInteractionChanged = { [weak self] isActive in
       self?.onAutomaticTransitionDeferralChange(.pointerDown, isActive)
     }
+    panel.onAccessibilityInteractionChanged = {
+      [weak self] isActive in
+      self?.onAutomaticTransitionDeferralChange(.voiceOver, isActive)
+    }
   }
 
   func reposition(frame: CGRect) {
@@ -406,6 +414,7 @@ final class TopSurfaceController {
     panel?.setKeyboardNavigationEnabled(false)
     onAutomaticTransitionDeferralChange(.pointerDown, false)
     onAutomaticTransitionDeferralChange(.keyboardNavigation, false)
+    onAutomaticTransitionDeferralChange(.voiceOver, false)
     panel?.cancelTransitionForLifecycle()
     panel?.orderOut(nil)
     panel = nil

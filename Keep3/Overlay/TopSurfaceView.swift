@@ -321,6 +321,18 @@ struct SurfaceAccessibilityNavigationAction: Equatable, Sendable {
       announcement: nil
     )
   }
+
+  static func navigation(
+    name: String,
+    intent: SurfaceGestureIntent
+  ) -> Self {
+    Self(
+      name: name,
+      intent: intent,
+      focusDestination: nil,
+      announcement: nil
+    )
+  }
 }
 
 struct SurfaceAccessibilityNavigationModifier: ViewModifier {
@@ -347,31 +359,56 @@ struct SurfaceAccessibilityNavigationModifier: ViewModifier {
   func body(content: Content) -> some View {
     switch level {
     case .hardware:
+      let action = SurfaceAccessibilityNavigationAction.navigation(
+        name: String(localized: "展开一级"),
+        intent: .advanceDepth
+      )
       content.accessibilityAction(named: Text("展开一级")) {
-        onNavigate(.advanceDepth)
+        perform(action)
       }
     case .compact:
+      let advanceAction =
+        SurfaceAccessibilityNavigationAction.navigation(
+          name: String(localized: "展开一级"),
+          intent: .advanceDepth
+        )
+      let retreatAction =
+        SurfaceAccessibilityNavigationAction.navigation(
+          name: String(localized: "收起一级"),
+          intent: .retreatDepth
+        )
       content
         .accessibilityAction(named: Text("展开一级")) {
-          onNavigate(.advanceDepth)
+          perform(advanceAction)
         }
         .accessibilityAction(named: Text("收起一级")) {
-          onNavigate(.retreatDepth)
+          perform(retreatAction)
         }
     case .expanded:
+      let advanceAction =
+        SurfaceAccessibilityNavigationAction.navigation(
+          name: String(localized: "下一个组件"),
+          intent: .advanceDepth
+        )
       let retreatAction =
         SurfaceAccessibilityNavigationAction.expandedRetreat(
           for: component
         )
       content
         .accessibilityAction(named: Text("下一个组件")) {
-          onNavigate(.advanceDepth)
+          perform(advanceAction)
         }
         .accessibilityAction(named: Text(retreatAction.name)) {
-          onNavigate(retreatAction.intent)
-          onActionPerformed(retreatAction)
+          perform(retreatAction)
         }
     }
+  }
+
+  private func perform(
+    _ action: SurfaceAccessibilityNavigationAction
+  ) {
+    onActionPerformed(action)
+    onNavigate(action.intent)
   }
 }
 
@@ -385,6 +422,10 @@ struct TopSurfaceView: View {
   let onSurfaceNavigation: (SurfaceGestureIntent) -> Void
   let onNavigate: (TopSurfaceBrowseDirection) -> Void
   let onOpenItem: () -> Void
+  var onAccessibilityNavigationAction:
+    (
+      SurfaceAccessibilityNavigationAction
+    ) -> Void = { _ in }
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.accessibilityReduceTransparency) private
@@ -403,7 +444,8 @@ struct TopSurfaceView: View {
         SurfaceAccessibilityNavigationModifier(
           component: .priorities,
           level: content.level,
-          onNavigate: onSurfaceNavigation
+          onNavigate: onSurfaceNavigation,
+          onActionPerformed: onAccessibilityNavigationAction
         )
       )
   }

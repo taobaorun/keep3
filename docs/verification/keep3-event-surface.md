@@ -45,7 +45,8 @@ The 2026-07-27 correction keeps a single host and action router alive across
 priority, Media, Calendar, compact, and expanded presentations. Manual component
 navigation carries direction; automatic takeover and fallback remain neutral.
 Newer targets retarget the current presentation, content-only revisions
-coalesce, and stale generations cannot replay after lifecycle recovery.
+coalesce, same-component geometry revisions animate the shell in place, and
+stale generations cannot replay after lifecycle recovery.
 
 Deterministic coverage proves:
 
@@ -54,16 +55,17 @@ Deterministic coverage proves:
 - automatic selection waits for pointer, keyboard, VoiceOver, and command pins,
   then recomputes the newest eligible target;
 - shell navigation remains available while outgoing and incoming component
-  controls are inert;
+  controls and horizontal Media gestures are inert;
 - accessibility focus moves only after the destination settles, using the
-  equivalent compact control or the settled component container;
+  equivalent compact control or the settled component container, and the
+  VoiceOver interaction pin is then released;
 - notched and floating hover ownership follow current presentation geometry
   rather than the destination union.
 
-The full current run executed 241 unit tests with 0 failures and one
-live-environment skip. Static analysis and the arm64 Release build passed. The
-new UI outcome scenario compiled, but macOS cancelled XCUITest initialization
-while system authentication was active.
+The post-review focused run passed 64 tests. The full current run executed 247
+unit tests with 0 failures and one live-environment skip. Static analysis and
+the arm64 Release build passed. The new UI outcome scenario compiled, but macOS
+cancelled XCUITest initialization while system authentication was active.
 
 ## Media correction evidence
 

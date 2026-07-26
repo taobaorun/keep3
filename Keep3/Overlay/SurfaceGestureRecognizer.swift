@@ -26,19 +26,22 @@ struct SurfaceGestureContext: Equatable, Sendable {
   let generation: UInt64
   let mediaSessionID: String?
   let interactionFrameInScreen: CGRect
+  let componentControlsEnabled: Bool
 
   init(
     component: SurfaceComponentID,
     level: SurfaceLevel,
     generation: UInt64,
     mediaSessionID: String? = nil,
-    interactionFrameInScreen: CGRect = .infinite
+    interactionFrameInScreen: CGRect = .infinite,
+    componentControlsEnabled: Bool = true
   ) {
     self.component = component
     self.level = level
     self.generation = generation
     self.mediaSessionID = mediaSessionID
     self.interactionFrameInScreen = interactionFrameInScreen
+    self.componentControlsEnabled = componentControlsEnabled
   }
 }
 
@@ -157,7 +160,10 @@ struct SurfaceGestureRecognizer {
     }
     switch lockedAxis {
     case .horizontal:
-      guard context.component == .media, context.mediaSessionID != nil else {
+      guard context.componentControlsEnabled,
+        context.component == .media,
+        context.mediaSessionID != nil
+      else {
         return nil
       }
       armedIntent = accumulatedX < 0 ? .previousTrack : .nextTrack

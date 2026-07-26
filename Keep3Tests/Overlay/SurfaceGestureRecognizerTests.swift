@@ -184,6 +184,43 @@ final class SurfaceGestureRecognizerTests: XCTestCase {
     )
   }
 
+  func testTransitioningMediaBlocksTrackGestureButKeepsShellNavigation() {
+    var recognizer = SurfaceGestureRecognizer()
+    recognizer.updateContext(
+      .init(
+        component: .media,
+        level: .expanded,
+        generation: 1,
+        mediaSessionID: "session-1",
+        componentControlsEnabled: false
+      )
+    )
+
+    XCTAssertEqual(
+      recognizer.recognize(event(x: 30, phase: .began)),
+      .none
+    )
+    XCTAssertEqual(
+      recognizer.recognize(event(phase: .ended)),
+      .none
+    )
+
+    XCTAssertEqual(
+      recognizer.recognize(event(y: 30, phase: .began)),
+      SurfaceGestureRecognition(
+        feedbackIntent: .nextComponent,
+        committedIntent: nil
+      )
+    )
+    XCTAssertEqual(
+      recognizer.recognize(event(phase: .ended)),
+      SurfaceGestureRecognition(
+        feedbackIntent: nil,
+        committedIntent: .nextComponent
+      )
+    )
+  }
+
   func testDominantAxisLocksAndContextChangeCancelsGesture() {
     var recognizer = SurfaceGestureRecognizer()
     recognizer.updateContext(

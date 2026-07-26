@@ -188,18 +188,25 @@ Verification date: 2026-07-27
   Reduce Motion crossfade 120 ms.
 - Transition generations are latest-wins. Content revisions coalesce without
   restarting shell motion, rapid component retargets retain at most two content
-  layers, and stale completions cannot restore an intermediate target.
+  layers, preserve the in-flight visual source, and stale completions cannot
+  restore an intermediate target. Same-component layout revisions animate the
+  persistent shell without creating a second content layer.
 - Automatic takeover and fallback defer while pointer-down, explicit keyboard
-  navigation, VoiceOver, or a component command owns the interaction.
+  navigation, a bounded VoiceOver action, or a component command owns the
+  interaction. VoiceOver ownership is released after focus reaches the settled
+  destination rather than remaining active for the lifetime of the assistive
+  technology session.
 - Hover intent is 140 ms, exit grace is 220 ms, a notched display keeps the
   physical top-edge corridor, and a floating surface uses the current clipped
   silhouette with 8 points of exit slop.
+- Component controls and horizontal Media gestures stay inert until a handoff
+  settles, while shell-level vertical navigation remains available.
 
 | Gate | Result | Evidence |
 |---|---|---|
 | Strict formatting | Pass | Recursive Swift format lint and `git diff --check` report no findings |
-| Focused continuity suites | Pass | 123 transition, navigation, geometry, gesture, interaction, Media, and Calendar tests passed before release reconciliation |
-| Full unit suite | Pass | 241 executed, 240 passed, 1 live-media probe skipped because no current system session published a snapshot, 0 failed |
+| Focused continuity suites | Pass | 123 transition, navigation, geometry, gesture, interaction, Media, and Calendar tests passed before review; 64 focused tests passed after the review corrections |
+| Full unit suite | Pass | 247 executed, 246 passed, 1 live-media probe skipped because no current system session published a snapshot, 0 failed |
 | Static analysis | Pass | Debug `xcodebuild analyze` completed without findings |
 | arm64 Release build | Pass | Optimized application and embedded media service built successfully |
 | UI automation execution | Session-state exception | The new depth/component identifier scenario compiled, but macOS cancelled the runner before assertions because system authentication was active |

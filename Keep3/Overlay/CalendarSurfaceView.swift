@@ -142,6 +142,10 @@ struct CalendarSurfaceView: View {
   let onActivateSurface: () -> Void
   let onRequestKeyboardNavigation: () -> Void
   let onSurfaceNavigation: (SurfaceGestureIntent) -> Void
+  var onAccessibilityNavigationAction:
+    (
+      SurfaceAccessibilityNavigationAction
+    ) -> Void = { _ in }
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -190,7 +194,8 @@ struct CalendarSurfaceView: View {
       SurfaceAccessibilityNavigationModifier(
         component: .calendar,
         level: payload.level,
-        onNavigate: onSurfaceNavigation
+        onNavigate: onSurfaceNavigation,
+        onActionPerformed: onAccessibilityNavigationAction
       )
     )
   }
