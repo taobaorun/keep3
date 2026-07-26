@@ -150,6 +150,18 @@ final class TopSurfacePanelTests: XCTestCase {
     )
   }
 
+  func testHoverEffectSlightlyEnlargesTheCapsule() {
+    let resting = TopSurfaceHoverEffect(isActive: false)
+    let hovered = TopSurfaceHoverEffect(isActive: true)
+
+    XCTAssertEqual(resting.scaleX, 1)
+    XCTAssertEqual(resting.scaleY, 1)
+    XCTAssertGreaterThan(hovered.scaleX, resting.scaleX)
+    XCTAssertGreaterThan(hovered.scaleY, resting.scaleY)
+    XCTAssertLessThanOrEqual(hovered.scaleX, 1.03)
+    XCTAssertLessThanOrEqual(hovered.scaleY, 1.06)
+  }
+
   func testHoverRegionStaysEnteredWhenTheSurfaceExpandsUnderThePointer() {
     var region = TopSurfaceHoverRegion(
       activeFrame: CGRect(x: 79.5, y: 184, width: 185, height: 32)

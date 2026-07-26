@@ -6,6 +6,7 @@ final class SurfaceModeCoordinator {
 
   private let scheduler: any AppTimerScheduling
   private let onPresentation: (TopSurfacePresentation) -> Void
+  private let onFocusPayloadChange: (FocusSurfacePayload) -> Void
   private let onMediaOwnershipChange: (Bool) -> Void
 
   private var focusPayload: FocusSurfacePayload?
@@ -38,10 +39,12 @@ final class SurfaceModeCoordinator {
   init(
     scheduler: any AppTimerScheduling = TaskAppTimerScheduler(),
     onPresentation: @escaping (TopSurfacePresentation) -> Void,
+    onFocusPayloadChange: @escaping (FocusSurfacePayload) -> Void = { _ in },
     onMediaOwnershipChange: @escaping (Bool) -> Void = { _ in }
   ) {
     self.scheduler = scheduler
     self.onPresentation = onPresentation
+    self.onFocusPayloadChange = onFocusPayloadChange
     self.onMediaOwnershipChange = onMediaOwnershipChange
   }
 
@@ -64,6 +67,7 @@ final class SurfaceModeCoordinator {
       currentDesignatedFocusID = payload.visibleItemID
     }
     focusPayload = payload
+    onFocusPayloadChange(payload)
     generation &+= 1
     reconcile()
   }

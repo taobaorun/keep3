@@ -72,6 +72,7 @@ struct SurfaceNavigationState: Equatable, Sendable {
   let selectedComponent: SurfaceComponentID
   let selectionSource: SurfaceSelectionSource
   let level: SurfaceLevel
+  let isHovering: Bool
   let isHoverPreviewed: Bool
   let isPresented: Bool
   let generation: UInt64

@@ -9,8 +9,10 @@ final class SurfaceNavigationCoordinator {
   private var selectedComponent: SurfaceComponentID = .priorities
   private var selectionSource: SurfaceSelectionSource = .fallback
   private var level: SurfaceLevel = .hardware
+  private var isHovering = false
   private var isHoverPreviewed = false
   private var mediaSessionID: String?
+  private var manuallyDismissedMediaSessionID: String?
   private var isSurfaceAvailable = true
   private var isAwaitingReconciliation = false
   private var generation: UInt64 = 0
@@ -20,6 +22,7 @@ final class SurfaceNavigationCoordinator {
       selectedComponent: selectedComponent,
       selectionSource: selectionSource,
       level: level,
+      isHovering: isHovering,
       isHoverPreviewed: isHoverPreviewed,
       isPresented: isSurfaceAvailable && !isAwaitingReconciliation,
       generation: generation
@@ -72,6 +75,7 @@ final class SurfaceNavigationCoordinator {
     }
     selectedComponent = component
     selectionSource = .manual
+    recordManualMediaSelection()
     publish()
   }
 
@@ -98,6 +102,7 @@ final class SurfaceNavigationCoordinator {
       if isAvailable(candidate) {
         selectedComponent = candidate
         selectionSource = .manual
+        recordManualMediaSelection()
         return true
       }
     }
@@ -113,6 +118,9 @@ final class SurfaceNavigationCoordinator {
   }
 
   func setHovering(_ isHovering: Bool) {
+    let didHoverChange = self.isHovering != isHovering
+    self.isHovering = isHovering
+
     if !isHovering,
       selectedComponent == .media,
       level == .expanded
@@ -124,7 +132,7 @@ final class SurfaceNavigationCoordinator {
     }
 
     let shouldPreview = isHovering && level == .hardware
-    guard isHoverPreviewed != shouldPreview else {
+    guard didHoverChange || isHoverPreviewed != shouldPreview else {
       return
     }
     isHoverPreviewed = shouldPreview
@@ -189,11 +197,20 @@ final class SurfaceNavigationCoordinator {
   }
 
   func beginMediaSession(_ sessionID: String) {
-    guard mediaSessionID != sessionID else {
+    guard mediaSessionID != sessionID || !isAvailable(.media) else {
       return
     }
+    let preservesManualSelection =
+      mediaSessionID == sessionID
+      && manuallyDismissedMediaSessionID == sessionID
     mediaSessionID = sessionID
     availability[.media] = true
+    if preservesManualSelection {
+      selectionSource = .manual
+      publish()
+      return
+    }
+    manuallyDismissedMediaSessionID = nil
     selectedComponent = .media
     selectionSource = .automaticMedia
     publish()
@@ -210,7 +227,6 @@ final class SurfaceNavigationCoordinator {
     guard mediaSessionID == sessionID else {
       return
     }
-    mediaSessionID = nil
     availability[.media] = false
     if isAvailable(.priorities) {
       selectedComponent = .priorities
@@ -223,6 +239,14 @@ final class SurfaceNavigationCoordinator {
     isHoverPreviewed = false
     level = .compact
     publish()
+  }
+
+  private func recordManualMediaSelection() {
+    guard let mediaSessionID else {
+      return
+    }
+    manuallyDismissedMediaSessionID =
+      selectedComponent == .media ? nil : mediaSessionID
   }
 
   func setSurfaceAvailable(_ isAvailable: Bool) {
