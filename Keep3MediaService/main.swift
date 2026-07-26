@@ -28,8 +28,10 @@ private final class MediaRemoteServiceDelegate: NSObject, NSXPCListenerDelegate 
     service.attach(client: client)
     #if !DEBUG
       activeConnection = newConnection
-      newConnection.interruptionHandler = { [weak service] in
+      newConnection.interruptionHandler = {
+        [weak service, weak newConnection] in
         service?.invalidateClient()
+        newConnection?.invalidate()
       }
       newConnection.invalidationHandler = {
         [weak self, weak newConnection, weak service] in

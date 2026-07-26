@@ -113,6 +113,53 @@ final class CalendarSessionCoordinatorTests: XCTestCase {
     XCTAssertTrue(states.last?.events.isEmpty == true)
   }
 
+  func testRevocationDuringCachedRefreshClearsTitlesWhenQueryReturns() async {
+    let provider = CalendarFixtureProvider(status: .fullAccess)
+    provider.eventsResult = .success([
+      event("cached-title", start: 300, end: 600)
+    ])
+    var states: [CalendarSessionState] = []
+    let coordinator = CalendarSessionCoordinator(
+      provider: provider,
+      now: { self.now },
+      onStateChange: { states.append($0) }
+    )
+    coordinator.setEnabled(true)
+    await settle()
+
+    provider.suspendsQueries = true
+    coordinator.refresh()
+    await provider.waitUntilQueryStarts(count: 2)
+    provider.status = .denied
+    provider.resumeQuery(
+      with: [event("revoked-title", start: 900, end: 1_200)]
+    )
+    await settle()
+
+    XCTAssertEqual(states.last, .denied)
+    XCTAssertTrue(states.last?.events.isEmpty == true)
+  }
+
+  func testPermissionRequestFailurePublishesRecoverableEmptyState() async {
+    let provider = CalendarFixtureProvider(status: .notDetermined)
+    provider.requestError = .authorization
+    var states: [CalendarSessionState] = []
+    let coordinator = CalendarSessionCoordinator(
+      provider: provider,
+      now: { self.now },
+      onStateChange: { states.append($0) }
+    )
+    coordinator.setEnabled(true)
+    await settle()
+
+    coordinator.requestAccessFromSettings()
+    await settle()
+
+    XCTAssertEqual(states.last, .failed(.authorizationRequestFailed))
+    XCTAssertTrue(states.last?.events.isEmpty == true)
+    XCTAssertEqual(provider.queryCount, 0)
+  }
+
   func testEventKitProjectionDropsCancelledAndBoundsText() {
     let longTitle = String(repeating: "长", count: 300)
 
@@ -168,6 +215,7 @@ final class CalendarSessionCoordinatorTests: XCTestCase {
 
 private enum CalendarFixtureError: Error {
   case query
+  case authorization
 }
 
 @MainActor
@@ -176,12 +224,13 @@ private final class CalendarFixtureProvider: CalendarEventProviding {
   var statusAfterRequest: CalendarAuthorizationState?
   var eventsResult: Result<[CalendarEvent], Error> = .success([])
   var suspendsQueries = false
+  var requestError: CalendarFixtureError?
 
   private(set) var requestCount = 0
   private(set) var queryCount = 0
   private var queryStartContinuation: CheckedContinuation<Void, Never>?
+  private var expectedQueryCount = 1
   private var suspendedQueryContinuation: CheckedContinuation<[CalendarEvent], Error>?
-  private var hasStartedQuery = false
 
   init(status: CalendarAuthorizationState) {
     self.status = status
@@ -193,6 +242,9 @@ private final class CalendarFixtureProvider: CalendarEventProviding {
 
   func requestFullAccess() async throws -> Bool {
     requestCount += 1
+    if let requestError {
+      throw requestError
+    }
     if let statusAfterRequest {
       status = statusAfterRequest
     }
@@ -204,9 +256,10 @@ private final class CalendarFixtureProvider: CalendarEventProviding {
     through _: Date
   ) async throws -> [CalendarEvent] {
     queryCount += 1
-    hasStartedQuery = true
-    queryStartContinuation?.resume()
-    queryStartContinuation = nil
+    if queryCount >= expectedQueryCount {
+      queryStartContinuation?.resume()
+      queryStartContinuation = nil
+    }
     if suspendsQueries {
       return try await withCheckedThrowingContinuation { continuation in
         suspendedQueryContinuation = continuation
@@ -215,10 +268,11 @@ private final class CalendarFixtureProvider: CalendarEventProviding {
     return try eventsResult.get()
   }
 
-  func waitUntilQueryStarts() async {
-    guard !hasStartedQuery else {
+  func waitUntilQueryStarts(count: Int = 1) async {
+    guard queryCount < count else {
       return
     }
+    expectedQueryCount = count
     await withCheckedContinuation { continuation in
       queryStartContinuation = continuation
     }

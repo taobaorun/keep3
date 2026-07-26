@@ -4,7 +4,7 @@ import XCTest
 
 @MainActor
 final class MediaSurfaceInteractionModelTests: XCTestCase {
-  func testNewPlayingContentShowsMetadataPeekWithoutFullExpansion() {
+  func testConfirmedTrackChangeShowsMetadataPeekWithoutFullExpansion() {
     let scheduler = ManualMediaInteractionTimerScheduler()
     var peeks: [MediaTrackPeek?] = []
     let model = MediaSurfaceInteractionModel(
@@ -12,7 +12,9 @@ final class MediaSurfaceInteractionModelTests: XCTestCase {
       onTrackPeek: { peeks.append($0) }
     )
 
-    model.receive(snapshot(title: "First"))
+    model.receiveConfirmedTrackChange(
+      .init(direction: .next, snapshot: snapshot(title: "First"))
+    )
 
     XCTAssertEqual(peeks.compactMap { $0 }.last?.title, "First")
     XCTAssertEqual(peeks.compactMap { $0 }.last?.artist, "Artist")
@@ -23,7 +25,7 @@ final class MediaSurfaceInteractionModelTests: XCTestCase {
     XCTAssertNil(peeks.last!)
   }
 
-  func testProgressOnlyRevisionDoesNotRestartQuickPeek() {
+  func testEachConfirmedTrackChangeRestartsQuickPeek() {
     let scheduler = ManualMediaInteractionTimerScheduler()
     var peeks: [MediaTrackPeek?] = []
     let model = MediaSurfaceInteractionModel(
@@ -31,10 +33,20 @@ final class MediaSurfaceInteractionModelTests: XCTestCase {
       onTrackPeek: { peeks.append($0) }
     )
 
-    model.receive(snapshot(title: "First", contentRevision: 1))
-    model.receive(snapshot(title: "First", contentRevision: 2))
+    model.receiveConfirmedTrackChange(
+      .init(
+        direction: .next,
+        snapshot: snapshot(title: "First", contentRevision: 1)
+      )
+    )
+    model.receiveConfirmedTrackChange(
+      .init(
+        direction: .previous,
+        snapshot: snapshot(title: "First", contentRevision: 2)
+      )
+    )
 
-    XCTAssertEqual(peeks.compactMap { $0 }.count, 1)
+    XCTAssertEqual(peeks.compactMap { $0 }.count, 2)
     XCTAssertEqual(scheduler.activeTimerCount, 1)
   }
 
@@ -46,7 +58,9 @@ final class MediaSurfaceInteractionModelTests: XCTestCase {
       onTrackPeek: { peeks.append($0) }
     )
 
-    model.receive(snapshot(title: "First"))
+    model.receiveConfirmedTrackChange(
+      .init(direction: .next, snapshot: snapshot(title: "First"))
+    )
     model.updatePreferences(
       isQuickPeekEnabled: false,
       quickPeekDuration: 2

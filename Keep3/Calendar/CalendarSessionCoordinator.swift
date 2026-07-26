@@ -5,7 +5,7 @@ final class CalendarSessionCoordinator: ObservableObject {
   typealias StateDelivery = (CalendarSessionState) -> Void
 
   private static let queryDuration: TimeInterval = 24 * 60 * 60
-  private static let maximumEventCount = 5
+  nonisolated private static let maximumEventCount = 5
 
   private let provider: any CalendarEventProviding
   private let now: () -> Date
@@ -137,9 +137,12 @@ final class CalendarSessionCoordinator: ObservableObject {
         from: startDate,
         through: endDate
       )
-      guard accepts(candidateGeneration),
-        provider.authorizationStatus() == .fullAccess
-      else {
+      guard accepts(candidateGeneration) else {
+        return
+      }
+      let currentAuthorization = provider.authorizationStatus()
+      guard currentAuthorization == .fullAccess else {
+        clearAndPublishAuthorization(currentAuthorization)
         return
       }
       lastEvents = Self.relevantEvents(
@@ -158,6 +161,11 @@ final class CalendarSessionCoordinator: ObservableObject {
       guard accepts(candidateGeneration) else {
         return
       }
+      let currentAuthorization = provider.authorizationStatus()
+      guard currentAuthorization == .fullAccess else {
+        clearAndPublishAuthorization(currentAuthorization)
+        return
+      }
       if lastEvents.isEmpty {
         publish(.failed(.queryFailed))
       } else {
@@ -172,7 +180,7 @@ final class CalendarSessionCoordinator: ObservableObject {
     }
   }
 
-  static func relevantEvents(
+  nonisolated static func relevantEvents(
     _ events: [CalendarEvent],
     from startDate: Date,
     through endDate: Date
@@ -202,7 +210,7 @@ final class CalendarSessionCoordinator: ObservableObject {
     )
   }
 
-  private static func chronological(
+  nonisolated private static func chronological(
     _ lhs: CalendarEvent,
     _ rhs: CalendarEvent
   ) -> Bool {
@@ -216,6 +224,22 @@ final class CalendarSessionCoordinator: ObservableObject {
     generation &+= 1
     refreshTask?.cancel()
     refreshTask = nil
+  }
+
+  private func clearAndPublishAuthorization(
+    _ authorization: CalendarAuthorizationState
+  ) {
+    lastEvents = []
+    switch authorization {
+    case .notDetermined:
+      publish(.needsPermission)
+    case .restricted:
+      publish(.restricted)
+    case .denied:
+      publish(.denied)
+    case .fullAccess:
+      break
+    }
   }
 
   private func accepts(_ candidateGeneration: UInt64) -> Bool {
