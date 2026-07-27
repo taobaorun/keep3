@@ -169,8 +169,11 @@ Additional rules:
    rotation.
 2. After a 400-millisecond intentional-hover delay, rotation pauses and the
    surface expands.
-3. It collapses 200 milliseconds after pointer exit.
-4. Re-entering during the collapse delay cancels collapse.
+3. Every expanded surface component collapses to compact when the pointer exits
+   its active frame. Priorities, Media, Calendar, and future component types use
+   the same rule rather than implementing provider-specific dismissal.
+4. Re-entering follows the normal hover or click expansion trigger; an
+   in-progress collapse is never kept alive by stale component state.
 5. Expanded content displays only the currently visible item:
    - Title
    - Optional description
@@ -191,13 +194,17 @@ Additional rules:
 
 ### FR-8: Motion and Appearance
 
-1. The default transition is a 450-millisecond fade plus 6-point vertical
-   movement.
-2. The user can select Fade, Slide, or Dissolve.
-3. The user can choose a motion-speed multiplier within a bounded range of
-   0.5×–2×.
-4. When Reduce Motion is enabled in macOS, Keep3 uses a short crossfade without
-   positional movement, regardless of the selected preset.
+1. Hardware, compact, and expanded level changes use one shared top-aligned
+   container spring with a 0.4-second response and 0.68 damping fraction.
+   Priorities, Media, Calendar, and future component types inherit this motion
+   without provider-specific animation switches.
+2. Component content changes atomically at the level boundary so the outgoing
+   layout is never stretched through the resizing container. A bounded
+   220-millisecond opacity transition may be used for item-to-item handoff.
+3. Content providers do not add independent long-running shape, position, or
+   staggered transitions to level changes.
+4. When Reduce Motion is enabled in macOS, Keep3 removes the container spring
+   and positional movement; state and dismissal semantics remain unchanged.
 5. The user can adjust capsule width within layout-safe bounds.
 6. The user can adjust background opacity within a range that preserves text
    contrast.
@@ -279,6 +286,8 @@ Additional rules:
    advance depth. From expanded Media, Up collapses to compact Media while Down
    selects the next available component in compact; expanded non-media
    components retain their established directional component navigation.
+   Pointer exit collapses every expanded component to compact using the shared
+   surface motion contract.
 4. Calendar is disabled by default, requests EventKit access only from Settings,
    keeps no event persistence, and publishes at most five non-cancelled
    title/time projections from the next 24 hours.

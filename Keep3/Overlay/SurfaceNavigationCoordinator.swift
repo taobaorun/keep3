@@ -121,10 +121,7 @@ final class SurfaceNavigationCoordinator {
     let didHoverChange = self.isHovering != isHovering
     self.isHovering = isHovering
 
-    if !isHovering,
-      selectedComponent == .media,
-      level == .expanded
-    {
+    if !isHovering, level == .expanded {
       isHoverPreviewed = false
       level = .compact
       publish()

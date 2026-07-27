@@ -78,6 +78,26 @@ verification rather than claiming a new automated run:
    compact surface, and focus restoration to the application active before
    Keep3.
 
+## Unified surface motion follow-up
+
+All current and future surface components share the Media container's
+top-aligned level transition: a spring with a 0.4-second response and 0.68
+damping fraction. Provider content changes atomically inside that container, so
+Priorities cannot retain or stretch its compact layout while expanding.
+
+Pointer exit is also a surface-level contract rather than a Media exception:
+any expanded Priorities, Media, Calendar, or future component returns to compact
+when the pointer leaves its active frame. Per the 2026-07-27 acceptance request,
+verify this behavior manually:
+
+1. Expand each available component and move the pointer outside the surface.
+2. Confirm each component returns to compact with the same top-aligned motion.
+3. Rapidly repeat expansion and collapse for Priorities and confirm the content
+   does not cascade, stretch, or run a second shape animation inside the shared
+   container.
+4. Enable Reduce Motion and confirm level changes remain functional without
+   spatial spring movement.
+
 ## Release checks
 
 - Full Keep3Tests suite: 206 executed, 205 passed, 1 live-environment test
