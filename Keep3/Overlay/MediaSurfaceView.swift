@@ -596,15 +596,15 @@ struct MediaSurfaceView: View {
           )
           .padding(.bottom, 22)
         }
-        Button(action: onRequestKeyboardNavigation) {
-          Image(systemName: "keyboard")
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(.white.opacity(0.58))
-            .frame(width: 28, height: 28)
-            .background(.white.opacity(0.06), in: Circle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("启用键盘导航")
+        TopSurfaceKeyboardNavigationButton(
+          guidance: .media(
+            canGoToPreviousTrack:
+              presentation.primaryActions.contains(.previous),
+            canGoToNextTrack:
+              presentation.primaryActions.contains(.next)
+          ),
+          onActivate: onRequestKeyboardNavigation
+        )
         .accessibilityIdentifier("media.keyboard")
         .padding(.bottom, 14)
       }

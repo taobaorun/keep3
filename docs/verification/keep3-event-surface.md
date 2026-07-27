@@ -46,6 +46,37 @@ This record covers the post-MVP event surface iteration:
 | Expanded Media navigation | Pending | A real upward two-finger gesture collapses expanded Media to compact Media without changing component; Down and expanded non-media gestures keep their established component navigation |
 | Accessibility parity | Pending | The activated keyboard and VoiceOver action is named "Return to normal player", focuses compact Media after collapse, and announces that state once |
 
+## Four-direction keyboard follow-up
+
+The expanded Priorities, Media, and Calendar surfaces now share one explicit
+keyboard-navigation affordance. Its visible direction summary and accessibility
+hint are derived from the current component state:
+
+- Priorities show Left/Right only when more than one item can be browsed and
+  include Return because the visible priority can be opened.
+- Media show Previous and Next only when the active session exposes those
+  capabilities; Up returns expanded Media to the normal player and Down moves
+  to the next surface.
+- Calendar show only Up/Down component navigation and do not advertise a
+  horizontal or Return action.
+- Once activated, the affordance changes to a green “Enabled” state and Keep3
+  announces the available actions. Escape announces exit before the keyboard
+  session restores the previously active application.
+
+Per the 2026-07-27 acceptance request, this follow-up is left for human
+verification rather than claiming a new automated run:
+
+1. Hover each compact surface and confirm Keep3 does not become active.
+2. Expand Priorities with two or more items, activate the keyboard affordance,
+   and confirm the visible “Enabled” state; use Left/Right to browse, Up/Down to
+   change surface, and Return to open the item currently shown.
+3. Expand Media with asymmetric Previous/Next capabilities and confirm only the
+   supported track directions are advertised and actionable.
+4. Expand Calendar and confirm its affordance advertises Up/Down only.
+5. Press Escape from each active session and confirm the exit announcement,
+   compact surface, and focus restoration to the application active before
+   Keep3.
+
 ## Release checks
 
 - Full Keep3Tests suite: 206 executed, 205 passed, 1 live-environment test

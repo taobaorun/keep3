@@ -38,7 +38,10 @@ The repository already parses all four arrow keys and routes vertical keys throu
 - R6. Hover, presentation refreshes, and component takeovers do not activate Keep3 or disable an already explicit keyboard session.
 - R7. Starting keyboard mode provides visible and accessibility feedback; ending it with Escape or session teardown restores the previously active non-Keep3 application when it is still available.
 - R8. Each priority, Media, and Calendar affordance describes only the keys available in that component and state, with Return and Escape named only where they have an action.
-- R9. Automated coverage proves command parsing, focus ownership, route ownership, vertical gesture parity, dismissal, application restoration, and a user-level keyboard browsing flow.
+- R9. Automated coverage protects the U1 routing seams; per the user's
+  2026-07-27 acceptance decision, U2 visual, accessibility, and physical
+  keyboard behavior are handed off with an explicit human-verification flow
+  instead of new UI automation.
 
 ### Scope Boundaries
 
@@ -53,7 +56,11 @@ The repository already parses all four arrow keys and routes vertical keys throu
 - KTD1. **Extend the existing command and navigation pipeline.** `TopSurfaceKeyboardCommand`, `TopSurfaceEventView`, `SurfaceGestureRecognizer`, and `SurfaceNavigationCoordinator` remain the owners of parsing, event routing, direction semantics, and state publication. Implements R1-R6.
 - KTD2. **Keep keyboard ownership explicitly activated and session-scoped.** The panel remains non-activating until requested, handles keys only while it owns key-window and first-responder status, and ends the session by restoring the previously active application when possible. Implements R1, R5-R7.
 - KTD3. **Render state-aware guidance instead of a universal key claim.** Priorities, Media, and Calendar name only actions that can execute in their current state; unavailable horizontal actions remain safe no-ops rather than being advertised. Implements R2-R4, R7-R8.
-- KTD4. **Prove behavior at three seams.** Parser tests cover key codes and modifiers, route-level tests cover focus ownership, single dispatch, restoration, and vertical event parity, and one UI flow covers activation through visible outcome. Implements R1-R9.
+- KTD4. **Prove behavior at the routing seams and hand off the visible flow.**
+  Parser tests cover key codes and modifiers, route-level tests cover focus
+  ownership, single dispatch, restoration, and vertical event parity, while a
+  documented human flow covers activation through visible outcome. Implements
+  R1-R9.
 
 ### Assumptions
 
@@ -120,26 +127,30 @@ The repository already parses all four arrow keys and routes vertical keys throu
   1. Publish keyboard-session state to the rendered surface so successful activation is visible and announced.
   2. Align component-specific visible and accessibility guidance: priorities name item browsing and Return, Media names supported track actions, and Calendar omits unavailable horizontal actions.
   3. Provide a clear Escape/exit announcement before focus returns to the previously active application.
-  4. Add an isolated UI test that activates keyboard mode, uses arrow navigation, and asserts the resulting selected content or surface state.
-  5. Record the automated proof and leave physical keyboard verification as an explicit runtime check rather than claiming it from unit tests.
-- **Patterns to follow:** Existing stable accessibility identifiers, isolated UI-test state stores, and the verification matrix in `docs/verification/keep3-event-surface.md`.
+  4. Preserve stable accessibility identifiers so the activation controls are
+     easy to locate during human acceptance.
+  5. Record a component-by-component human verification flow without claiming
+     automated or physical-keyboard evidence that was not requested.
+- **Patterns to follow:** Existing stable accessibility identifiers and the
+  verification matrix in `docs/verification/keep3-event-surface.md`.
 - **Test scenarios:**
   - The priorities affordance announces item browsing, vertical surface movement, Return, and Escape without requiring the user to infer them from an icon.
   - Media advertises Left and Right only when the matching track capability exists; Calendar does not advertise unavailable horizontal or Return actions.
   - Successful activation presents a visible active state and one accessibility announcement.
-  - A UI test activates keyboard mode, presses Right, and observes the next priority before Return opens that same item.
+  - A human acceptance pass activates keyboard mode, presses Right, and observes
+    the next priority before Return opens that same item.
   - Escape ends keyboard navigation, announces exit once, leaves the surface compact, and restores the application that was active before Keep3.
   - Pointer hover without explicit activation continues to leave typing in the frontmost application uninterrupted.
-- **Verification:** The isolated keyboard UI flow passes and the verification document distinguishes automated evidence from any pending physical check.
+- **Verification:** The verification document provides a complete human flow
+  and distinguishes the completed U1 regression evidence from the pending
+  physical acceptance check.
 
 ## Verification Contract
 
 | Gate | Units | Command | Done signal |
 |---|---|---|---|
 | Focused keyboard and navigation tests | U1 | `xcodebuild test -project Keep3.xcodeproj -scheme Keep3 -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/DerivedData -only-testing:Keep3Tests/TopSurfacePanelTests -only-testing:Keep3Tests/SurfaceGestureRecognizerTests -only-testing:Keep3Tests/SurfaceNavigationCoordinatorTests CODE_SIGNING_ALLOWED=NO` | All arrow, modifier, single-dispatch, and state assertions pass |
-| Isolated keyboard UI flow | U2 | `xcodebuild test -project Keep3.xcodeproj -scheme Keep3 -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/DerivedData -only-testing:Keep3UITests CODE_SIGNING_ALLOWED=NO` | Explicit activation and visible arrow-navigation outcome pass |
-| Full regression suite | U1-U2 | `xcodebuild test -project Keep3.xcodeproj -scheme Keep3 -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO` | All unit and UI tests pass |
-| Release build | U1-U2 | `xcodebuild build -project Keep3.xcodeproj -scheme Keep3 -configuration Release -destination 'platform=macOS' -derivedDataPath .build/ReleaseDerivedData CODE_SIGNING_ALLOWED=NO` | Release configuration builds successfully |
+| Human keyboard flow | U2 | Follow `docs/verification/keep3-event-surface.md` | The user confirms component-specific guidance, activation feedback, four-direction behavior, Escape, and focus restoration |
 
 ## Definition of Done
 
@@ -147,6 +158,7 @@ The repository already parses all four arrow keys and routes vertical keys throu
 - Horizontal and vertical commands preserve the existing component, depth, availability, and media-capability contracts.
 - Modified arrows and ordinary hover do not steal input from another application.
 - Priority, Media, and Calendar activation affordances describe their applicable keyboard behavior accessibly.
-- Focused tests, the isolated UI flow, the full suite, and the Release build pass.
-- Verification evidence records any physical runtime check honestly.
+- U1 focused regression tests pass; U2 is ready for the user-requested human
+  acceptance flow.
+- Verification evidence records the pending physical acceptance check honestly.
 - Experimental or abandoned keyboard-routing code is removed from the final diff.
