@@ -451,10 +451,10 @@ final class TopSurfacePanel: NSPanel {
       keyboardEventMonitor = NSEvent.addLocalMonitorForEvents(
         matching: .keyDown
       ) { [weak self] event in
-        guard let self, self.keyboardNavigationEnabled else {
+        guard let self else {
           return event
         }
-        return self.eventView.handleKeyboardEvent(event) ? nil : event
+        return self.routeKeyboardEvent(event) ? nil : event
       }
     }
     makeKeyAndOrderFront(nil)
@@ -468,13 +468,19 @@ final class TopSurfacePanel: NSPanel {
   }
 
   override func sendEvent(_ event: NSEvent) {
-    if keyboardNavigationEnabled,
-      event.type == .keyDown,
-      eventView.handleKeyboardEvent(event)
-    {
+    if event.type == .keyDown, routeKeyboardEvent(event) {
       return
     }
     super.sendEvent(event)
+  }
+
+  private func routeKeyboardEvent(_ event: NSEvent) -> Bool {
+    guard keyboardNavigationEnabled, isKeyWindow,
+      firstResponder === eventView
+    else {
+      return false
+    }
+    return eventView.handleKeyboardEvent(event)
   }
 }
 
@@ -692,13 +698,6 @@ private final class TopSurfaceEventView: NSView {
 
   override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
     true
-  }
-
-  override func keyDown(with event: NSEvent) {
-    guard !handleKeyboardEvent(event) else {
-      return
-    }
-    super.keyDown(with: event)
   }
 
   func handleKeyboardEvent(_ event: NSEvent) -> Bool {

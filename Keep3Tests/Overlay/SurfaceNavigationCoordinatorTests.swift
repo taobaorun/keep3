@@ -43,6 +43,21 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
     XCTAssertEqual(coordinator.state.selectedComponent, .priorities)
   }
 
+  func testNavigationWithNoOtherAvailableComponentLeavesStateUnchanged() {
+    var states: [SurfaceNavigationState] = []
+    let coordinator = SurfaceNavigationCoordinator(
+      onStateChange: { states.append($0) }
+    )
+    coordinator.setAvailability(true, for: .priorities)
+    let stateBeforeNavigation = coordinator.state
+    let publicationCount = states.count
+
+    coordinator.navigate(.next)
+
+    XCTAssertEqual(coordinator.state, stateBeforeNavigation)
+    XCTAssertEqual(states.count, publicationCount)
+  }
+
   func testSelectedUnavailableFallsForwardThenUltimatelyReturnsPriorities() {
     let coordinator = SurfaceNavigationCoordinator()
     coordinator.setAvailability(true, for: .priorities)

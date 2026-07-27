@@ -93,7 +93,145 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertNil(
       TopSurfaceKeyboardCommand(keyCode: 123, modifiers: [.command])
     )
+    XCTAssertNil(TopSurfaceKeyboardCommand(keyCode: 123, modifiers: [.option]))
+    XCTAssertNil(TopSurfaceKeyboardCommand(keyCode: 123, modifiers: [.control]))
+    XCTAssertNil(TopSurfaceKeyboardCommand(keyCode: 123, modifiers: [.shift]))
     XCTAssertNil(TopSurfaceKeyboardCommand(keyCode: 0, modifiers: []))
+  }
+
+  func testExplicitKeyboardSessionRoutesHorizontalArrowsExactlyOnce() throws {
+    var directions: [TopSurfaceBrowseDirection] = []
+    let panel = TopSurfacePanel(
+      contentRect: CGRect(x: 100, y: 100, width: 360, height: 216),
+      content: try makeContent(title: "当前重点", isExpanded: true),
+      onNavigate: { directions.append($0) }
+    )
+    defer {
+      panel.setKeyboardNavigationEnabled(false, activateApplication: false)
+      panel.orderOut(nil)
+    }
+
+    panel.setKeyboardNavigationEnabled(true, activateApplication: false)
+    panel.makeKeyAndOrderFront(nil)
+    XCTAssertTrue(panel.makeFirstResponder(panel.contentView))
+
+    panel.sendEvent(keyDownEvent(keyCode: 123, windowNumber: panel.windowNumber))
+    panel.sendEvent(keyDownEvent(keyCode: 124, windowNumber: panel.windowNumber))
+
+    XCTAssertEqual(directions, [.previous, .next])
+  }
+
+  func testExplicitKeyboardSessionEmitsOneCompleteGesturePerVerticalArrow()
+    throws
+  {
+    var events: [SurfaceScrollEvent] = []
+    let panel = TopSurfacePanel(
+      contentRect: CGRect(x: 100, y: 100, width: 360, height: 216),
+      content: try makeContent(title: "当前重点", isExpanded: true),
+      onScroll: { events.append($0) }
+    )
+    defer {
+      panel.setKeyboardNavigationEnabled(false, activateApplication: false)
+      panel.orderOut(nil)
+    }
+
+    panel.setKeyboardNavigationEnabled(true, activateApplication: false)
+    panel.makeKeyAndOrderFront(nil)
+    XCTAssertTrue(panel.makeFirstResponder(panel.contentView))
+
+    panel.sendEvent(keyDownEvent(keyCode: 126, windowNumber: panel.windowNumber))
+    panel.sendEvent(keyDownEvent(keyCode: 125, windowNumber: panel.windowNumber))
+
+    XCTAssertEqual(events.map(\.deltaY), [-30, 0, 30, 0])
+    XCTAssertEqual(
+      events.map(\.physicalPhase),
+      [.began, .ended, .began, .ended]
+    )
+  }
+
+  func testKeyboardSessionPassesArrowThroughAfterPanelLosesKeyStatus() throws {
+    var directions: [TopSurfaceBrowseDirection] = []
+    let panel = TopSurfacePanel(
+      contentRect: CGRect(x: 100, y: 100, width: 360, height: 216),
+      content: try makeContent(title: "当前重点", isExpanded: true),
+      onNavigate: { directions.append($0) }
+    )
+    defer {
+      panel.setKeyboardNavigationEnabled(false, activateApplication: false)
+      panel.orderOut(nil)
+    }
+
+    panel.setKeyboardNavigationEnabled(true, activateApplication: false)
+    panel.resignKey()
+
+    panel.sendEvent(keyDownEvent(keyCode: 124, windowNumber: panel.windowNumber))
+
+    XCTAssertTrue(directions.isEmpty)
+  }
+
+  func testDisabledKeyboardSessionDoesNotRouteArrows() throws {
+    var directions: [TopSurfaceBrowseDirection] = []
+    let panel = TopSurfacePanel(
+      contentRect: CGRect(x: 100, y: 100, width: 360, height: 216),
+      content: try makeContent(title: "当前重点", isExpanded: true),
+      onNavigate: { directions.append($0) }
+    )
+    defer { panel.orderOut(nil) }
+
+    panel.sendEvent(keyDownEvent(keyCode: 124, windowNumber: panel.windowNumber))
+
+    XCTAssertTrue(directions.isEmpty)
+  }
+
+  func testExplicitKeyboardSessionDoesNotRouteModifiedArrows() throws {
+    var directions: [TopSurfaceBrowseDirection] = []
+    let panel = TopSurfacePanel(
+      contentRect: CGRect(x: 100, y: 100, width: 360, height: 216),
+      content: try makeContent(title: "当前重点", isExpanded: true),
+      onNavigate: { directions.append($0) }
+    )
+    defer {
+      panel.setKeyboardNavigationEnabled(false, activateApplication: false)
+      panel.orderOut(nil)
+    }
+    panel.setKeyboardNavigationEnabled(true, activateApplication: false)
+    panel.makeKeyAndOrderFront(nil)
+    XCTAssertTrue(panel.makeFirstResponder(panel.contentView))
+
+    for modifier: NSEvent.ModifierFlags in [
+      .command, .option, .control, .shift,
+    ] {
+      panel.sendEvent(
+        keyDownEvent(
+          keyCode: 124,
+          modifiers: modifier,
+          windowNumber: panel.windowNumber
+        )
+      )
+    }
+
+    XCTAssertTrue(directions.isEmpty)
+  }
+
+  func testKeyboardSessionPassesArrowThroughAfterEventViewLosesFocus() throws {
+    var directions: [TopSurfaceBrowseDirection] = []
+    let panel = TopSurfacePanel(
+      contentRect: CGRect(x: 100, y: 100, width: 360, height: 216),
+      content: try makeContent(title: "当前重点", isExpanded: true),
+      onNavigate: { directions.append($0) }
+    )
+    defer {
+      panel.setKeyboardNavigationEnabled(false, activateApplication: false)
+      panel.orderOut(nil)
+    }
+
+    panel.setKeyboardNavigationEnabled(true, activateApplication: false)
+    panel.makeKeyAndOrderFront(nil)
+    XCTAssertTrue(panel.makeFirstResponder(nil))
+
+    panel.sendEvent(keyDownEvent(keyCode: 124, windowNumber: panel.windowNumber))
+
+    XCTAssertTrue(directions.isEmpty)
   }
 
   func testPanelUsesStatusLevelAndJoinsSpaces() throws {
@@ -347,6 +485,63 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertEqual(panel.frame, expandedFrame)
   }
 
+  func testEscapeRestoresTheCapturedApplicationOnce() throws {
+    var captureCount = 0
+    var restoreCount = 0
+    let controller = TopSurfaceController(
+      captureApplicationRestoration: {
+        captureCount += 1
+        return TopSurfaceApplicationRestoration {
+          restoreCount += 1
+        }
+      }
+    )
+    let frame = CGRect(x: 100, y: 500, width: 360, height: 216)
+    defer { controller.remove() }
+    controller.show(
+      frame: frame,
+      content: try makeContent(title: "写 Keep3", isExpanded: true),
+      onDismiss: {
+        controller.endKeyboardNavigation()
+      }
+    )
+    controller.beginKeyboardNavigation()
+    let panel = try XCTUnwrap(controller.panel)
+
+    panel.sendEvent(keyDownEvent(keyCode: 53, windowNumber: panel.windowNumber))
+    controller.endKeyboardNavigation()
+
+    XCTAssertEqual(captureCount, 1)
+    XCTAssertEqual(restoreCount, 1)
+    XCTAssertFalse(panel.canBecomeKey)
+  }
+
+  func testSessionTeardownSafelySkipsUnavailableCapturedApplication() throws {
+    var isApplicationAvailable = true
+    var restoreCount = 0
+    let controller = TopSurfaceController(
+      captureApplicationRestoration: {
+        TopSurfaceApplicationRestoration {
+          guard isApplicationAvailable else {
+            return
+          }
+          restoreCount += 1
+        }
+      }
+    )
+    controller.show(
+      frame: CGRect(x: 100, y: 500, width: 360, height: 216),
+      content: try makeContent(title: "写 Keep3", isExpanded: true)
+    )
+    controller.beginKeyboardNavigation()
+    isApplicationAvailable = false
+
+    controller.remove()
+
+    XCTAssertEqual(restoreCount, 0)
+    XCTAssertNil(controller.panel)
+  }
+
   func testContentOmitsBlankDetailsAndSubitems() throws {
     let item = try FocusItem(
       title: "设计 Keep3",
@@ -442,5 +637,24 @@ final class TopSurfacePanelTests: XCTestCase {
       isCurrentFocus: true,
       isExpanded: isExpanded
     )
+  }
+
+  private func keyDownEvent(
+    keyCode: UInt16,
+    modifiers: NSEvent.ModifierFlags = [],
+    windowNumber: Int = 0
+  ) -> NSEvent {
+    NSEvent.keyEvent(
+      with: .keyDown,
+      location: .zero,
+      modifierFlags: modifiers,
+      timestamp: 0,
+      windowNumber: windowNumber,
+      context: nil,
+      characters: "",
+      charactersIgnoringModifiers: "",
+      isARepeat: false,
+      keyCode: keyCode
+    )!
   }
 }
