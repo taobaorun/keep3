@@ -532,7 +532,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self?.interactionModel.browse(direction)
       },
       onOpenItem: { [weak self] in
-        self?.interactionModel.activateVisibleItem()
+        guard let self else {
+          return
+        }
+        self.topSurfaceController.endKeyboardNavigation(
+          restoringPreviousApplication: false
+        )
+        self.interactionModel.activateVisibleItem()
       }
     )
   }

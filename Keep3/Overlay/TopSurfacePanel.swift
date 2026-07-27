@@ -451,7 +451,8 @@ final class TopSurfacePanel: NSPanel {
 
   func setKeyboardNavigationEnabled(
     _ isEnabled: Bool,
-    activateApplication: Bool = true
+    activateApplication: Bool = true,
+    restoresPreviousApplicationOnExit: Bool = true
   ) {
     guard keyboardNavigationPresentation.isActive != isEnabled else {
       return
@@ -460,7 +461,9 @@ final class TopSurfacePanel: NSPanel {
 
     guard isEnabled else {
       postKeyboardNavigationAnnouncement(
-        "已退出键盘导航，正在返回上一个应用"
+        restoresPreviousApplicationOnExit
+          ? "已退出键盘导航，正在返回上一个应用"
+          : "已退出键盘导航"
       )
       if let keyboardEventMonitor {
         NSEvent.removeMonitor(keyboardEventMonitor)

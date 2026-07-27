@@ -69,7 +69,8 @@ verification rather than claiming a new automated run:
 1. Hover each compact surface and confirm Keep3 does not become active.
 2. Expand Priorities with two or more items, activate the keyboard affordance,
    and confirm the visible “Enabled” state; use Left/Right to browse, Up/Down to
-   change surface, and Return to open the item currently shown.
+   change surface, and Return to open the item currently shown. Confirm the
+   Keep3 editor remains frontmost after Return.
 3. Expand Media with asymmetric Previous/Next capabilities and confirm only the
    supported track directions are advertised and actionable.
 4. Expand Calendar and confirm its affordance advertises Up/Down only.
