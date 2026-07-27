@@ -121,6 +121,10 @@ Per the 2026-07-27 acceptance request, verify this behavior manually:
    flashes to the fallback music-note icon.
 7. Change to confirmed content without artwork and confirm the previous cover is
    cleared rather than retained for the new content.
+8. Hover the compact waveform and confirm it crossfades in place to Pause while
+   playing or Play while paused; moving away restores the waveform.
+9. Activate the hovered waveform region and confirm it toggles playback without
+   entering keyboard navigation or expanding the surface.
 
 ## Release checks
 

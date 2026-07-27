@@ -255,7 +255,9 @@ Additional rules:
    component.
 5. Compact media shows artwork or a fallback, title, artist, and a playback
    indicator. Expanded media shows metadata, progress, capability-gated
-   controls, and the configured secondary action.
+   controls, and the configured secondary action. When the compact playback
+   indicator is a waveform, pointer hover reveals the current Play or Pause
+   action in place and activating that region toggles playback.
 6. A confirmed new track triggers a bounded peek without opening full controls.
    On notched displays, a continuously rounded 68-point metadata shelf extends
    below the hardware notch with separate, bounded title and artist lines;
