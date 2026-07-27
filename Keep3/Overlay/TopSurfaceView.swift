@@ -1,5 +1,106 @@
 import SwiftUI
 
+struct TopSurfaceKeyboardNavigationGuidance: Equatable, Sendable {
+  let visibleDirections: String
+  let accessibilityInstructions: String
+
+  static func priorities(itemCount: Int) -> Self {
+    let horizontal =
+      itemCount > 1 ? "←/→ 浏览重点，" : ""
+    return Self(
+      visibleDirections: itemCount > 1 ? "← → ↑ ↓ ↩" : "↑ ↓ ↩",
+      accessibilityInstructions:
+        "\(horizontal)↑/↓ 切换表面，Return 打开当前重点，Escape 退出并返回上一个应用"
+    )
+  }
+
+  static func media(
+    canGoToPreviousTrack: Bool,
+    canGoToNextTrack: Bool
+  ) -> Self {
+    var visibleDirections: [String] = []
+    var instructions: [String] = []
+    if canGoToPreviousTrack {
+      visibleDirections.append("←")
+      instructions.append("← 上一首")
+    }
+    if canGoToNextTrack {
+      visibleDirections.append("→")
+      instructions.append("→ 下一首")
+    }
+    visibleDirections.append(contentsOf: ["↑", "↓"])
+    instructions.append("↑ 返回普通播放器")
+    instructions.append("↓ 切换到下一个表面")
+    instructions.append("Escape 退出并返回上一个应用")
+    return Self(
+      visibleDirections: visibleDirections.joined(separator: " "),
+      accessibilityInstructions: instructions.joined(separator: "，")
+    )
+  }
+
+  static let calendar = Self(
+    visibleDirections: "↑ ↓",
+    accessibilityInstructions:
+      "↑/↓ 切换表面，Escape 退出并返回上一个应用"
+  )
+}
+
+private struct TopSurfaceKeyboardNavigationActiveKey: EnvironmentKey {
+  static let defaultValue = false
+}
+
+extension EnvironmentValues {
+  var isTopSurfaceKeyboardNavigationActive: Bool {
+    get { self[TopSurfaceKeyboardNavigationActiveKey.self] }
+    set { self[TopSurfaceKeyboardNavigationActiveKey.self] = newValue }
+  }
+}
+
+struct TopSurfaceKeyboardNavigationButton: View {
+  let guidance: TopSurfaceKeyboardNavigationGuidance
+  let onActivate: () -> Void
+
+  @Environment(\.isTopSurfaceKeyboardNavigationActive) private
+    var isActive
+
+  var body: some View {
+    Button(action: onActivate) {
+      Label(
+        isActive
+          ? "已启用 · \(guidance.visibleDirections)"
+          : guidance.visibleDirections,
+        systemImage: "keyboard"
+      )
+      .font(.caption2.weight(.semibold))
+      .foregroundStyle(isActive ? Color.green : Color.white.opacity(0.64))
+      .padding(.horizontal, 9)
+      .frame(height: 24)
+      .background(
+        isActive ? Color.green.opacity(0.14) : Color.white.opacity(0.065),
+        in: Capsule()
+      )
+      .overlay {
+        Capsule()
+          .stroke(
+            isActive ? Color.green.opacity(0.32) : Color.clear,
+            lineWidth: 0.5
+          )
+      }
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel(
+      isActive ? "键盘导航已启用" : "启用键盘导航"
+    )
+    .accessibilityHint(
+      isActive
+        ? guidance.accessibilityInstructions
+        : "激活 Keep3 后，\(guidance.accessibilityInstructions)"
+    )
+    .accessibilityValue(isActive ? "已启用" : "未启用")
+    .help(guidance.accessibilityInstructions)
+  }
+}
+
 enum TopSurfacePresentationStyle: Equatable, Sendable {
   case notchAttached(notchSize: CGSize)
   case floatingCapsule
@@ -629,16 +730,10 @@ struct TopSurfaceView: View {
 
       Spacer(minLength: 8)
 
-      Button(action: onRequestKeyboardNavigation) {
-        Label("键盘", systemImage: "keyboard")
-          .font(.caption2.weight(.medium))
-          .foregroundStyle(.white.opacity(0.62))
-          .padding(.horizontal, 10)
-          .frame(height: 24)
-          .background(.white.opacity(0.065), in: Capsule())
-      }
-      .buttonStyle(.plain)
-      .accessibilityHint("激活 Keep3 后使用左右方向键浏览，回车打开")
+      TopSurfaceKeyboardNavigationButton(
+        guidance: .priorities(itemCount: content.itemCount),
+        onActivate: onRequestKeyboardNavigation
+      )
       .accessibilityIdentifier("overlay.keyboard")
 
       Spacer(minLength: 8)

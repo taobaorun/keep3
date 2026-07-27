@@ -37,6 +37,17 @@ enum TopSurfaceKeyboardCommand: Equatable, Sendable {
 }
 
 @MainActor
+private final class TopSurfaceKeyboardNavigationPresentation:
+  ObservableObject
+{
+  @Published private(set) var isActive = false
+
+  func setActive(_ isActive: Bool) {
+    self.isActive = isActive
+  }
+}
+
+@MainActor
 final class TopSurfacePanel: NSPanel {
   override var canBecomeKey: Bool { keyboardNavigationEnabled }
   override var canBecomeMain: Bool { false }
@@ -45,6 +56,8 @@ final class TopSurfacePanel: NSPanel {
   private var panelContent: PanelContent
   private(set) var renderedPresentationStyle: TopSurfacePresentationStyle
   private(set) var renderedSurfaceFrameInPanel: CGRect
+  private let keyboardNavigationPresentation:
+    TopSurfaceKeyboardNavigationPresentation
   private var keyboardNavigationEnabled = false
   private var keyboardEventMonitor: Any?
 
@@ -177,9 +190,12 @@ final class TopSurfacePanel: NSPanel {
   ) {
     let resolvedSurfaceFrame =
       surfaceFrameInPanel ?? CGRect(origin: .zero, size: contentRect.size)
+    let keyboardNavigationPresentation =
+      TopSurfaceKeyboardNavigationPresentation()
     self.panelContent = panelContent
     renderedPresentationStyle = presentationStyle
     renderedSurfaceFrameInPanel = resolvedSurfaceFrame
+    self.keyboardNavigationPresentation = keyboardNavigationPresentation
     eventView = TopSurfaceEventView(
       frame: CGRect(origin: .zero, size: contentRect.size),
       activeFrame: resolvedSurfaceFrame,
@@ -188,6 +204,7 @@ final class TopSurfacePanel: NSPanel {
         presentationStyle: presentationStyle,
         panelSize: contentRect.size,
         surfaceFrameInPanel: resolvedSurfaceFrame,
+        keyboardNavigationPresentation: keyboardNavigationPresentation,
         onActivateSurface: onActivateSurface,
         onRequestKeyboardNavigation: onRequestKeyboardNavigation,
         onSurfaceNavigation: onSurfaceNavigation,
@@ -269,6 +286,7 @@ final class TopSurfacePanel: NSPanel {
       presentationStyle: presentationStyle,
       panelSize: eventView.bounds.size,
       surfaceFrameInPanel: surfaceFrameInPanel,
+      keyboardNavigationPresentation: keyboardNavigationPresentation,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
       onSurfaceNavigation: onSurfaceNavigation,
@@ -306,6 +324,7 @@ final class TopSurfacePanel: NSPanel {
       presentationStyle: presentationStyle,
       panelSize: eventView.bounds.size,
       surfaceFrameInPanel: surfaceFrameInPanel,
+      keyboardNavigationPresentation: keyboardNavigationPresentation,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
       onSurfaceNavigation: onSurfaceNavigation,
@@ -341,6 +360,7 @@ final class TopSurfacePanel: NSPanel {
       presentationStyle: presentationStyle,
       panelSize: eventView.bounds.size,
       surfaceFrameInPanel: surfaceFrameInPanel,
+      keyboardNavigationPresentation: keyboardNavigationPresentation,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
       onSurfaceNavigation: onSurfaceNavigation,
@@ -355,6 +375,8 @@ final class TopSurfacePanel: NSPanel {
     presentationStyle: TopSurfacePresentationStyle,
     panelSize: CGSize,
     surfaceFrameInPanel: CGRect,
+    keyboardNavigationPresentation:
+      TopSurfaceKeyboardNavigationPresentation,
     onActivateSurface: @escaping () -> Void,
     onRequestKeyboardNavigation: @escaping () -> Void,
     onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void,
@@ -375,6 +397,7 @@ final class TopSurfacePanel: NSPanel {
           layout: layout,
           animatesSurfaceFrame: false,
           isHovered: focus.isHovered && focus.level != .expanded,
+          keyboardNavigationPresentation: keyboardNavigationPresentation,
           content: TopSurfaceView(
             content: focus,
             presentationStyle: presentationStyle,
@@ -393,6 +416,7 @@ final class TopSurfacePanel: NSPanel {
           layout: layout,
           animatesSurfaceFrame: true,
           isHovered: media.isHovered && media.level != .expanded,
+          keyboardNavigationPresentation: keyboardNavigationPresentation,
           content: MediaSurfaceView(
             payload: media,
             presentationStyle: presentationStyle,
@@ -410,6 +434,7 @@ final class TopSurfacePanel: NSPanel {
           layout: layout,
           animatesSurfaceFrame: false,
           isHovered: calendar.isHovered && calendar.level != .expanded,
+          keyboardNavigationPresentation: keyboardNavigationPresentation,
           content: CalendarSurfaceView(
             payload: calendar,
             presentationStyle: presentationStyle,
@@ -431,8 +456,12 @@ final class TopSurfacePanel: NSPanel {
       return
     }
     keyboardNavigationEnabled = isEnabled
+    keyboardNavigationPresentation.setActive(isEnabled)
 
     guard isEnabled else {
+      postKeyboardNavigationAnnouncement(
+        "已退出键盘导航，正在返回上一个应用"
+      )
       if let keyboardEventMonitor {
         NSEvent.removeMonitor(keyboardEventMonitor)
         self.keyboardEventMonitor = nil
@@ -447,6 +476,7 @@ final class TopSurfacePanel: NSPanel {
     if activateApplication {
       NSApp.activate()
     }
+    postKeyboardNavigationAnnouncement(activationAnnouncement)
     if keyboardEventMonitor == nil {
       keyboardEventMonitor = NSEvent.addLocalMonitorForEvents(
         matching: .keyDown
@@ -482,6 +512,38 @@ final class TopSurfacePanel: NSPanel {
     }
     return eventView.handleKeyboardEvent(event)
   }
+
+  private var activationAnnouncement: String {
+    let guidance: TopSurfaceKeyboardNavigationGuidance
+    switch panelContent {
+    case .focus(let content):
+      guidance = .priorities(itemCount: content.itemCount)
+    case .media(let payload):
+      let capabilities = payload.session?.capabilities ?? []
+      guidance = .media(
+        canGoToPreviousTrack: capabilities.contains(.previous),
+        canGoToNextTrack: capabilities.contains(.next)
+      )
+    case .calendar:
+      guidance = .calendar
+    }
+    return
+      "键盘导航已启用。\(guidance.accessibilityInstructions)"
+  }
+
+  private func postKeyboardNavigationAnnouncement(_ announcement: String) {
+    guard let application = NSApp else {
+      return
+    }
+    NSAccessibility.post(
+      element: application,
+      notification: .announcementRequested,
+      userInfo: [
+        .announcement: announcement,
+        .priority: NSAccessibilityPriorityLevel.medium.rawValue,
+      ]
+    )
+  }
 }
 
 private enum PanelContent {
@@ -508,6 +570,8 @@ private struct TopSurfaceRootView<Content: View>: View {
   let layout: TopSurfaceHostedLayout
   let animatesSurfaceFrame: Bool
   let isHovered: Bool
+  @ObservedObject var keyboardNavigationPresentation:
+    TopSurfaceKeyboardNavigationPresentation
   let content: Content
 
   var body: some View {
@@ -539,6 +603,10 @@ private struct TopSurfaceRootView<Content: View>: View {
     .animation(
       !reduceMotion ? .easeOut(duration: 0.16) : nil,
       value: isHovered
+    )
+    .environment(
+      \.isTopSurfaceKeyboardNavigationActive,
+      keyboardNavigationPresentation.isActive
     )
   }
 }
