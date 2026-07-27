@@ -396,7 +396,6 @@ final class TopSurfacePanel: NSPanel {
       return AnyView(
         TopSurfaceRootView(
           layout: layout,
-          animatesSurfaceFrame: false,
           isHovered: focus.isHovered && focus.level != .expanded,
           keyboardNavigationPresentation: keyboardNavigationPresentation,
           content: TopSurfaceView(
@@ -415,7 +414,6 @@ final class TopSurfacePanel: NSPanel {
       return AnyView(
         TopSurfaceRootView(
           layout: layout,
-          animatesSurfaceFrame: true,
           isHovered: media.isHovered && media.level != .expanded,
           keyboardNavigationPresentation: keyboardNavigationPresentation,
           content: MediaSurfaceView(
@@ -433,7 +431,6 @@ final class TopSurfacePanel: NSPanel {
       return AnyView(
         TopSurfaceRootView(
           layout: layout,
-          animatesSurfaceFrame: false,
           isHovered: calendar.isHovered && calendar.level != .expanded,
           keyboardNavigationPresentation: keyboardNavigationPresentation,
           content: CalendarSurfaceView(
@@ -571,7 +568,6 @@ private struct TopSurfaceRootView<Content: View>: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   let layout: TopSurfaceHostedLayout
-  let animatesSurfaceFrame: Bool
   let isHovered: Bool
   @ObservedObject var keyboardNavigationPresentation:
     TopSurfaceKeyboardNavigationPresentation
@@ -598,7 +594,7 @@ private struct TopSurfaceRootView<Content: View>: View {
       alignment: .topLeading
     )
     .animation(
-      animatesSurfaceFrame && !reduceMotion
+      !reduceMotion
         ? .spring(response: 0.4, dampingFraction: 0.68)
         : nil,
       value: layout.surfaceFrameInPanel
