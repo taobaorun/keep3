@@ -439,14 +439,13 @@ struct TopSurfaceView: View {
         Color.clear
       } else if content.isExpanded {
         expandedContent
-          .transition(surfaceTransition)
       } else {
         compactContent
-          .transition(surfaceTransition)
       }
     }
-    .animation(contentAnimation, value: content.transitionIdentity)
-    .animation(contentAnimation, value: content.isExpanded)
+    .id(content.item.id)
+    .transition(.opacity)
+    .animation(itemSwitchAnimation, value: content.item.id)
     .foregroundStyle(.white)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background {
@@ -766,8 +765,8 @@ struct TopSurfaceView: View {
     )
   }
 
-  private var contentAnimation: Animation {
-    .easeInOut(duration: signatureTransition.duration)
+  private var itemSwitchAnimation: Animation {
+    .easeInOut(duration: reduceMotion ? 0.12 : 0.22)
   }
 
   private var shapeAnimation: Animation? {
@@ -775,10 +774,6 @@ struct TopSurfaceView: View {
       return nil
     }
     return .easeInOut(duration: signatureTransition.duration)
-  }
-
-  private var surfaceTransition: AnyTransition {
-    .opacity
   }
 
   private var titleTransition: AnyTransition {
