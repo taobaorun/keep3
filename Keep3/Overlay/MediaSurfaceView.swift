@@ -180,6 +180,7 @@ struct MediaSurfaceView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
   @AccessibilityFocusState private var isCompactMediaAccessibilityFocused: Bool
+  @State private var isCompactPlaybackHovered = false
 
   private var presentation: MediaSurfacePresentation {
     MediaSurfacePresentation(payload: payload)
@@ -277,18 +278,29 @@ struct MediaSurfaceView: View {
   ) -> some View {
     switch presentationStyle {
     case .floatingCapsule:
-      Button(action: onActivateSurface) {
-        HStack(spacing: 10) {
-          artworkView(artwork: artwork, size: 28, cornerRadius: 7)
-          compactMetadata
-          Spacer(minLength: 4)
-          compactPlaybackIndicator(accent: waveformAccent)
+      ZStack(alignment: .trailing) {
+        Button(action: onActivateSurface) {
+          HStack(spacing: 10) {
+            artworkView(artwork: artwork, size: 28, cornerRadius: 7)
+            compactMetadata
+            Spacer(minLength: 4)
+            Color.clear
+              .frame(width: 34, height: 28)
+              .accessibilityHidden(true)
+          }
+          .padding(.horizontal, 10)
+          .contentShape(Rectangle())
         }
-        .padding(.horizontal, 10)
-        .contentShape(Rectangle())
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("media.compact")
+
+        compactPlaybackControl(
+          accent: waveformAccent,
+          style: .regular,
+          hitSize: CGSize(width: 34, height: 28)
+        )
+        .padding(.trailing, 10)
       }
-      .buttonStyle(.plain)
-      .accessibilityIdentifier("media.compact")
     case .notchAttached(let notchSize):
       notchedCompactContent(
         notchSize: notchSize,
@@ -309,20 +321,33 @@ struct MediaSurfaceView: View {
       baseWingWidth: SurfaceMetrics.mediaNotchedWingWidth,
       extensionDirection: presentation.trackChangeDirection
     )
-    return Button(action: onActivateSurface) {
-      HStack(spacing: 0) {
-        artworkView(artwork: artwork, size: 20, cornerRadius: 6)
-          .frame(width: layout.leftWingFrame.width)
-        Color.clear
-          .frame(width: layout.obstructionFrame.width)
-          .accessibilityHidden(true)
-        notchedCompactPlaybackIndicator(accent: waveformAccent)
-          .frame(width: layout.rightWingFrame.width)
+    return ZStack(alignment: .topLeading) {
+      Button(action: onActivateSurface) {
+        HStack(spacing: 0) {
+          artworkView(artwork: artwork, size: 20, cornerRadius: 6)
+            .frame(width: layout.leftWingFrame.width)
+          Color.clear
+            .frame(width: layout.obstructionFrame.width)
+            .accessibilityHidden(true)
+          Color.clear
+            .frame(width: layout.rightWingFrame.width)
+            .accessibilityHidden(true)
+        }
+        .contentShape(Rectangle())
       }
-      .contentShape(Rectangle())
+      .buttonStyle(.plain)
+      .accessibilityIdentifier("media.compact")
+
+      compactPlaybackControl(
+        accent: waveformAccent,
+        style: .notchedCompact,
+        hitSize: layout.rightWingFrame.size
+      )
+      .position(
+        x: layout.rightWingFrame.midX,
+        y: layout.rightWingFrame.midY
+      )
     }
-    .buttonStyle(.plain)
-    .accessibilityIdentifier("media.compact")
   }
 
   @ViewBuilder
@@ -557,6 +582,68 @@ struct MediaSurfaceView: View {
         .font(.system(size: 9, weight: .bold))
         .frame(width: 18, height: 18)
     }
+  }
+
+  private func compactPlaybackControl(
+    accent: MediaArtworkAccent,
+    style: MediaWaveformStyle,
+    hitSize: CGSize
+  ) -> some View {
+    let supportsPlayPause =
+      presentation.primaryActions.contains(.togglePlayPause)
+    let isEnabled = supportsPlayPause && presentation.areControlsEnabled
+    let isNotched = style == .notchedCompact
+
+    return Button {
+      onAction(.togglePlayPause)
+    } label: {
+      ZStack {
+        if presentation.appearance.showsWaveform {
+          MediaWaveformView(
+            seed: presentation.sessionID,
+            isPlaying: presentation.isPlaying,
+            style: style,
+            accent: accent
+          )
+          .frame(
+            width: style.intrinsicWidth,
+            height: style.maximumHeight
+          )
+          .opacity(isCompactPlaybackHovered ? 0 : 1)
+        }
+
+        Image(
+          systemName: presentation.isPlaying ? "pause.fill" : "play.fill"
+        )
+        .font(
+          .system(
+            size: isNotched ? 9 : 10,
+            weight: .bold
+          )
+        )
+        .opacity(
+          presentation.appearance.showsWaveform
+            && !isCompactPlaybackHovered
+            ? 0 : 1
+        )
+      }
+      .frame(width: hitSize.width, height: hitSize.height)
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .disabled(!isEnabled)
+    .opacity(isEnabled ? 1 : 0.55)
+    .onHover { isHovered in
+      isCompactPlaybackHovered = isHovered && isEnabled
+    }
+    .animation(
+      reduceMotion ? nil : .easeOut(duration: 0.12),
+      value: isCompactPlaybackHovered
+    )
+    .help(presentation.isPlaying ? "暂停" : "播放")
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(presentation.isPlaying ? "暂停" : "播放")
+    .accessibilityIdentifier("media.compact.playPause")
   }
 
   private func expandedContent(
