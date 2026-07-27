@@ -451,12 +451,10 @@ struct TopSurfaceView: View {
     .background {
       surfaceShape
         .fill(.black.opacity(surfaceBackgroundOpacity))
-        .animation(shapeAnimation, value: content.isExpanded)
     }
     .mask {
       surfaceShape
         .fill(.white)
-        .animation(shapeAnimation, value: content.isExpanded)
     }
     .overlay(alignment: .top) {
       if case .notchAttached = presentationStyle {
@@ -767,13 +765,6 @@ struct TopSurfaceView: View {
 
   private var itemSwitchAnimation: Animation {
     .easeInOut(duration: reduceMotion ? 0.12 : 0.22)
-  }
-
-  private var shapeAnimation: Animation? {
-    guard signatureTransition.animatesShape else {
-      return nil
-    }
-    return .easeInOut(duration: signatureTransition.duration)
   }
 
   private var titleTransition: AnyTransition {
