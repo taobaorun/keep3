@@ -244,12 +244,19 @@ Additional rules:
 
 1. When media-first mode is enabled and a new eligible system media session is
    playing, media auto-selects once in the shared top surface.
-2. Pausing, stopping, interruption, player exit, source suppression, or loss of
-   the media session returns the surface to the latest designated priority.
-3. Compact media shows artwork or a fallback, title, artist, and a playback
+2. A controllable paused session remains available for manual component
+   navigation. Pausing selected media keeps Media selected so its Play control
+   can resume playback without opening the source application.
+3. A paused session does not automatically replace a manually selected
+   component. Starting playback may auto-select Media once unless the user
+   already selected another component during that session.
+4. Stopping, interruption, player exit, source suppression, or loss of the
+   media session removes Media and returns the surface to an available
+   component.
+5. Compact media shows artwork or a fallback, title, artist, and a playback
    indicator. Expanded media shows metadata, progress, capability-gated
    controls, and the configured secondary action.
-4. A confirmed new track triggers a bounded peek without opening full controls.
+6. A confirmed new track triggers a bounded peek without opening full controls.
    On notched displays, a continuously rounded 68-point metadata shelf extends
    below the hardware notch with separate, bounded title and artist lines;
    metadata never replaces artwork or waveform content in either wing. Next
@@ -257,10 +264,10 @@ Additional rules:
    right and lower regions; Previous mirrors this by preserving the right edge
    and right wing. Floating placement uses the same hierarchy in a rounded
    capsule. Hover or click expansion remains under direct user control.
-5. Every media waveform uses a readable accent derived and cached from the
+7. Every media waveform uses a readable accent derived and cached from the
    current confirmed cover. Missing, malformed, transparent, grayscale, or
    low-contrast artwork uses a deterministic readable fallback.
-6. Precise horizontal two-finger gestures dispatch at most one previous/next
+8. Precise horizontal two-finger gestures dispatch at most one previous/next
    command per physical gesture. Vertical intent belongs to surface depth and
    component navigation rather than track switching; momentum never switches
    tracks. From expanded Media, Up returns to compact Media without selecting

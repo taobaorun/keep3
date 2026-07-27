@@ -193,23 +193,49 @@ final class SurfaceNavigationCoordinator {
     }
   }
 
-  func beginMediaSession(_ sessionID: String) {
-    guard mediaSessionID != sessionID || !isAvailable(.media) else {
+  func beginMediaSession(
+    _ sessionID: String,
+    automaticallySelect: Bool = true
+  ) {
+    if mediaSessionID == sessionID, isAvailable(.media) {
+      guard automaticallySelect,
+        manuallyDismissedMediaSessionID != sessionID,
+        selectedComponent != .media
+      else {
+        return
+      }
+      selectedComponent = .media
+      selectionSource = .automaticMedia
+      publish()
       return
     }
+
     let preservesManualSelection =
       mediaSessionID == sessionID
       && manuallyDismissedMediaSessionID == sessionID
+    let needsAvailableFallback = !isAvailable(selectedComponent)
     mediaSessionID = sessionID
     availability[.media] = true
+
+    if needsAvailableFallback {
+      manuallyDismissedMediaSessionID = nil
+      selectedComponent = .media
+      selectionSource = .fallback
+      publish()
+      return
+    }
+
     if preservesManualSelection {
       selectionSource = .manual
       publish()
       return
     }
+
     manuallyDismissedMediaSessionID = nil
-    selectedComponent = .media
-    selectionSource = .automaticMedia
+    if automaticallySelect {
+      selectedComponent = .media
+      selectionSource = .automaticMedia
+    }
     publish()
   }
 

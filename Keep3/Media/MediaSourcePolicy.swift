@@ -16,7 +16,8 @@ struct MediaSourcePolicy: Equatable, Sendable {
     _ snapshot: MediaSessionSnapshot,
     frontmostBundleIdentifier: String?
   ) -> Bool {
-    snapshot.playbackState == .playing
+    (snapshot.playbackState == .playing
+      || snapshot.playbackState == .paused)
       && allows(
         snapshot.session,
         frontmostBundleIdentifier: frontmostBundleIdentifier

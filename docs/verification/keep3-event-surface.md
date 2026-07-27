@@ -98,6 +98,26 @@ verify this behavior manually:
 4. Enable Reduce Motion and confirm level changes remain functional without
    spatial movement.
 
+## Paused media availability follow-up
+
+A controllable paused media session remains a component; playback state no
+longer doubles as component availability. Playing a new eligible session may
+auto-select Media once, while pausing keeps the current component selection and
+manual selection continues to win for the session.
+
+Per the 2026-07-27 acceptance request, verify this behavior manually:
+
+1. Pause selected Media and confirm it remains visible with a usable Play
+   control.
+2. While a session is paused, switch to Priorities or Calendar and then back to
+   Media without reopening the source application.
+3. Launch Keep3 while a controllable source is paused and confirm Media is
+   navigable but does not replace an available component until selected.
+4. Start playback and confirm Media auto-selects once unless another component
+   was manually selected during the same media session.
+5. Stop playback or quit the source and confirm Media is removed from component
+   navigation.
+
 ## Release checks
 
 - Full Keep3Tests suite: 206 executed, 205 passed, 1 live-environment test
