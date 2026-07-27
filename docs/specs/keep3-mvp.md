@@ -194,8 +194,8 @@ Additional rules:
 
 ### FR-8: Motion and Appearance
 
-1. Hardware, compact, and expanded level changes use one shared top-aligned
-   container spring with a 0.4-second response and 0.68 damping fraction.
+1. Hardware, compact, and expanded level changes use one shared top-aligned,
+   non-overshooting ease-in-out transition lasting 220 milliseconds.
    Priorities, Media, Calendar, and future component types inherit this motion
    without provider-specific animation switches.
 2. Component content changes atomically at the level boundary so the outgoing
@@ -203,8 +203,9 @@ Additional rules:
    220-millisecond opacity transition may be used for item-to-item handoff.
 3. Content providers do not add independent long-running shape, position, or
    staggered transitions to level changes.
-4. When Reduce Motion is enabled in macOS, Keep3 removes the container spring
-   and positional movement; state and dismissal semantics remain unchanged.
+4. When Reduce Motion is enabled in macOS, Keep3 removes the container
+   transition and positional movement; state and dismissal semantics remain
+   unchanged.
 5. The user can adjust capsule width within layout-safe bounds.
 6. The user can adjust background opacity within a range that preserves text
    contrast.

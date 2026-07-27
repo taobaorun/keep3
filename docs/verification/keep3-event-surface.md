@@ -80,10 +80,10 @@ verification rather than claiming a new automated run:
 
 ## Unified surface motion follow-up
 
-All current and future surface components share the Media container's
-top-aligned level transition: a spring with a 0.4-second response and 0.68
-damping fraction. Provider content changes atomically inside that container, so
-Priorities cannot retain or stretch its compact layout while expanding.
+All current and future surface components share one top-aligned level
+transition: a non-overshooting 220-millisecond ease-in-out. Provider content
+changes atomically inside that container, so Priorities cannot retain or
+stretch its compact layout while expanding.
 
 Pointer exit is also a surface-level contract rather than a Media exception:
 any expanded Priorities, Media, Calendar, or future component returns to compact
@@ -96,7 +96,7 @@ verify this behavior manually:
    does not cascade, stretch, or run a second shape animation inside the shared
    container.
 4. Enable Reduce Motion and confirm level changes remain functional without
-   spatial spring movement.
+   spatial movement.
 
 ## Release checks
 

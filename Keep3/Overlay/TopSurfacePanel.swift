@@ -595,7 +595,7 @@ private struct TopSurfaceRootView<Content: View>: View {
     )
     .animation(
       !reduceMotion
-        ? .spring(response: 0.4, dampingFraction: 0.68)
+        ? .easeInOut(duration: 0.22)
         : nil,
       value: layout.surfaceFrameInPanel
     )
