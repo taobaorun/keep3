@@ -1,8 +1,48 @@
 import AppKit
 
 @MainActor
+struct TopSurfaceApplicationRestoration {
+  private let restore: () -> Void
+
+  init(restore: @escaping () -> Void) {
+    self.restore = restore
+  }
+
+  func restoreIfAvailable() {
+    restore()
+  }
+
+  static func captureFrontmostApplication() -> Self? {
+    guard let application = NSWorkspace.shared.frontmostApplication,
+      application.processIdentifier != ProcessInfo.processInfo.processIdentifier
+    else {
+      return nil
+    }
+    return Self {
+      guard !application.isTerminated else {
+        return
+      }
+      application.activate()
+    }
+  }
+}
+
+@MainActor
 final class TopSurfaceController {
   private(set) var panel: TopSurfacePanel?
+  private let captureApplicationRestoration:
+    () -> TopSurfaceApplicationRestoration?
+  private var applicationRestoration: TopSurfaceApplicationRestoration?
+  private var isKeyboardNavigationSessionActive = false
+
+  init(
+    captureApplicationRestoration:
+      @escaping () -> TopSurfaceApplicationRestoration? = {
+        TopSurfaceApplicationRestoration.captureFrontmostApplication()
+      }
+  ) {
+    self.captureApplicationRestoration = captureApplicationRestoration
+  }
 
   var visibleInteractionFrameInScreen: CGRect? {
     guard let panel, panel.isVisible else {
@@ -359,15 +399,27 @@ final class TopSurfaceController {
   }
 
   func beginKeyboardNavigation() {
-    panel?.setKeyboardNavigationEnabled(true)
+    guard let panel, !isKeyboardNavigationSessionActive else {
+      return
+    }
+    applicationRestoration = captureApplicationRestoration()
+    isKeyboardNavigationSessionActive = true
+    panel.setKeyboardNavigationEnabled(true)
   }
 
   func endKeyboardNavigation() {
     panel?.setKeyboardNavigationEnabled(false)
+    guard isKeyboardNavigationSessionActive else {
+      return
+    }
+    isKeyboardNavigationSessionActive = false
+    let restoration = applicationRestoration
+    applicationRestoration = nil
+    restoration?.restoreIfAvailable()
   }
 
   func remove() {
-    panel?.setKeyboardNavigationEnabled(false)
+    endKeyboardNavigation()
     panel?.orderOut(nil)
     panel = nil
   }

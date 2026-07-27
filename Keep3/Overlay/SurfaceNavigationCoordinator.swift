@@ -94,7 +94,7 @@ final class SurfaceNavigationCoordinator {
     }
 
     let step = direction == .next ? 1 : -1
-    for offset in 1...orderedComponents.count {
+    for offset in 1..<orderedComponents.count {
       let candidateIndex =
         (selectedIndex + (step * offset) + orderedComponents.count)
         % orderedComponents.count
