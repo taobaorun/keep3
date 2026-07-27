@@ -598,10 +598,7 @@ struct MediaSurfaceView: View {
         }
         TopSurfaceKeyboardNavigationButton(
           guidance: .media(
-            canGoToPreviousTrack:
-              presentation.primaryActions.contains(.previous),
-            canGoToNextTrack:
-              presentation.primaryActions.contains(.next)
+            capabilities: payload.session?.capabilities ?? []
           ),
           onActivate: onRequestKeyboardNavigation
         )
