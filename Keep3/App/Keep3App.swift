@@ -339,14 +339,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
     case .media(let payload):
       let isNewSession = sourceMediaPayload?.sessionID != payload.sessionID
+      let didStartPlaying =
+        payload.playbackState == .playing
+        && sourceMediaPayload?.playbackState != .playing
       sourceFocusPayload =
         surfaceModeCoordinator.currentFocusPayload ?? sourceFocusPayload
       sourceMediaPayload = payload
       if isNewSession {
-        surfaceNavigationCoordinator.beginMediaSession(payload.sessionID)
+        surfaceNavigationCoordinator.beginMediaSession(
+          payload.sessionID,
+          automaticallySelect: payload.playbackState == .playing
+        )
       } else {
-        surfaceNavigationCoordinator.setAvailability(true, for: .media)
-        surfaceNavigationCoordinator.refreshMediaSession(payload.sessionID)
+        surfaceNavigationCoordinator.beginMediaSession(
+          payload.sessionID,
+          automaticallySelect: didStartPlaying
+        )
         renderSelectedSurface()
       }
     case .calendar:
