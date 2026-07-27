@@ -266,7 +266,10 @@ Additional rules:
    capsule. Hover or click expansion remains under direct user control.
 7. Every media waveform uses a readable accent derived and cached from the
    current confirmed cover. Missing, malformed, transparent, grayscale, or
-   low-contrast artwork uses a deterministic readable fallback.
+   low-contrast artwork uses a deterministic readable fallback. Playback-state
+   and capability-only refreshes retain the confirmed cover when the provider
+   temporarily omits artwork; a confirmed content change without artwork clears
+   the previous cover.
 8. Precise horizontal two-finger gestures dispatch at most one previous/next
    command per physical gesture. Vertical intent belongs to surface depth and
    component navigation rather than track switching; momentum never switches

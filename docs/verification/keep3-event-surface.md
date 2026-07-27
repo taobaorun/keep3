@@ -117,6 +117,10 @@ Per the 2026-07-27 acceptance request, verify this behavior manually:
    was manually selected during the same media session.
 5. Stop playback or quit the source and confirm Media is removed from component
    navigation.
+6. Repeatedly use Keep3's Play/Pause control and confirm the current cover never
+   flashes to the fallback music-note icon.
+7. Change to confirmed content without artwork and confirm the previous cover is
+   cleared rather than retained for the new content.
 
 ## Release checks
 

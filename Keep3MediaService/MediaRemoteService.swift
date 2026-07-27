@@ -274,7 +274,8 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
       artist: artist,
       album: album
     )
-    if currentContentIdentity != contentIdentity {
+    let didContentChange = currentContentIdentity != contentIdentity
+    if didContentChange {
       contentRevision &+= 1
       currentContentIdentity = contentIdentity
     }
@@ -330,7 +331,11 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     ) {
       propertyList["publicShareURL"] = shareURL
     }
-    appendArtworkUpdate(from: information, to: &propertyList)
+    appendArtworkUpdate(
+      from: information,
+      didContentChange: didContentChange,
+      to: &propertyList
+    )
     propertyList = propertyList.compactMapValues { $0 }
     client?.mediaRemoteDidUpdate(propertyList as NSDictionary)
   }
@@ -373,6 +378,7 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
 
   private func appendArtworkUpdate(
     from information: NSDictionary,
+    didContentChange: Bool,
     to propertyList: inout [String: Any]
   ) {
     let artwork =
@@ -389,11 +395,13 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     )
     guard let artwork else {
       propertyList["artworkUpdate"] =
-        currentArtworkData == nil
-        ? MediaArtworkWireUpdate.unchanged.rawValue
-        : MediaArtworkWireUpdate.clear.rawValue
-      currentArtworkData = nil
-      currentArtworkMIMEType = nil
+        didContentChange
+        ? MediaArtworkWireUpdate.clear.rawValue
+        : MediaArtworkWireUpdate.unchanged.rawValue
+      if didContentChange {
+        currentArtworkData = nil
+        currentArtworkMIMEType = nil
+      }
       return
     }
     guard artwork != currentArtworkData || mimeType != currentArtworkMIMEType else {
