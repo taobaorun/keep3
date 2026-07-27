@@ -66,6 +66,7 @@ enum SurfacePlacement: Equatable {
 struct SurfaceMetrics: Equatable {
   static let mediaNotchedWingWidth: CGFloat = 44
   static let mediaQuickPeekAdditionalHeight: CGFloat = 32
+  static let focusExpandedHorizontalGrowth: CGFloat = 32
 
   enum NotchedCompactSizing: Equatable {
     case flexible(minimumWingWidth: CGFloat)
@@ -119,7 +120,10 @@ struct SurfaceMetrics: Equatable {
 
   static let standard = SurfaceMetrics(
     compactSize: CGSize(width: 280, height: 44),
-    expandedSize: CGSize(width: 360, height: 216),
+    expandedSize: CGSize(
+      width: 280 + focusExpandedHorizontalGrowth,
+      height: 216
+    ),
     floatingTopSpacing: 8,
     notchedCompactSizing: .flexible(minimumWingWidth: 96)
   )
@@ -447,7 +451,11 @@ struct DisplayGeometry: Equatable {
     case .expanded:
       panelSize = CGSize(
         width: min(
-          max(metrics.expandedSize.width, obstructionFrame.width),
+          max(
+            metrics.expandedSize.width,
+            compactWidth,
+            obstructionFrame.width
+          ),
           screenFrame.width
         ),
         height: min(

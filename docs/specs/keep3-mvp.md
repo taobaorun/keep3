@@ -207,9 +207,13 @@ Additional rules:
    transition and positional movement; state and dismissal semantics remain
    unchanged.
 5. The user can adjust capsule width within layout-safe bounds.
-6. The user can adjust background opacity within a range that preserves text
+6. On floating displays, the expanded Priorities surface is 32 points wider
+   than its compact surface, preserving a 16-point centered reveal on each
+   edge. On notched displays, its expanded width never contracts below the
+   resolved compact width.
+7. The user can adjust background opacity within a range that preserves text
    contrast.
-7. Appearance follows the system light/dark appearance.
+8. Appearance follows the system light/dark appearance.
 
 ### FR-9: Accessibility
 
