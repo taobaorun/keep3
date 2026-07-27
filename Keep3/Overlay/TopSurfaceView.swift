@@ -53,51 +53,6 @@ extension EnvironmentValues {
   }
 }
 
-struct TopSurfaceKeyboardNavigationButton: View {
-  let guidance: TopSurfaceKeyboardNavigationGuidance
-  let onActivate: () -> Void
-
-  @Environment(\.isTopSurfaceKeyboardNavigationActive) private
-    var isActive
-
-  var body: some View {
-    Button(action: onActivate) {
-      Label(
-        isActive
-          ? "已启用 · \(guidance.visibleDirections)"
-          : guidance.visibleDirections,
-        systemImage: "keyboard"
-      )
-      .font(.caption2.weight(.semibold))
-      .foregroundStyle(isActive ? Color.green : Color.white.opacity(0.64))
-      .padding(.horizontal, 9)
-      .frame(height: 24)
-      .background(
-        isActive ? Color.green.opacity(0.14) : Color.white.opacity(0.065),
-        in: Capsule()
-      )
-      .overlay {
-        Capsule()
-          .stroke(
-            isActive ? Color.green.opacity(0.32) : Color.clear,
-            lineWidth: 0.5
-          )
-      }
-    }
-    .buttonStyle(.plain)
-    .accessibilityLabel(
-      isActive ? "键盘导航已启用" : "启用键盘导航"
-    )
-    .accessibilityHint(
-      isActive
-        ? guidance.accessibilityInstructions
-        : "激活 Keep3 后，\(guidance.accessibilityInstructions)"
-    )
-    .accessibilityValue(isActive ? "已启用" : "未启用")
-    .help(guidance.accessibilityInstructions)
-  }
-}
-
 enum TopSurfacePresentationStyle: Equatable, Sendable {
   case notchAttached(notchSize: CGSize)
   case floatingCapsule
@@ -724,14 +679,6 @@ struct TopSurfaceView: View {
       } else {
         navigationPlaceholder
       }
-
-      Spacer(minLength: 8)
-
-      TopSurfaceKeyboardNavigationButton(
-        guidance: .priorities(itemCount: content.itemCount),
-        onActivate: onRequestKeyboardNavigation
-      )
-      .accessibilityIdentifier("overlay.keyboard")
 
       Spacer(minLength: 8)
 

@@ -256,11 +256,6 @@ struct CalendarSurfaceView: View {
           .foregroundStyle(.white.opacity(0.72))
         Spacer()
         refreshIndicator
-        TopSurfaceKeyboardNavigationButton(
-          guidance: .calendar,
-          onActivate: onRequestKeyboardNavigation
-        )
-        .accessibilityIdentifier("calendar.keyboard")
       }
       .padding(.bottom, 10)
 
