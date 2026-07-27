@@ -848,7 +848,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     SurfaceMetrics(
       compactSize: CGSize(width: preferences.capsuleWidth, height: 44),
       expandedSize: CGSize(
-        width: max(360, preferences.capsuleWidth),
+        width: preferences.capsuleWidth
+          + SurfaceMetrics.focusExpandedHorizontalGrowth,
         height: 216
       ),
       floatingTopSpacing: 8

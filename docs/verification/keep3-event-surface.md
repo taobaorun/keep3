@@ -97,6 +97,10 @@ verify this behavior manually:
    container.
 4. Enable Reduce Motion and confirm level changes remain functional without
    spatial movement.
+5. On a floating display, confirm expanded Priorities grows by 16 points on
+   each side from its compact width and remains horizontally centered.
+6. On a notched display, confirm expanded Priorities keeps the compact left and
+   right edges instead of narrowing as it opens.
 
 ## Paused media availability follow-up
 
