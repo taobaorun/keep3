@@ -596,14 +596,6 @@ struct MediaSurfaceView: View {
           )
           .padding(.bottom, 22)
         }
-        TopSurfaceKeyboardNavigationButton(
-          guidance: .media(
-            capabilities: payload.session?.capabilities ?? []
-          ),
-          onActivate: onRequestKeyboardNavigation
-        )
-        .accessibilityIdentifier("media.keyboard")
-        .padding(.bottom, 14)
       }
       .frame(height: 56)
       .padding(.horizontal, metrics.horizontalInset)
