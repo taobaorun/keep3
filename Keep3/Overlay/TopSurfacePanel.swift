@@ -49,7 +49,9 @@ private final class TopSurfaceKeyboardNavigationPresentation:
 
 @MainActor
 final class TopSurfacePanel: NSPanel {
-  override var canBecomeKey: Bool { keyboardNavigationEnabled }
+  override var canBecomeKey: Bool {
+    keyboardNavigationPresentation.isActive
+  }
   override var canBecomeMain: Bool { false }
 
   private let eventView: TopSurfaceEventView
@@ -58,7 +60,6 @@ final class TopSurfacePanel: NSPanel {
   private(set) var renderedSurfaceFrameInPanel: CGRect
   private let keyboardNavigationPresentation:
     TopSurfaceKeyboardNavigationPresentation
-  private var keyboardNavigationEnabled = false
   private var keyboardEventMonitor: Any?
 
   var renderedContent: TopSurfaceContent {
@@ -452,10 +453,9 @@ final class TopSurfacePanel: NSPanel {
     _ isEnabled: Bool,
     activateApplication: Bool = true
   ) {
-    guard keyboardNavigationEnabled != isEnabled else {
+    guard keyboardNavigationPresentation.isActive != isEnabled else {
       return
     }
-    keyboardNavigationEnabled = isEnabled
     keyboardNavigationPresentation.setActive(isEnabled)
 
     guard isEnabled else {
@@ -490,7 +490,7 @@ final class TopSurfacePanel: NSPanel {
     makeKeyAndOrderFront(nil)
     makeFirstResponder(eventView)
     Task { @MainActor [weak self] in
-      guard let self, self.keyboardNavigationEnabled else {
+      guard let self, self.keyboardNavigationPresentation.isActive else {
         return
       }
       self.makeFirstResponder(self.eventView)
@@ -505,7 +505,7 @@ final class TopSurfacePanel: NSPanel {
   }
 
   private func routeKeyboardEvent(_ event: NSEvent) -> Bool {
-    guard keyboardNavigationEnabled, isKeyWindow,
+    guard keyboardNavigationPresentation.isActive, isKeyWindow,
       firstResponder === eventView
     else {
       return false
@@ -519,10 +519,8 @@ final class TopSurfacePanel: NSPanel {
     case .focus(let content):
       guidance = .priorities(itemCount: content.itemCount)
     case .media(let payload):
-      let capabilities = payload.session?.capabilities ?? []
       guidance = .media(
-        canGoToPreviousTrack: capabilities.contains(.previous),
-        canGoToNextTrack: capabilities.contains(.next)
+        capabilities: payload.session?.capabilities ?? []
       )
     case .calendar:
       guidance = .calendar

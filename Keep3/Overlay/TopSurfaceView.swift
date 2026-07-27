@@ -14,17 +14,14 @@ struct TopSurfaceKeyboardNavigationGuidance: Equatable, Sendable {
     )
   }
 
-  static func media(
-    canGoToPreviousTrack: Bool,
-    canGoToNextTrack: Bool
-  ) -> Self {
+  static func media(capabilities: Set<MediaCapability>) -> Self {
     var visibleDirections: [String] = []
     var instructions: [String] = []
-    if canGoToPreviousTrack {
+    if capabilities.contains(.previous) {
       visibleDirections.append("←")
       instructions.append("← 上一首")
     }
-    if canGoToNextTrack {
+    if capabilities.contains(.next) {
       visibleDirections.append("→")
       instructions.append("→ 下一首")
     }
