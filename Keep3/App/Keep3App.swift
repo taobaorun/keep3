@@ -517,7 +517,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self?.handleSurfaceScroll(event)
       },
       onActivateSurface: { [weak self] in
-        self?.surfaceNavigationCoordinator.setLevel(.expanded)
+        self?.activateSurfaceForKeyboardNavigation()
       },
       onRequestKeyboardNavigation: { [weak self] in
         self?.topSurfaceController.beginKeyboardNavigation()
@@ -558,7 +558,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self?.handleSurfaceScroll(event)
       },
       onActivateSurface: { [weak self] in
-        self?.surfaceNavigationCoordinator.setLevel(.expanded)
+        self?.activateSurfaceForKeyboardNavigation()
       },
       onRequestKeyboardNavigation: { [weak self] in
         self?.topSurfaceController.beginKeyboardNavigation()
@@ -595,7 +595,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self?.handleSurfaceScroll(event)
       },
       onActivateSurface: { [weak self] in
-        self?.surfaceNavigationCoordinator.setLevel(.expanded)
+        self?.activateSurfaceForKeyboardNavigation()
       },
       onRequestKeyboardNavigation: { [weak self] in
         self?.topSurfaceController.beginKeyboardNavigation()
@@ -612,6 +612,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func dismissSurfaceNavigation() {
     topSurfaceController.endKeyboardNavigation()
     surfaceNavigationCoordinator.setLevel(.compact)
+  }
+
+  private func activateSurfaceForKeyboardNavigation() {
+    surfaceNavigationCoordinator.setLevel(.expanded)
+    topSurfaceController.beginKeyboardNavigation()
   }
 
   private func handleSurfaceHoverChange(_ isInside: Bool) {

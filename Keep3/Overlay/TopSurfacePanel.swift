@@ -469,6 +469,7 @@ final class TopSurfacePanel: NSPanel {
         NSEvent.removeMonitor(keyboardEventMonitor)
         self.keyboardEventMonitor = nil
       }
+      becomesKeyOnlyIfNeeded = true
       if isKeyWindow {
         resignKey()
       }
@@ -476,6 +477,7 @@ final class TopSurfacePanel: NSPanel {
       return
     }
 
+    becomesKeyOnlyIfNeeded = false
     if activateApplication {
       NSApp.activate()
     }
@@ -490,8 +492,8 @@ final class TopSurfacePanel: NSPanel {
         return self.routeKeyboardEvent(event) ? nil : event
       }
     }
-    makeKeyAndOrderFront(nil)
     makeFirstResponder(eventView)
+    makeKeyAndOrderFront(nil)
     Task { @MainActor [weak self] in
       guard let self, self.keyboardNavigationPresentation.isActive else {
         return
