@@ -598,7 +598,9 @@ private struct TopSurfaceRootView<Content: View>: View {
       alignment: .topLeading
     )
     .animation(
-      animatesSurfaceFrame && !reduceMotion
+      animatesSurfaceFrame
+        && !keyboardNavigationPresentation.isActive
+        && !reduceMotion
         ? .spring(response: 0.4, dampingFraction: 0.68)
         : nil,
       value: layout.surfaceFrameInPanel
