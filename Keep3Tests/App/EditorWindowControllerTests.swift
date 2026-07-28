@@ -1,11 +1,12 @@
 import AppKit
+import SwiftUI
 import XCTest
 
 @testable import Keep3
 
 @MainActor
 final class EditorWindowControllerTests: XCTestCase {
-  func testEditorWindowCanCloseAndReopenWithoutCreatingAnotherWindow() throws {
+  func testShowEditorSelectsEditorDestinationOnOriginalWindow() throws {
     let (preferences, defaults, suiteName) = makePreferences()
     defer { defaults.removePersistentDomain(forName: suiteName) }
     let controller = EditorWindowController(
@@ -16,14 +17,61 @@ final class EditorWindowControllerTests: XCTestCase {
     defer { originalWindow.orderOut(nil) }
 
     controller.showEditor(activate: false)
+
+    XCTAssertEqual(controller.destination, .editor)
+    XCTAssertTrue(originalWindow.isVisible)
+    XCTAssertTrue(controller.window === originalWindow)
+  }
+
+  func testShowSettingsReusesWindowAfterCloseAndReopen() throws {
+    let (preferences, defaults, suiteName) = makePreferences()
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let controller = EditorWindowController(
+      model: AppModel(),
+      preferences: preferences
+    )
+    let originalWindow = try XCTUnwrap(controller.window)
+    let hostingView = try XCTUnwrap(
+      originalWindow.contentView as? NSHostingView<RootView>
+    )
+    defer { originalWindow.orderOut(nil) }
+
+    controller.showEditor(activate: false)
+    controller.showSettings(activate: false)
+
+    XCTAssertEqual(controller.destination, .settings)
+    XCTAssertEqual(hostingView.rootView.destinationState.destination, .settings)
     XCTAssertTrue(originalWindow.isVisible)
 
     originalWindow.close()
     XCTAssertFalse(originalWindow.isVisible)
     XCTAssertTrue(controller.window === originalWindow)
 
-    controller.showEditor(activate: false)
+    controller.showSettings(activate: false)
+
+    XCTAssertEqual(controller.destination, .settings)
     XCTAssertTrue(originalWindow.isVisible)
+    XCTAssertTrue(controller.window === originalWindow)
+  }
+
+  func testShowEditorAfterSettingsSelectsEditorOnSameWindow() throws {
+    let (preferences, defaults, suiteName) = makePreferences()
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let controller = EditorWindowController(
+      model: AppModel(),
+      preferences: preferences
+    )
+    let originalWindow = try XCTUnwrap(controller.window)
+    let hostingView = try XCTUnwrap(
+      originalWindow.contentView as? NSHostingView<RootView>
+    )
+    defer { originalWindow.orderOut(nil) }
+
+    controller.showSettings(activate: false)
+    controller.showEditor(activate: false)
+
+    XCTAssertEqual(controller.destination, .editor)
+    XCTAssertEqual(hostingView.rootView.destinationState.destination, .editor)
     XCTAssertTrue(controller.window === originalWindow)
   }
 
