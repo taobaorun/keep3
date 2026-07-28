@@ -51,6 +51,10 @@ final class TopSurfaceController {
     return panel.convertToScreen(panel.renderedSurfaceFrameInPanel)
   }
 
+  var isKeyboardNavigationActive: Bool {
+    isKeyboardNavigationSessionActive
+  }
+
   func showOnPrimaryDisplay(
     content: TopSurfaceContent,
     metrics: SurfaceMetrics = .standard,

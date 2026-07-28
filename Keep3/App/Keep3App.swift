@@ -173,6 +173,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     hasVisibleWindows flag: Bool
   ) -> Bool {
     launchAtLoginController.refresh()
+    guard !topSurfaceController.isKeyboardNavigationActive else {
+      return true
+    }
     editorWindowController.showEditor()
     return true
   }
