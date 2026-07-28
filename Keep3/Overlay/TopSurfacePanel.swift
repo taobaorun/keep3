@@ -60,7 +60,6 @@ final class TopSurfacePanel: NSPanel {
   private(set) var renderedSurfaceFrameInPanel: CGRect
   private let keyboardNavigationPresentation: TopSurfaceKeyboardNavigationPresentation
   private var keyboardEventMonitor: Any?
-  private var onOpenSettings: () -> Void
 
   var renderedContent: TopSurfaceContent {
     guard case .focus(let content) = panelContent else {
@@ -202,7 +201,6 @@ final class TopSurfacePanel: NSPanel {
     renderedPresentationStyle = presentationStyle
     renderedSurfaceFrameInPanel = resolvedSurfaceFrame
     self.keyboardNavigationPresentation = keyboardNavigationPresentation
-    self.onOpenSettings = onOpenSettings
     eventView = TopSurfaceEventView(
       frame: CGRect(origin: .zero, size: contentRect.size),
       activeFrame: resolvedSurfaceFrame,
@@ -289,7 +287,6 @@ final class TopSurfacePanel: NSPanel {
     eventView.onNavigate = onNavigate
     eventView.onDismiss = onDismiss
     eventView.onOpenItem = onOpenItem
-    self.onOpenSettings = onOpenSettings
     eventView.updateActiveFrame(surfaceFrameInPanel)
     eventView.hostingView.rootView = Self.rootView(
       for: panelContent,
@@ -329,7 +326,6 @@ final class TopSurfacePanel: NSPanel {
     eventView.onNavigate = onNavigate
     eventView.onDismiss = onDismiss
     eventView.onOpenItem = {}
-    onOpenSettings = {}
     eventView.updateActiveFrame(surfaceFrameInPanel)
     eventView.hostingView.rootView = Self.rootView(
       for: panelContent,
@@ -367,7 +363,6 @@ final class TopSurfacePanel: NSPanel {
     eventView.onNavigate = { _ in }
     eventView.onDismiss = onDismiss
     eventView.onOpenItem = {}
-    onOpenSettings = {}
     eventView.updateActiveFrame(surfaceFrameInPanel)
     eventView.hostingView.rootView = Self.rootView(
       for: panelContent,
@@ -460,10 +455,6 @@ final class TopSurfacePanel: NSPanel {
         )
       )
     }
-  }
-
-  func performSettingsAction() {
-    onOpenSettings()
   }
 
   func setKeyboardNavigationEnabled(
