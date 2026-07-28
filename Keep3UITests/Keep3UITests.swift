@@ -80,6 +80,82 @@ final class Keep3UITests: XCTestCase {
     XCTAssertEqual(titleField.value as? String, "Beta")
   }
 
+  func testExpandedPrioritiesSettingsPreservesFocusAndEditorRoute() throws {
+    try launchIsolatedApp(expandedSurface: true)
+    defer { cleanUpIsolatedApp() }
+
+    addItem("Alpha")
+    addItem("Beta")
+
+    let nextButton = app.buttons["overlay.next"]
+    XCTAssertTrue(nextButton.waitForExistence(timeout: 3))
+    nextButton.click()
+
+    let settingsButton = app.buttons["overlay.settings"]
+    XCTAssertTrue(
+      settingsButton.waitForExistence(timeout: 2),
+      app.debugDescription
+    )
+    XCTAssertEqual(settingsButton.label, "设置")
+    settingsButton.click()
+
+    XCTAssertTrue(
+      app.descendants(matching: .any)["settings.category.general"]
+        .waitForExistence(timeout: 3)
+    )
+
+    let openItem = app.buttons["overlay.openItem"]
+    XCTAssertTrue(openItem.waitForExistence(timeout: 2))
+    XCTAssertTrue(openItem.label.contains("Beta"))
+    openItem.click()
+
+    let titleField = app.textFields["editor.title"]
+    XCTAssertTrue(titleField.waitForExistence(timeout: 3))
+    XCTAssertEqual(titleField.value as? String, "Beta")
+    XCTAssertTrue(app.buttons["editor.item.1"].label.contains("当前重点"))
+    XCTAssertTrue(app.buttons["editor.item.1"].label.contains("Alpha"))
+  }
+
+  func testExpandedPrioritiesSettingsRemainsCenteredForOneAndMultipleItems()
+    throws
+  {
+    try launchIsolatedApp(expandedSurface: true)
+    defer { cleanUpIsolatedApp() }
+
+    addItem("Alpha")
+
+    let settingsButton = app.buttons["overlay.settings"]
+    XCTAssertTrue(settingsButton.waitForExistence(timeout: 3))
+    XCTAssertFalse(app.buttons["overlay.previous"].exists)
+    XCTAssertFalse(app.buttons["overlay.next"].exists)
+    let oneItemSettingsMidX = settingsButton.frame.midX
+
+    addItem("Beta")
+
+    let previousButton = app.buttons["overlay.previous"]
+    let nextButton = app.buttons["overlay.next"]
+    XCTAssertTrue(previousButton.waitForExistence(timeout: 3))
+    XCTAssertTrue(nextButton.waitForExistence(timeout: 3))
+    XCTAssertEqual(settingsButton.frame.midX, oneItemSettingsMidX, accuracy: 1)
+    XCTAssertEqual(
+      settingsButton.frame.midX - previousButton.frame.midX,
+      nextButton.frame.midX - settingsButton.frame.midX,
+      accuracy: 1
+    )
+  }
+
+  func testCompactPrioritiesDoesNotExposeSettingsAction() throws {
+    try launchIsolatedApp(surfaceLevel: "compact")
+    defer { cleanUpIsolatedApp() }
+
+    addItem("Compact Focus")
+
+    XCTAssertTrue(
+      app.buttons["overlay.compact"].waitForExistence(timeout: 3)
+    )
+    XCTAssertFalse(app.buttons["overlay.settings"].exists)
+  }
+
   func testPlayingMediaOwnsSurfaceAndDisablingMediaRestoresFocus()
     throws
   {
@@ -95,6 +171,7 @@ final class Keep3UITests: XCTestCase {
       next.waitForExistence(timeout: 4),
       app.debugDescription
     )
+    XCTAssertFalse(app.buttons["overlay.settings"].exists)
     next.click()
     XCTAssertTrue(
       app.staticTexts["Keep3 Fixture 2"].waitForExistence(timeout: 2)
@@ -144,6 +221,7 @@ final class Keep3UITests: XCTestCase {
       expandedCalendarEvent.waitForExistence(timeout: 4),
       app.debugDescription
     )
+    XCTAssertFalse(app.buttons["overlay.settings"].exists)
 
     app.radioButtons["重点"].click()
     addItem("Calendar Fallback")

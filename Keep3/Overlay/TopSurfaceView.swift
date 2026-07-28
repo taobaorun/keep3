@@ -410,6 +410,7 @@ struct TopSurfaceView: View {
   let onSurfaceNavigation: (SurfaceGestureIntent) -> Void
   let onNavigate: (TopSurfaceBrowseDirection) -> Void
   let onOpenItem: () -> Void
+  let onOpenSettings: () -> Void
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.accessibilityReduceTransparency) private
@@ -676,6 +677,23 @@ struct TopSurfaceView: View {
       } else {
         navigationPlaceholder
       }
+
+      Spacer(minLength: 8)
+
+      Button(action: onOpenSettings) {
+        Label("设置", systemImage: "gearshape")
+          .font(.caption.weight(.semibold))
+          .padding(.horizontal, 10)
+          .frame(height: 28)
+          .background(.white.opacity(0.085), in: Capsule())
+          .overlay {
+            Capsule()
+              .stroke(.white.opacity(0.08), lineWidth: 0.5)
+          }
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("设置")
+      .accessibilityIdentifier("overlay.settings")
 
       Spacer(minLength: 8)
 

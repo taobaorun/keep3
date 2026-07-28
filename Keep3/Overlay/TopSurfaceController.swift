@@ -30,8 +30,7 @@ struct TopSurfaceApplicationRestoration {
 @MainActor
 final class TopSurfaceController {
   private(set) var panel: TopSurfacePanel?
-  private let captureApplicationRestoration:
-    () -> TopSurfaceApplicationRestoration?
+  private let captureApplicationRestoration: () -> TopSurfaceApplicationRestoration?
   private var applicationRestoration: TopSurfaceApplicationRestoration?
   private var isKeyboardNavigationSessionActive = false
 
@@ -65,7 +64,8 @@ final class TopSurfaceController {
     onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
     onDismiss: @escaping () -> Void = {},
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
-    onOpenItem: @escaping () -> Void = {}
+    onOpenItem: @escaping () -> Void = {},
+    onOpenSettings: @escaping () -> Void = {}
   ) {
     guard let screen = NSScreen.screens.first else {
       remove()
@@ -90,7 +90,8 @@ final class TopSurfaceController {
       onSurfaceNavigation: onSurfaceNavigation,
       onDismiss: onDismiss,
       onNavigate: onNavigate,
-      onOpenItem: onOpenItem
+      onOpenItem: onOpenItem,
+      onOpenSettings: onOpenSettings
     )
   }
 
@@ -184,7 +185,8 @@ final class TopSurfaceController {
     onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
     onDismiss: @escaping () -> Void = {},
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
-    onOpenItem: @escaping () -> Void = {}
+    onOpenItem: @escaping () -> Void = {},
+    onOpenSettings: @escaping () -> Void = {}
   ) {
     let presentationStyle =
       layout.obstructionSize.map {
@@ -202,7 +204,8 @@ final class TopSurfaceController {
       onSurfaceNavigation: onSurfaceNavigation,
       onDismiss: onDismiss,
       onNavigate: onNavigate,
-      onOpenItem: onOpenItem
+      onOpenItem: onOpenItem,
+      onOpenSettings: onOpenSettings
     )
   }
 
@@ -319,7 +322,8 @@ final class TopSurfaceController {
     onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
     onDismiss: @escaping () -> Void = {},
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
-    onOpenItem: @escaping () -> Void = {}
+    onOpenItem: @escaping () -> Void = {},
+    onOpenSettings: @escaping () -> Void = {}
   ) {
     let obstructionSize: CGSize?
     switch presentationStyle {
@@ -343,7 +347,8 @@ final class TopSurfaceController {
       onSurfaceNavigation: onSurfaceNavigation,
       onDismiss: onDismiss,
       onNavigate: onNavigate,
-      onOpenItem: onOpenItem
+      onOpenItem: onOpenItem,
+      onOpenSettings: onOpenSettings
     )
   }
 
@@ -358,7 +363,8 @@ final class TopSurfaceController {
     onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void,
     onDismiss: @escaping () -> Void,
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
-    onOpenItem: @escaping () -> Void
+    onOpenItem: @escaping () -> Void,
+    onOpenSettings: @escaping () -> Void
   ) {
     let surfacePanel: TopSurfacePanel
 
@@ -376,7 +382,8 @@ final class TopSurfaceController {
         onSurfaceNavigation: onSurfaceNavigation,
         onDismiss: onDismiss,
         onNavigate: onNavigate,
-        onOpenItem: onOpenItem
+        onOpenItem: onOpenItem,
+        onOpenSettings: onOpenSettings
       )
     } else {
       surfacePanel = TopSurfacePanel(
@@ -391,7 +398,8 @@ final class TopSurfaceController {
         onSurfaceNavigation: onSurfaceNavigation,
         onDismiss: onDismiss,
         onNavigate: onNavigate,
-        onOpenItem: onOpenItem
+        onOpenItem: onOpenItem,
+        onOpenSettings: onOpenSettings
       )
       panel = surfacePanel
     }

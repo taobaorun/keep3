@@ -58,9 +58,9 @@ final class TopSurfacePanel: NSPanel {
   private var panelContent: PanelContent
   private(set) var renderedPresentationStyle: TopSurfacePresentationStyle
   private(set) var renderedSurfaceFrameInPanel: CGRect
-  private let keyboardNavigationPresentation:
-    TopSurfaceKeyboardNavigationPresentation
+  private let keyboardNavigationPresentation: TopSurfaceKeyboardNavigationPresentation
   private var keyboardEventMonitor: Any?
+  private var onOpenSettings: () -> Void
 
   var renderedContent: TopSurfaceContent {
     guard case .focus(let content) = panelContent else {
@@ -95,7 +95,8 @@ final class TopSurfacePanel: NSPanel {
     onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
     onDismiss: @escaping () -> Void = {},
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
-    onOpenItem: @escaping () -> Void = {}
+    onOpenItem: @escaping () -> Void = {},
+    onOpenSettings: @escaping () -> Void = {}
   ) {
     self.init(
       contentRect: contentRect,
@@ -110,6 +111,7 @@ final class TopSurfacePanel: NSPanel {
       onDismiss: onDismiss,
       onNavigate: onNavigate,
       onOpenItem: onOpenItem,
+      onOpenSettings: onOpenSettings,
       onMediaAction: { _ in }
     )
   }
@@ -141,6 +143,7 @@ final class TopSurfacePanel: NSPanel {
       onDismiss: onDismiss,
       onNavigate: onNavigate,
       onOpenItem: {},
+      onOpenSettings: {},
       onMediaAction: onMediaAction
     )
   }
@@ -170,6 +173,7 @@ final class TopSurfacePanel: NSPanel {
       onDismiss: onDismiss,
       onNavigate: { _ in },
       onOpenItem: {},
+      onOpenSettings: {},
       onMediaAction: { _ in }
     )
   }
@@ -187,6 +191,7 @@ final class TopSurfacePanel: NSPanel {
     onDismiss: @escaping () -> Void,
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
     onOpenItem: @escaping () -> Void,
+    onOpenSettings: @escaping () -> Void,
     onMediaAction: @escaping (MediaSurfaceAction) -> Void
   ) {
     let resolvedSurfaceFrame =
@@ -197,6 +202,7 @@ final class TopSurfacePanel: NSPanel {
     renderedPresentationStyle = presentationStyle
     renderedSurfaceFrameInPanel = resolvedSurfaceFrame
     self.keyboardNavigationPresentation = keyboardNavigationPresentation
+    self.onOpenSettings = onOpenSettings
     eventView = TopSurfaceEventView(
       frame: CGRect(origin: .zero, size: contentRect.size),
       activeFrame: resolvedSurfaceFrame,
@@ -211,6 +217,7 @@ final class TopSurfacePanel: NSPanel {
         onSurfaceNavigation: onSurfaceNavigation,
         onNavigate: onNavigate,
         onOpenItem: onOpenItem,
+        onOpenSettings: onOpenSettings,
         onMediaAction: onMediaAction
       )
     )
@@ -270,7 +277,8 @@ final class TopSurfacePanel: NSPanel {
     onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void,
     onDismiss: @escaping () -> Void,
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
-    onOpenItem: @escaping () -> Void
+    onOpenItem: @escaping () -> Void,
+    onOpenSettings: @escaping () -> Void
   ) {
     panelContent = .focus(content)
     renderedPresentationStyle = presentationStyle
@@ -281,6 +289,7 @@ final class TopSurfacePanel: NSPanel {
     eventView.onNavigate = onNavigate
     eventView.onDismiss = onDismiss
     eventView.onOpenItem = onOpenItem
+    self.onOpenSettings = onOpenSettings
     eventView.updateActiveFrame(surfaceFrameInPanel)
     eventView.hostingView.rootView = Self.rootView(
       for: panelContent,
@@ -293,6 +302,7 @@ final class TopSurfacePanel: NSPanel {
       onSurfaceNavigation: onSurfaceNavigation,
       onNavigate: onNavigate,
       onOpenItem: onOpenItem,
+      onOpenSettings: onOpenSettings,
       onMediaAction: { _ in }
     )
   }
@@ -319,6 +329,7 @@ final class TopSurfacePanel: NSPanel {
     eventView.onNavigate = onNavigate
     eventView.onDismiss = onDismiss
     eventView.onOpenItem = {}
+    onOpenSettings = {}
     eventView.updateActiveFrame(surfaceFrameInPanel)
     eventView.hostingView.rootView = Self.rootView(
       for: panelContent,
@@ -331,6 +342,7 @@ final class TopSurfacePanel: NSPanel {
       onSurfaceNavigation: onSurfaceNavigation,
       onNavigate: onNavigate,
       onOpenItem: {},
+      onOpenSettings: {},
       onMediaAction: onMediaAction
     )
   }
@@ -355,6 +367,7 @@ final class TopSurfacePanel: NSPanel {
     eventView.onNavigate = { _ in }
     eventView.onDismiss = onDismiss
     eventView.onOpenItem = {}
+    onOpenSettings = {}
     eventView.updateActiveFrame(surfaceFrameInPanel)
     eventView.hostingView.rootView = Self.rootView(
       for: panelContent,
@@ -367,6 +380,7 @@ final class TopSurfacePanel: NSPanel {
       onSurfaceNavigation: onSurfaceNavigation,
       onNavigate: { _ in },
       onOpenItem: {},
+      onOpenSettings: {},
       onMediaAction: { _ in }
     )
   }
@@ -383,6 +397,7 @@ final class TopSurfacePanel: NSPanel {
     onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void,
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
     onOpenItem: @escaping () -> Void,
+    onOpenSettings: @escaping () -> Void,
     onMediaAction: @escaping (MediaSurfaceAction) -> Void
   ) -> AnyView {
     let surfaceSize = surfaceFrameInPanel.size
@@ -406,7 +421,8 @@ final class TopSurfacePanel: NSPanel {
             onRequestKeyboardNavigation: onRequestKeyboardNavigation,
             onSurfaceNavigation: onSurfaceNavigation,
             onNavigate: onNavigate,
-            onOpenItem: onOpenItem
+            onOpenItem: onOpenItem,
+            onOpenSettings: onOpenSettings
           )
         )
       )
@@ -444,6 +460,10 @@ final class TopSurfacePanel: NSPanel {
         )
       )
     }
+  }
+
+  func performSettingsAction() {
+    onOpenSettings()
   }
 
   func setKeyboardNavigationEnabled(
@@ -569,8 +589,7 @@ private struct TopSurfaceRootView<Content: View>: View {
 
   let layout: TopSurfaceHostedLayout
   let isHovered: Bool
-  @ObservedObject var keyboardNavigationPresentation:
-    TopSurfaceKeyboardNavigationPresentation
+  @ObservedObject var keyboardNavigationPresentation: TopSurfaceKeyboardNavigationPresentation
   let content: Content
 
   var body: some View {
