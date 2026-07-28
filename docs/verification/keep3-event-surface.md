@@ -105,6 +105,9 @@ verify this behavior manually:
    and confirm neither the editor nor Settings window opens.
 8. Confirm arrow-key navigation still works after that click, then press Escape
    and verify focus returns to the previously active application.
+9. Quit and relaunch Keep3 and confirm the top surface starts without an editor
+   or Settings window; explicitly reopen the running app from the Dock and
+   confirm the main window appears.
 
 ## Paused media availability follow-up
 

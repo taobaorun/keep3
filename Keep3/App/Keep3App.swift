@@ -159,7 +159,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     applyMediaPreferences()
     applyCalendarPreferences()
     applyUITestSurfaceLevel()
-    editorWindowController.showEditor()
   }
 
   func applicationShouldTerminateAfterLastWindowClosed(
