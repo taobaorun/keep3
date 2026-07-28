@@ -611,13 +611,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.interactionModel.activateVisibleItem()
           }
       },
-      onOpenSettings: { [weak self] in
+      onOpenKeep3: { [weak self] in
         guard let self else {
           return
         }
         self.topSurfaceController
           .performActionWithoutRestoringPreviousApplication {
-            self.editorWindowController.showSettings()
+            self.editorWindowController.showEditor()
           }
       }
     )

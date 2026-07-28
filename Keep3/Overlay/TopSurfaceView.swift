@@ -410,7 +410,7 @@ struct TopSurfaceView: View {
   let onSurfaceNavigation: (SurfaceGestureIntent) -> Void
   let onNavigate: (TopSurfaceBrowseDirection) -> Void
   let onOpenItem: () -> Void
-  let onOpenSettings: () -> Void
+  let onOpenKeep3: () -> Void
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.accessibilityReduceTransparency) private
@@ -680,8 +680,8 @@ struct TopSurfaceView: View {
 
       Spacer(minLength: 8)
 
-      Button(action: onOpenSettings) {
-        Label("设置", systemImage: "gearshape")
+      Button(action: onOpenKeep3) {
+        Text("Keep3")
           .font(.caption.weight(.semibold))
           .padding(.horizontal, 10)
           .frame(height: 28)
@@ -692,8 +692,9 @@ struct TopSurfaceView: View {
           }
       }
       .buttonStyle(.plain)
-      .accessibilityLabel("设置")
-      .accessibilityIdentifier("overlay.settings")
+      .accessibilityLabel("Keep3")
+      .accessibilityHint("打开主窗口")
+      .accessibilityIdentifier("overlay.keep3")
 
       Spacer(minLength: 8)
 

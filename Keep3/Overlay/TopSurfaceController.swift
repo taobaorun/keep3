@@ -65,7 +65,7 @@ final class TopSurfaceController {
     onDismiss: @escaping () -> Void = {},
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onOpenItem: @escaping () -> Void = {},
-    onOpenSettings: @escaping () -> Void = {}
+    onOpenKeep3: @escaping () -> Void = {}
   ) {
     guard let screen = NSScreen.screens.first else {
       remove()
@@ -91,7 +91,7 @@ final class TopSurfaceController {
       onDismiss: onDismiss,
       onNavigate: onNavigate,
       onOpenItem: onOpenItem,
-      onOpenSettings: onOpenSettings
+      onOpenKeep3: onOpenKeep3
     )
   }
 
@@ -186,7 +186,7 @@ final class TopSurfaceController {
     onDismiss: @escaping () -> Void = {},
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onOpenItem: @escaping () -> Void = {},
-    onOpenSettings: @escaping () -> Void = {}
+    onOpenKeep3: @escaping () -> Void = {}
   ) {
     let presentationStyle =
       layout.obstructionSize.map {
@@ -205,7 +205,7 @@ final class TopSurfaceController {
       onDismiss: onDismiss,
       onNavigate: onNavigate,
       onOpenItem: onOpenItem,
-      onOpenSettings: onOpenSettings
+      onOpenKeep3: onOpenKeep3
     )
   }
 
@@ -323,7 +323,7 @@ final class TopSurfaceController {
     onDismiss: @escaping () -> Void = {},
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onOpenItem: @escaping () -> Void = {},
-    onOpenSettings: @escaping () -> Void = {}
+    onOpenKeep3: @escaping () -> Void = {}
   ) {
     let obstructionSize: CGSize?
     switch presentationStyle {
@@ -348,7 +348,7 @@ final class TopSurfaceController {
       onDismiss: onDismiss,
       onNavigate: onNavigate,
       onOpenItem: onOpenItem,
-      onOpenSettings: onOpenSettings
+      onOpenKeep3: onOpenKeep3
     )
   }
 
@@ -364,7 +364,7 @@ final class TopSurfaceController {
     onDismiss: @escaping () -> Void,
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
     onOpenItem: @escaping () -> Void,
-    onOpenSettings: @escaping () -> Void
+    onOpenKeep3: @escaping () -> Void
   ) {
     let surfacePanel: TopSurfacePanel
 
@@ -383,7 +383,7 @@ final class TopSurfaceController {
         onDismiss: onDismiss,
         onNavigate: onNavigate,
         onOpenItem: onOpenItem,
-        onOpenSettings: onOpenSettings
+        onOpenKeep3: onOpenKeep3
       )
     } else {
       surfacePanel = TopSurfacePanel(
@@ -399,7 +399,7 @@ final class TopSurfaceController {
         onDismiss: onDismiss,
         onNavigate: onNavigate,
         onOpenItem: onOpenItem,
-        onOpenSettings: onOpenSettings
+        onOpenKeep3: onOpenKeep3
       )
       panel = surfacePanel
     }

@@ -95,7 +95,7 @@ final class TopSurfacePanel: NSPanel {
     onDismiss: @escaping () -> Void = {},
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onOpenItem: @escaping () -> Void = {},
-    onOpenSettings: @escaping () -> Void = {}
+    onOpenKeep3: @escaping () -> Void = {}
   ) {
     self.init(
       contentRect: contentRect,
@@ -110,7 +110,7 @@ final class TopSurfacePanel: NSPanel {
       onDismiss: onDismiss,
       onNavigate: onNavigate,
       onOpenItem: onOpenItem,
-      onOpenSettings: onOpenSettings,
+      onOpenKeep3: onOpenKeep3,
       onMediaAction: { _ in }
     )
   }
@@ -142,7 +142,7 @@ final class TopSurfacePanel: NSPanel {
       onDismiss: onDismiss,
       onNavigate: onNavigate,
       onOpenItem: {},
-      onOpenSettings: {},
+      onOpenKeep3: {},
       onMediaAction: onMediaAction
     )
   }
@@ -172,7 +172,7 @@ final class TopSurfacePanel: NSPanel {
       onDismiss: onDismiss,
       onNavigate: { _ in },
       onOpenItem: {},
-      onOpenSettings: {},
+      onOpenKeep3: {},
       onMediaAction: { _ in }
     )
   }
@@ -190,7 +190,7 @@ final class TopSurfacePanel: NSPanel {
     onDismiss: @escaping () -> Void,
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
     onOpenItem: @escaping () -> Void,
-    onOpenSettings: @escaping () -> Void,
+    onOpenKeep3: @escaping () -> Void,
     onMediaAction: @escaping (MediaSurfaceAction) -> Void
   ) {
     let resolvedSurfaceFrame =
@@ -215,7 +215,7 @@ final class TopSurfacePanel: NSPanel {
         onSurfaceNavigation: onSurfaceNavigation,
         onNavigate: onNavigate,
         onOpenItem: onOpenItem,
-        onOpenSettings: onOpenSettings,
+        onOpenKeep3: onOpenKeep3,
         onMediaAction: onMediaAction
       )
     )
@@ -276,7 +276,7 @@ final class TopSurfacePanel: NSPanel {
     onDismiss: @escaping () -> Void,
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
     onOpenItem: @escaping () -> Void,
-    onOpenSettings: @escaping () -> Void
+    onOpenKeep3: @escaping () -> Void
   ) {
     panelContent = .focus(content)
     renderedPresentationStyle = presentationStyle
@@ -299,7 +299,7 @@ final class TopSurfacePanel: NSPanel {
       onSurfaceNavigation: onSurfaceNavigation,
       onNavigate: onNavigate,
       onOpenItem: onOpenItem,
-      onOpenSettings: onOpenSettings,
+      onOpenKeep3: onOpenKeep3,
       onMediaAction: { _ in }
     )
   }
@@ -338,7 +338,7 @@ final class TopSurfacePanel: NSPanel {
       onSurfaceNavigation: onSurfaceNavigation,
       onNavigate: onNavigate,
       onOpenItem: {},
-      onOpenSettings: {},
+      onOpenKeep3: {},
       onMediaAction: onMediaAction
     )
   }
@@ -375,7 +375,7 @@ final class TopSurfacePanel: NSPanel {
       onSurfaceNavigation: onSurfaceNavigation,
       onNavigate: { _ in },
       onOpenItem: {},
-      onOpenSettings: {},
+      onOpenKeep3: {},
       onMediaAction: { _ in }
     )
   }
@@ -392,7 +392,7 @@ final class TopSurfacePanel: NSPanel {
     onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void,
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void,
     onOpenItem: @escaping () -> Void,
-    onOpenSettings: @escaping () -> Void,
+    onOpenKeep3: @escaping () -> Void,
     onMediaAction: @escaping (MediaSurfaceAction) -> Void
   ) -> AnyView {
     let surfaceSize = surfaceFrameInPanel.size
@@ -417,7 +417,7 @@ final class TopSurfacePanel: NSPanel {
             onSurfaceNavigation: onSurfaceNavigation,
             onNavigate: onNavigate,
             onOpenItem: onOpenItem,
-            onOpenSettings: onOpenSettings
+            onOpenKeep3: onOpenKeep3
           )
         )
       )
