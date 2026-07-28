@@ -191,6 +191,9 @@ Additional rules:
    the frontmost application.
 10. Activating the item itself opens the main window; navigation controls do
     not.
+11. Activating keyboard navigation from the top surface does not open the main
+    editor or Settings window. The main window still opens when the user
+    explicitly reopens Keep3 outside an active surface-navigation session.
 
 ### FR-8: Motion and Appearance
 

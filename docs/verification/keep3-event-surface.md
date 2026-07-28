@@ -101,6 +101,10 @@ verify this behavior manually:
    each side from its compact width and remains horizontally centered.
 6. On a notched display, confirm expanded Priorities keeps the compact left and
    right edges instead of narrowing as it opens.
+7. Close the main window, click the notch surface to enter keyboard navigation,
+   and confirm neither the editor nor Settings window opens.
+8. Confirm arrow-key navigation still works after that click, then press Escape
+   and verify focus returns to the previously active application.
 
 ## Paused media availability follow-up
 
