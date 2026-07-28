@@ -29,7 +29,7 @@ struct MediaSurfacePresentation: Equatable, Sendable {
   init(payload: MediaSurfacePayload) {
     let session = payload.session
     sessionID = payload.sessionID
-    title = session?.title ?? "正在播放"
+    title = session?.title ?? session?.applicationName ?? "播放器"
     artist = session?.artist
     album =
       payload.appearance.showsMediaTitleExtras ? session?.album : nil

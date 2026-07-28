@@ -122,12 +122,17 @@ Per the 2026-07-27 acceptance request, verify this behavior manually:
    control.
 2. While a session is paused, switch to Priorities or Calendar and then back to
    Media without reopening the source application.
-3. Launch Keep3 while a controllable source is paused and confirm Media is
-   navigable but does not replace an available component until selected.
+3. Launch Keep3 before or after a supported native player that has never played
+   in the current process, and confirm Media becomes navigable with a usable
+   Play control without first activating playback in the source application.
 4. Start playback and confirm Media auto-selects once unless another component
-   was manually selected during the same media session.
-5. Stop playback or quit the source and confirm Media is removed from component
-   navigation.
+   was manually selected during the same media session. Confirm the dormant
+   placeholder upgrades to the normal title, artwork, and controls without
+   reopening either application.
+5. Stop playback and confirm Media remains manually navigable with a usable
+   Play control; quit the source and confirm Media is removed. Relaunch the
+   source without playing and confirm Media returns after lifecycle
+   reconciliation.
 6. Repeatedly use Keep3's Play/Pause control and confirm the current cover never
    flashes to the fallback music-note icon.
 7. Change to confirmed content without artwork and confirm the previous cover is
@@ -153,6 +158,11 @@ Per the 2026-07-27 acceptance request, verify this behavior manually:
 - Live media snapshot: passed. The installed helper registered with
   `mediaremoted` and resolved a playing
   `com.netease.163music`/网易云音乐 session.
+- Dormant NetEase upgrade (Debug, 2026-07-28): passed. A process-bound
+  placeholder accepted Play, then upgraded through the resolved player path to
+  title, artist, album, artwork, Play/Pause, Previous, Next, and Seek. A
+  subsequent single UI click changed playback to `playing`; pausing preserved
+  the same normal player payload.
 - Physical two-finger direction, trackpad haptic, expanded Media retreat, and
   accessibility focus/announcement require the installed Release app on an
   unlocked, interactive console with human input.

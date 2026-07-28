@@ -23,12 +23,24 @@ The helper successfully opened:
 
 Resolved mandatory symbols:
 
+- `MRMediaRemoteCommandInfoGetCommand`
+- `MRMediaRemoteCommandInfoGetEnabled`
+- `MRMediaRemoteCopySupportedCommands`
+- `MRMediaRemoteGetLocalOrigin`
+- `MRMediaRemoteGetNowPlayingClient`
+- `MRMediaRemoteGetNowPlayingClients`
 - `MRMediaRemoteGetNowPlayingInfo`
+- `MRMediaRemoteGetNowPlayingInfoForClient`
 - `MRMediaRemoteGetNowPlayingApplicationIsPlaying`
 - `MRMediaRemoteGetNowPlayingApplicationPID`
+- `MRMediaRemoteGetSupportedCommandsForClient`
 - `MRMediaRemoteRegisterForNowPlayingNotifications`
 - `MRMediaRemoteUnregisterForNowPlayingNotifications`
 - `MRMediaRemoteSendCommand`
+- `MRMediaRemoteSendCommandToClient`
+- `MRNowPlayingClientCreate`
+- `MRNowPlayingClientGetBundleIdentifier`
+- `MRNowPlayingClientGetParentAppBundleIdentifier`
 
 Resolved optional symbols:
 
@@ -36,18 +48,11 @@ Resolved optional symbols:
 - `MRMediaRemoteSetShuffleMode`
 - `MRMediaRemoteSetRepeatMode`
 
-Resolved current-source capability symbols:
-
-- `MRMediaRemoteGetLocalOrigin`
-- `MRMediaRemoteCopySupportedCommands`
-- `MRMediaRemoteCommandInfoGetCommand`
-- `MRMediaRemoteCommandInfoGetEnabled`
-
 No probed symbol was missing on this host. Optional transport symbols and the
 current-source capability group still fail closed independently: a missing
-transport symbol retracts only its mapped capability, while a missing
-current-source capability symbol produces an empty control set instead of
-advertising framework-wide support.
+transport symbol retracts only its mapped capability, while a missing mandatory
+client-discovery or command symbol disables media rather than advertising
+unverified framework-wide support.
 
 ## Isolation and failure behavior
 
@@ -57,24 +62,50 @@ advertising framework-wide support.
 - Neither the Keep3 executable nor its debug dylib has a static MediaRemote
   dependency or undefined MediaRemote symbols.
 - The app/XPC contract uses versioned, property-list-safe dictionaries.
+- The app supplies a bounded, validated snapshot of running applications when
+  it starts monitoring. The XPC service uses that host-owned process context
+  instead of relying on an `NSWorkspace` cache inside the service process.
 - The helper bounds strings and artwork before XPC, publishes artwork as
   `replace` / `unchanged` / `clear`, and rejects stale capability revisions.
 - Every asynchronous refresh is fenced by both monitoring generation and
   runtime identity.
 - Controls are derived from enabled commands reported for the current source,
   not from MediaRemote symbol presence.
+- When the global Now Playing payload is empty or uncontrollable, the helper
+  enumerates registered clients, prefers the system-selected or previously
+  selected client, and publishes the first running client with Play/Pause.
+- Commands for a client-discovered inactive player are sent back to that exact
+  client instead of relying on the global command target.
+- If no registered client exists, the helper can construct an exact
+  process-bound client for a running Apple Music, Spotify, or NetEase Cloud
+  Music application and expose Play/Pause. Browser processes are intentionally
+  excluded because a running browser alone does not identify a media session.
+- A process-bound client is resolved through its default player and
+  `MRNowPlayingPlayerPath`. Metadata and enabled commands are then requested
+  from that exact player path; artwork is requested from its playback queue at
+  a bounded 512-point size.
+- After a dormant Play command is accepted, refreshes at 0.35, 1.2, and 2.5
+  seconds bridge players that publish their first metadata asynchronously.
+  Refreshes stop affecting presentation as soon as metadata is available.
+- Player launch and termination are reconciled by the app with bounded retries;
+  stale PIDs are rejected and the component is removed after process exit.
+- The per-client command completion byte is interpreted according to the
+  observed ABI on this host: status `0` means accepted.
 - A missing mandatory symbol, malformed compatibility response, protocol
   mismatch, interruption, or invalidation produces `.unavailable`.
 - Missing optional symbols remove only their corresponding capability.
 
 ## Automated evidence
 
-The post-rebase suite passes 146/146 tests, including:
+The original post-rebase suite for the verified commit passed 146/146 tests.
+The 2026-07-28 dormant-player regression checks on the current working tree
+include:
 
-- `MediaRemoteSymbolsTests`: 2 tests
-- `MediaSessionNormalizationTests`: 7 tests
-- `MediaCommandCoordinatorTests`: 5 tests
-- `MediaRemoteAdapterIntegrationTests`: 1 test
+- `MediaRemoteSymbolsTests`: 11 tests
+- `WorkspaceApplicationObserverTests`: 1 test
+- `MediaSessionNormalizationTests`: 8 tests
+- `MediaCommandCoordinatorTests`: 7 tests
+- `MediaRemoteAdapterIntegrationTests`: 2 tests
 
 Static analysis and the optimized arm64 Release build pass. The embedded helper
 has package type `XPC!`. The Release app and helper were ad-hoc signed and passed
@@ -92,7 +123,7 @@ capability, not that Keep3 should render an empty control.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Apple Music | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Not verified |
 | Spotify | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Not verified |
-| NetEase Cloud Music | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Not verified |
+| NetEase Cloud Music | Debug pass | Debug pass | Debug pass | Debug pass | Debug capability | Pending | Debug pass | Release pending |
 | Safari media | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Not verified |
 | Chrome media | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Not verified |
 

@@ -290,6 +290,18 @@ final class MediaSurfacePresentationTests: XCTestCase {
     XCTAssertEqual(visible.applicationName, "网易云音乐")
   }
 
+  func testInactivePlayerUsesItsApplicationNameWhenTrackMetadataIsAbsent() {
+    let presentation = MediaSurfacePresentation(
+      payload: payload(
+        title: nil,
+        playbackState: .paused
+      )
+    )
+
+    XCTAssertEqual(presentation.title, "网易云音乐")
+    XCTAssertFalse(presentation.isPlaying)
+  }
+
   func testNotchedCompactWaveformMatchesTheAlcoveEnvelope() {
     let style = MediaWaveformStyle.notchedCompact
 
@@ -362,13 +374,14 @@ final class MediaSurfacePresentationTests: XCTestCase {
     sourceBundleIdentifier: String? = "com.netease.163music",
     publicShareURL: String? = nil,
     showsMediaTitleExtras: Bool = false,
+    title: String? = "Track",
     playbackState: MediaPlaybackState = .playing
   ) -> MediaSurfacePayload {
     let session = MediaSession.normalize(
       .init(
         sessionID: "session-1",
         sourceBundleIdentifier: sourceBundleIdentifier,
-        title: "Track",
+        title: title,
         artist: "Artist",
         album: "Album",
         applicationName: "网易云音乐",

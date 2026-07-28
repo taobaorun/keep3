@@ -254,15 +254,19 @@ Additional rules:
 
 1. When media-first mode is enabled and a new eligible system media session is
    playing, media auto-selects once in the shared top surface.
-2. A controllable paused session remains available for manual component
-   navigation. Pausing selected media keeps Media selected so its Play control
-   can resume playback without opening the source application.
+2. A supported native player that is running but paused or fully idle remains
+   available for manual component navigation, including before it registers a
+   MediaRemote session. Pausing selected media keeps Media selected so its Play
+   control can resume playback without opening the source application. After
+   that Play command is accepted, Keep3 performs bounded reconciliation and
+   replaces the dormant placeholder with player-path metadata, artwork, and
+   capability-gated controls as soon as the source publishes them.
 3. A paused session does not automatically replace a manually selected
    component. Starting playback may auto-select Media once unless the user
    already selected another component during that session.
-4. Stopping, interruption, player exit, source suppression, or loss of the
-   media session removes Media and returns the surface to an available
-   component.
+4. Player exit or source suppression removes Media and returns the surface to
+   an available component. Losing a registered media client does not remove a
+   supported native player while its application process is still running.
 5. Compact media shows artwork or a fallback, title, artist, and a playback
    indicator. Expanded media shows metadata, progress, capability-gated
    controls, and the configured secondary action. When the compact playback

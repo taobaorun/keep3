@@ -197,9 +197,30 @@ final class SurfaceModeCoordinatorTests: XCTestCase {
     XCTAssertEqual(presentations.last, .focus(focus(focusID, revision: 1)))
   }
 
-  func testOnlyPlayingEligibleSnapshotTakesOverAndEveryInactiveStateUsesGrace() {
+  func testPausedSnapshotRemainsEligibleWithoutStartingHandoff() {
+    let scheduler = ManualSurfaceModeTimerScheduler()
+    var presentations: [TopSurfacePresentation] = []
+    let coordinator = SurfaceModeCoordinator(
+      scheduler: scheduler,
+      onPresentation: { presentations.append($0) }
+    )
+    coordinator.updateFocus(focus(UUID(), revision: 1))
+    coordinator.beginMediaEpoch(7)
+    coordinator.receiveMediaSnapshot(snapshot(state: .playing, epoch: 7))
+
+    coordinator.receiveMediaSnapshot(snapshot(state: .paused, epoch: 7))
+
+    guard case .media(let payload) = presentations.last else {
+      return XCTFail("Paused media should remain available")
+    }
+    XCTAssertTrue(payload.areControlsEnabled)
+    XCTAssertEqual(payload.playbackState, .paused)
+    XCTAssertTrue(scheduler.activeDelays.isEmpty)
+  }
+
+  func testStoppedInterruptedAndUnknownSnapshotsUseHandoffGrace() {
     let inactiveStates: [MediaPlaybackState] = [
-      .paused, .stopped, .interrupted, .unknown,
+      .stopped, .interrupted, .unknown,
     ]
 
     for state in inactiveStates {
