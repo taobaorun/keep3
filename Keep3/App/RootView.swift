@@ -1,5 +1,15 @@
 import SwiftUI
 
+enum MainWindowDestination: String, Hashable {
+  case editor
+  case settings
+}
+
+@MainActor
+final class MainWindowDestinationState: ObservableObject {
+  @Published var destination: MainWindowDestination = .editor
+}
+
 struct RootView: View {
   @ObservedObject var model: AppModel
   @ObservedObject var preferences: AppPreferences
@@ -7,13 +17,15 @@ struct RootView: View {
   @ObservedObject var calendarPreferences: CalendarPreferences
   @ObservedObject var calendarCoordinator: CalendarSessionCoordinator
   @ObservedObject var launchAtLoginController: LaunchAtLoginController
+  @ObservedObject var destinationState: MainWindowDestinationState
 
   var body: some View {
-    TabView {
+    TabView(selection: $destinationState.destination) {
       EditorView(model: model)
         .tabItem {
           Label("重点", systemImage: "scope")
         }
+        .tag(MainWindowDestination.editor)
 
       SettingsView(
         preferences: preferences,
@@ -25,6 +37,7 @@ struct RootView: View {
       .tabItem {
         Label("设置", systemImage: "gearshape")
       }
+      .tag(MainWindowDestination.settings)
     }
   }
 }

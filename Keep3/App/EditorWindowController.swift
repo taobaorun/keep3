@@ -3,6 +3,12 @@ import SwiftUI
 
 @MainActor
 final class EditorWindowController: NSWindowController {
+  private let destinationState: MainWindowDestinationState
+
+  var destination: MainWindowDestination {
+    destinationState.destination
+  }
+
   init(
     model: AppModel,
     preferences: AppPreferences,
@@ -14,6 +20,9 @@ final class EditorWindowController: NSWindowController {
     launchAtLoginController: LaunchAtLoginController =
       LaunchAtLoginController.live()
   ) {
+    let destinationState = MainWindowDestinationState()
+    self.destinationState = destinationState
+
     let window = NSWindow(
       contentRect: CGRect(x: 0, y: 0, width: 720, height: 520),
       styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -31,7 +40,8 @@ final class EditorWindowController: NSWindowController {
         mediaPreferences: mediaPreferences,
         calendarPreferences: calendarPreferences,
         calendarCoordinator: calendarCoordinator,
-        launchAtLoginController: launchAtLoginController
+        launchAtLoginController: launchAtLoginController,
+        destinationState: destinationState
       )
     )
 
@@ -45,6 +55,18 @@ final class EditorWindowController: NSWindowController {
   }
 
   func showEditor(activate: Bool = true) {
+    show(.editor, activate: activate)
+  }
+
+  func showSettings(activate: Bool = true) {
+    show(.settings, activate: activate)
+  }
+
+  private func show(
+    _ destination: MainWindowDestination,
+    activate: Bool
+  ) {
+    destinationState.destination = destination
     if activate {
       NSApp.activate()
     }
