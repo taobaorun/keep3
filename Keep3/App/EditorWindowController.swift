@@ -66,7 +66,9 @@ final class EditorWindowController: NSWindowController {
     _ destination: MainWindowDestination,
     activate: Bool
   ) {
-    destinationState.destination = destination
+    if destinationState.destination != destination {
+      destinationState.destination = destination
+    }
     if activate {
       NSApp.activate()
     }

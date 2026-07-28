@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum MainWindowDestination: String, Hashable {
+enum MainWindowDestination: Hashable {
   case editor
   case settings
 }
