@@ -23,7 +23,7 @@ struct RootView: View {
     TabView(selection: $destinationState.destination) {
       EditorView(model: model)
         .tabItem {
-          Label("重点", systemImage: "scope")
+          Text("Keep3")
         }
         .tag(MainWindowDestination.editor)
 
@@ -35,7 +35,8 @@ struct RootView: View {
         launchAtLoginController: launchAtLoginController
       )
       .tabItem {
-        Label("设置", systemImage: "gearshape")
+        Image(systemName: "gearshape")
+          .accessibilityLabel("设置")
       }
       .tag(MainWindowDestination.settings)
     }

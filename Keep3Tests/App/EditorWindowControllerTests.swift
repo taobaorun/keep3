@@ -6,6 +6,18 @@ import XCTest
 
 @MainActor
 final class EditorWindowControllerTests: XCTestCase {
+  func testEditorWindowDefaultsToKeep3Destination() {
+    let (preferences, defaults, suiteName) = makePreferences()
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let controller = EditorWindowController(
+      model: AppModel(),
+      preferences: preferences
+    )
+    defer { controller.window?.orderOut(nil) }
+
+    XCTAssertEqual(controller.destination, .editor)
+  }
+
   func testShowEditorSelectsEditorDestinationOnOriginalWindow() throws {
     let (preferences, defaults, suiteName) = makePreferences()
     defer { defaults.removePersistentDomain(forName: suiteName) }

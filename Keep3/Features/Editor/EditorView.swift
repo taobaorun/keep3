@@ -20,13 +20,20 @@ struct EditorView: View {
   private var sidebar: some View {
     VStack(alignment: .leading, spacing: 16) {
       VStack(alignment: .leading, spacing: 4) {
-        Image(nsImage: NSApplication.shared.applicationIconImage)
-          .resizable()
-          .renderingMode(.original)
-          .aspectRatio(contentMode: .fit)
-          .frame(width: 48, height: 48)
-          .accessibilityLabel("Keep3")
-          .accessibilityIdentifier("editor.brandLogo")
+        HStack(spacing: 12) {
+          Image(nsImage: NSApplication.shared.applicationIconImage)
+            .resizable()
+            .renderingMode(.original)
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 48, height: 48)
+            .accessibilityLabel("Keep3")
+            .accessibilityIdentifier("editor.brandLogo")
+
+          Text("Keep3")
+            .font(.title)
+            .fontWeight(.semibold)
+            .accessibilityIdentifier("editor.brandName")
+        }
         Text("把重要的事留在视线里")
           .font(.caption)
           .foregroundStyle(.secondary)
