@@ -452,6 +452,44 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertEqual(panel.renderedContent.item.title, "发布 Keep3")
   }
 
+  func testControllerThreadsAndClearsDedicatedFocusSettingsAction() throws {
+    var settingsActionCount = 0
+    let controller = TopSurfaceController()
+    let frame = CGRect(x: 100, y: 500, width: 360, height: 216)
+    let layout = SurfaceLayout(
+      panelFrame: frame,
+      surfaceFrameInPanel: CGRect(origin: .zero, size: frame.size),
+      obstructionSize: nil
+    )
+    defer { controller.remove() }
+
+    controller.show(
+      layout: layout,
+      content: try makeContent(title: "写 Keep3", isExpanded: true),
+      onOpenSettings: {
+        settingsActionCount += 1
+      }
+    )
+    let panel = try XCTUnwrap(controller.panel)
+
+    panel.performSettingsAction()
+
+    XCTAssertEqual(settingsActionCount, 1)
+
+    controller.showMedia(
+      layout: layout,
+      payload: MediaSurfacePayload(
+        sessionID: "session-1",
+        contentRevision: 1,
+        isExpanded: true,
+        areControlsEnabled: true
+      )
+    )
+    panel.performSettingsAction()
+
+    XCTAssertEqual(settingsActionCount, 1)
+  }
+
   func testControllerCanReuseTheSamePanelForCalendar() throws {
     let controller = TopSurfaceController()
     let compactFrame = CGRect(x: 100, y: 500, width: 280, height: 44)
