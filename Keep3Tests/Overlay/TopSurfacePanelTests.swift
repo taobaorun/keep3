@@ -485,6 +485,37 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertEqual(panel.frame, expandedFrame)
   }
 
+  func testActionHandoffEndsKeyboardNavigationWithoutRestoringApplication()
+    throws
+  {
+    var restoreCount = 0
+    var actionCount = 0
+    let controller = TopSurfaceController(
+      captureApplicationRestoration: {
+        TopSurfaceApplicationRestoration {
+          restoreCount += 1
+        }
+      }
+    )
+    let frame = CGRect(x: 100, y: 500, width: 360, height: 216)
+    defer { controller.remove() }
+    controller.show(
+      frame: frame,
+      content: try makeContent(title: "写 Keep3", isExpanded: true)
+    )
+    controller.beginKeyboardNavigation()
+    let panel = try XCTUnwrap(controller.panel)
+
+    controller.performActionWithoutRestoringPreviousApplication {
+      actionCount += 1
+      XCTAssertFalse(controller.isKeyboardNavigationActive)
+      XCTAssertFalse(panel.canBecomeKey)
+    }
+
+    XCTAssertEqual(actionCount, 1)
+    XCTAssertEqual(restoreCount, 0)
+  }
+
   func testEscapeRestoresTheCapturedApplicationOnce() throws {
     var captureCount = 0
     var restoreCount = 0

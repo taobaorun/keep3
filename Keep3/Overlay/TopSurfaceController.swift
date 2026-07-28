@@ -419,6 +419,13 @@ final class TopSurfaceController {
     panel.setKeyboardNavigationEnabled(true)
   }
 
+  func performActionWithoutRestoringPreviousApplication(
+    _ action: () -> Void
+  ) {
+    endKeyboardNavigation(restoringPreviousApplication: false)
+    action()
+  }
+
   func endKeyboardNavigation(
     restoringPreviousApplication: Bool = true
   ) {

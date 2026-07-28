@@ -606,19 +606,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let self else {
           return
         }
-        self.topSurfaceController.endKeyboardNavigation(
-          restoringPreviousApplication: false
-        )
-        self.interactionModel.activateVisibleItem()
+        self.topSurfaceController
+          .performActionWithoutRestoringPreviousApplication {
+            self.interactionModel.activateVisibleItem()
+          }
       },
       onOpenSettings: { [weak self] in
         guard let self else {
           return
         }
-        self.topSurfaceController.endKeyboardNavigation(
-          restoringPreviousApplication: false
-        )
-        self.editorWindowController.showSettings()
+        self.topSurfaceController
+          .performActionWithoutRestoringPreviousApplication {
+            self.editorWindowController.showSettings()
+          }
       }
     )
   }
