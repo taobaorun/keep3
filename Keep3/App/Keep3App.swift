@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var currentMediaSnapshot: MediaSessionSnapshot?
   private var mediaLifecycleGeneration: UInt64 = 0
   private var isMediaSubscriptionStarting = false
+  private var mediaApplicationLifecycleTask: Task<Void, Never>?
   private let mediaLifecycleQueue = SerialMediaLifecycleQueue()
   private var surfaceGestureRecognizer = SurfaceGestureRecognizer()
   private var isMediaOwningSurface = false
@@ -109,6 +110,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       self?.surfaceModeCoordinator.updateFrontmostBundleIdentifier(
         bundleIdentifier
       )
+    } onApplicationLifecycleChange: { [weak self] bundleIdentifier in
+      self?.handleApplicationLifecycleChange(bundleIdentifier)
     }
   private lazy var displayLifecycleCoordinator = DisplayLifecycleCoordinator(
     onRefresh: { [weak self] in
@@ -182,6 +185,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationWillTerminate(_ notification: Notification) {
     displayLifecycleObserver.stop()
     workspaceApplicationObserver.stop()
+    mediaApplicationLifecycleTask?.cancel()
+    mediaApplicationLifecycleTask = nil
     if let calendarStoreObserver {
       NotificationCenter.default.removeObserver(calendarStoreObserver)
       self.calendarStoreObserver = nil
@@ -260,6 +265,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func applyCalendarPreferences() {
     calendarSessionCoordinator.setEnabled(calendarPreferences.isEnabled)
+  }
+
+  private func handleApplicationLifecycleChange(
+    _ bundleIdentifier: String?
+  ) {
+    guard let bundleIdentifier,
+      MediaRemoteDormantPlayerPolicy.supportedBundleIdentifiers.contains(
+        bundleIdentifier
+      ),
+      isSurfaceAvailable,
+      mediaPreferences.isMediaFirstEnabled
+    else {
+      return
+    }
+    mediaApplicationLifecycleTask?.cancel()
+    mediaApplicationLifecycleTask = Task { @MainActor [weak self] in
+      await self?.reconcileMediaApplicationLifecycle(
+        bundleIdentifier: bundleIdentifier
+      )
+    }
+  }
+
+  private func reconcileMediaApplicationLifecycle(
+    bundleIdentifier: String
+  ) async {
+    let retryDelays: [Duration] = [
+      .milliseconds(500),
+      .seconds(2),
+      .seconds(4),
+    ]
+    for delay in retryDelays {
+      try? await Task.sleep(for: delay)
+      guard !Task.isCancelled, isSurfaceAvailable,
+        mediaPreferences.isMediaFirstEnabled
+      else {
+        return
+      }
+      let isApplicationRunning =
+        NSRunningApplication.runningApplications(
+          withBundleIdentifier: bundleIdentifier
+        ).contains(where: { !$0.isTerminated })
+      let hasMatchingSession =
+        currentMediaSnapshot?.session.sourceBundleIdentifier
+        == bundleIdentifier
+      guard
+        MediaRemoteApplicationLifecyclePolicy.requiresRefresh(
+          isApplicationRunning: isApplicationRunning,
+          hasAnySession: currentMediaSnapshot != nil,
+          hasMatchingSession: hasMatchingSession
+        )
+      else {
+        return
+      }
+      stopMediaSubscription()
+      startMediaSubscription()
+    }
   }
 
   private func handleDisplayLifecycleEvent(_ event: DisplayLifecycleEvent) {

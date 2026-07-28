@@ -149,7 +149,7 @@ struct MediaSettingsView: View {
             set: preferences.setHidesFrontmostSource
           )
         )
-        Text("暂停、停止、退出播放器或隐藏来源后，立即切回三件重点。")
+        Text("暂停或停止后仍可手动切回播放器；退出或隐藏来源后移除。")
           .font(.caption)
           .foregroundStyle(.secondary)
 

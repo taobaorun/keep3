@@ -1,4 +1,3 @@
-import AppKit
 import Darwin
 import Foundation
 
@@ -19,15 +18,20 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
   private var runtime: MediaRemoteRuntime?
   private var observerTokens: [NSObjectProtocol] = []
   private var pendingRefresh: DispatchWorkItem?
+  private var pendingDormantUpgrade: DispatchWorkItem?
   private var monitoringGeneration: UInt64 = 0
   private var monitoringClientGeneration: UInt64?
   private var contentRevision: UInt64 = 0
   private var currentSessionID: String?
+  private var currentClient: AnyObject?
+  private var currentSourceBundleIdentifier: String?
   private var currentContentIdentity: ContentIdentity?
   private var currentCapabilities: Set<MediaCapability> = []
   private var currentCapabilityRevision: UInt64 = 0
   private var currentArtworkData: Data?
   private var currentArtworkMIMEType: String?
+  private var hostRunningApplications: [MediaRemoteRunningApplication] = []
+  private var hostFrontmostBundleIdentifier: String?
 
   func attach(client: any MediaRemoteClientProtocol) {
     clientStateLock.withLock {
@@ -56,7 +60,18 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     reply(Self.probe().propertyList)
   }
 
-  func startMonitoring(reply: @escaping @Sendable (Bool) -> Void) {
+  func startMonitoring(
+    runningApplications: NSArray,
+    frontmostBundleIdentifier: String?,
+    reply: @escaping @Sendable (Bool) -> Void
+  ) {
+    let runningApplications =
+      (runningApplications as? [NSDictionary] ?? [])
+      .compactMap(MediaRemoteRunningApplication.init(propertyList:))
+    let frontmostBundleIdentifier = MediaSession.bounded(
+      frontmostBundleIdentifier,
+      maximum: MediaSession.maximumBundleIdentifierBytes
+    )
     guard let clientGeneration = currentClientGeneration() else {
       reply(false)
       return
@@ -69,6 +84,8 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
         return
       }
       self.stopMonitoringOnQueue()
+      self.hostRunningApplications = runningApplications
+      self.hostFrontmostBundleIdentifier = frontmostBundleIdentifier
       guard
         let runtime = MediaRemoteRuntime(
           frameworkPath: Self.frameworkPath
@@ -116,7 +133,33 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
         reply(false)
         return
       }
-      reply(self.runtime?.send(command: command, value: value) ?? false)
+      guard let runtime = self.runtime else {
+        reply(false)
+        return
+      }
+      let shouldUpgradeDormantPlayer =
+        command == .togglePlayPause
+        && self.currentContentIdentity?.hasMetadata == false
+      runtime.send(
+        command: command,
+        value: value,
+        to: self.currentClient,
+        on: self.queue
+      ) { [weak self] accepted in
+        guard let self,
+          self.acceptsClient(clientGeneration),
+          self.monitoringClientGeneration == clientGeneration,
+          self.currentSessionID == sessionID,
+          capabilityRevision.exactUInt64 == self.currentCapabilityRevision
+        else {
+          reply(false)
+          return
+        }
+        if accepted, shouldUpgradeDormantPlayer {
+          self.scheduleDormantUpgrade(generation: self.monitoringGeneration)
+        }
+        reply(accepted)
+      }
     }
   }
 
@@ -168,6 +211,37 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     }
   }
 
+  private func scheduleDormantUpgrade(
+    generation: UInt64,
+    attempt: Int = 0
+  ) {
+    guard generation == monitoringGeneration,
+      MediaRemoteDormantPlayerPolicy.upgradeRetryDelays.indices.contains(
+        attempt
+      )
+    else {
+      return
+    }
+    pendingDormantUpgrade?.cancel()
+    let work = DispatchWorkItem { [weak self] in
+      guard let self, generation == self.monitoringGeneration else {
+        return
+      }
+      self.refresh(generation: generation)
+      self.scheduleDormantUpgrade(
+        generation: generation,
+        attempt: attempt + 1
+      )
+    }
+    pendingDormantUpgrade = work
+    queue.asyncAfter(
+      deadline:
+        .now()
+        + MediaRemoteDormantPlayerPolicy.upgradeRetryDelays[attempt],
+      execute: work
+    )
+  }
+
   private func refresh(generation: UInt64) {
     guard generation == monitoringGeneration, let runtime else {
       publishUnavailable(generation: generation)
@@ -181,7 +255,10 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
         return
       }
       guard let information, information.count > 0 else {
-        self.publishUnavailable(generation: generation)
+        self.refreshInactiveClient(
+          runtime: runtime,
+          generation: generation
+        )
         return
       }
       runtime.getIsPlaying(on: self.queue) { [weak self] isPlaying in
@@ -196,6 +273,19 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
           else {
             return
           }
+          let application = self.hostRunningApplications.first {
+            $0.processIdentifier == pid
+          }
+          guard
+            pid <= 0
+              || application != nil
+          else {
+            self.refreshInactiveClient(
+              runtime: runtime,
+              generation: generation
+            )
+            return
+          }
           runtime.getSupportedCapabilities(on: self.queue) {
             [weak self] capabilities in
             guard let self,
@@ -203,11 +293,20 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
             else {
               return
             }
+            guard capabilities.contains(.playPause) else {
+              self.refreshInactiveClient(
+                runtime: runtime,
+                generation: generation
+              )
+              return
+            }
             self.publish(
               information: information,
-              isPlaying: isPlaying,
-              processIdentifier: pid,
+              playbackState: isPlaying ? .playing : .paused,
+              application: application,
+              bundleIdentifier: nil,
               capabilities: capabilities,
+              selectedClient: nil,
               generation: generation
             )
           }
@@ -216,11 +315,231 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     }
   }
 
+  private func refreshInactiveClient(
+    runtime: MediaRemoteRuntime,
+    generation: UInt64
+  ) {
+    runtime.getNowPlayingClient(on: queue) { [weak self] systemSelectedClient in
+      guard let self,
+        self.isCurrent(runtime: runtime, generation: generation)
+      else {
+        return
+      }
+      runtime.getNowPlayingClients(on: self.queue) { [weak self] discovered in
+        guard let self,
+          self.isCurrent(runtime: runtime, generation: generation)
+        else {
+          return
+        }
+
+        var clients = discovered
+        if let systemSelectedClient,
+          !clients.contains(where: { $0 === systemSelectedClient })
+        {
+          clients.insert(systemSelectedClient, at: 0)
+        }
+        let systemSelectedIndex = systemSelectedClient.flatMap { selected in
+          clients.firstIndex(where: { $0 === selected })
+        }
+        let previouslySelectedIndex = self.currentClient.flatMap { previous in
+          clients.firstIndex(where: { $0 === previous })
+        }
+        let orderedClients =
+          MediaRemoteClientSelectionPolicy.orderedIndices(
+            clientCount: clients.count,
+            systemSelectedIndex: systemSelectedIndex,
+            previouslySelectedIndex: previouslySelectedIndex
+          ).map { clients[$0] }
+
+        self.resolveInactiveClient(
+          in: orderedClients,
+          at: 0,
+          runtime: runtime,
+          generation: generation
+        )
+      }
+    }
+  }
+
+  private func resolveInactiveClient(
+    in clients: [AnyObject],
+    at index: Int,
+    runtime: MediaRemoteRuntime,
+    generation: UInt64
+  ) {
+    guard index < clients.count else {
+      resolveDormantPlayer(
+        runtime: runtime,
+        generation: generation
+      )
+      return
+    }
+
+    let client = clients[index]
+    guard
+      let bundleIdentifier = runtime.bundleIdentifier(for: client),
+      let application = hostRunningApplications.first(where: {
+        $0.bundleIdentifier == bundleIdentifier
+      })
+    else {
+      resolveInactiveClient(
+        in: clients,
+        at: index + 1,
+        runtime: runtime,
+        generation: generation
+      )
+      return
+    }
+
+    runtime.getSupportedCapabilities(
+      for: client,
+      on: queue
+    ) { [weak self] capabilities in
+      guard let self,
+        self.isCurrent(runtime: runtime, generation: generation)
+      else {
+        return
+      }
+      guard capabilities.contains(.playPause) else {
+        self.resolveInactiveClient(
+          in: clients,
+          at: index + 1,
+          runtime: runtime,
+          generation: generation
+        )
+        return
+      }
+
+      runtime.getNowPlayingInfo(for: client, on: self.queue) {
+        [weak self] information in
+        guard let self,
+          self.isCurrent(runtime: runtime, generation: generation)
+        else {
+          return
+        }
+        let information = information ?? [:]
+        let playbackRate =
+          (information[
+            "kMRMediaRemoteNowPlayingInfoPlaybackRate"
+          ] as? NSNumber)?.finiteDoubleExcludingBoolean ?? 0
+        self.publish(
+          information: information,
+          playbackState: playbackRate > 0 ? .playing : .paused,
+          application: application,
+          bundleIdentifier: bundleIdentifier,
+          capabilities: capabilities,
+          selectedClient: client,
+          generation: generation
+        )
+      }
+    }
+  }
+
+  private func resolveDormantPlayer(
+    runtime: MediaRemoteRuntime,
+    generation: UInt64
+  ) {
+    guard
+      let selected = MediaRemoteDormantPlayerPolicy.select(
+        from: hostRunningApplications,
+        frontmostBundleIdentifier: hostFrontmostBundleIdentifier,
+        previouslySelectedBundleIdentifier: currentSourceBundleIdentifier
+      ),
+      let client = runtime.createClient(
+        processIdentifier: selected.processIdentifier,
+        bundleIdentifier: selected.bundleIdentifier
+      )
+    else {
+      publishUnavailable(generation: generation)
+      return
+    }
+
+    runtime.getNowPlayingInfoForResolvedPlayer(for: client, on: queue) {
+      [weak self] information in
+      guard let self,
+        self.isCurrent(runtime: runtime, generation: generation)
+      else {
+        return
+      }
+      let information = information ?? [:]
+      let publishInformation: (NSDictionary) -> Void = {
+        [weak self] resolvedInformation in
+        guard let self,
+          self.isCurrent(runtime: runtime, generation: generation)
+        else {
+          return
+        }
+        runtime.getSupportedCapabilitiesForResolvedPlayer(
+          for: client,
+          on: self.queue
+        ) {
+          [weak self] capabilities in
+          guard let self,
+            self.isCurrent(runtime: runtime, generation: generation)
+          else {
+            return
+          }
+          let playbackRate =
+            (resolvedInformation[
+              "kMRMediaRemoteNowPlayingInfoPlaybackRate"
+            ] as? NSNumber)?.finiteDoubleExcludingBoolean
+          self.publish(
+            information: resolvedInformation,
+            playbackState:
+              MediaRemoteDormantPlayerPolicy.playbackState(
+                forPlaybackRate: playbackRate
+              ),
+            application: selected,
+            bundleIdentifier: selected.bundleIdentifier,
+            capabilities:
+              MediaRemoteDormantPlayerPolicy.resolvedCapabilities(
+                reported: capabilities
+              ),
+            selectedClient: client,
+            generation: generation
+          )
+        }
+      }
+      guard information.count > 0 else {
+        publishInformation(information)
+        return
+      }
+      runtime.getNowPlayingArtworkForResolvedPlayer(
+        for: client,
+        on: self.queue
+      ) { [weak self] artwork in
+        guard let self,
+          self.isCurrent(runtime: runtime, generation: generation)
+        else {
+          return
+        }
+        guard let artworkData = artwork.data else {
+          publishInformation(information)
+          return
+        }
+        let enrichedInformation =
+          information.mutableCopy() as? NSMutableDictionary
+          ?? NSMutableDictionary(dictionary: information)
+        enrichedInformation[
+          "kMRMediaRemoteNowPlayingInfoArtworkData"
+        ] = artworkData
+        if let mimeType = artwork.mimeType {
+          enrichedInformation[
+            "kMRMediaRemoteNowPlayingInfoArtworkMIMEType"
+          ] = mimeType
+        }
+        publishInformation(enrichedInformation)
+      }
+    }
+  }
+
   private func publish(
     information: NSDictionary,
-    isPlaying: Bool,
-    processIdentifier: Int32,
+    playbackState: MediaPlaybackState,
+    application: MediaRemoteRunningApplication?,
+    bundleIdentifier suppliedBundleIdentifier: String?,
     capabilities: Set<MediaCapability>,
+    selectedClient: AnyObject?,
     generation: UInt64
   ) {
     guard generation == monitoringGeneration,
@@ -229,13 +548,8 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     else {
       return
     }
-    let application =
-      processIdentifier > 0
-      ? NSRunningApplication(
-        processIdentifier: pid_t(processIdentifier)
-      ) : nil
     let bundleIdentifier = MediaSession.bounded(
-      application?.bundleIdentifier,
+      suppliedBundleIdentifier ?? application?.bundleIdentifier,
       maximum: MediaSession.maximumBundleIdentifierBytes
     )
     let uniqueIdentifier = MediaSession.bounded(
@@ -245,8 +559,11 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
       maximum: MediaSession.maximumMetadataBytes
     )
     let sessionCandidate =
-      bundleIdentifier.map {
-        "\($0):\(processIdentifier)"
+      bundleIdentifier.map { bundleIdentifier in
+        if let application {
+          return "\(bundleIdentifier):\(application.processIdentifier)"
+        }
+        return "media-client:\(bundleIdentifier)"
       } ?? uniqueIdentifier.map { "media:\($0)" }
       ?? "media:global"
     guard
@@ -275,11 +592,17 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
       album: album
     )
     let didContentChange = currentContentIdentity != contentIdentity
+    if contentIdentity.hasMetadata {
+      pendingDormantUpgrade?.cancel()
+      pendingDormantUpgrade = nil
+    }
     if didContentChange {
       contentRevision &+= 1
       currentContentIdentity = contentIdentity
     }
     currentSessionID = sessionID
+    currentClient = selectedClient
+    currentSourceBundleIdentifier = bundleIdentifier
     if capabilities != currentCapabilities {
       currentCapabilities = capabilities
       currentCapabilityRevision &+= 1
@@ -291,10 +614,7 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
       ),
       "isPresent": true,
       "sessionID": sessionID,
-      "playbackState":
-        isPlaying
-        ? MediaPlaybackState.playing.rawValue
-        : MediaPlaybackState.paused.rawValue,
+      "playbackState": playbackState.rawValue,
       "capabilityRevision": NSNumber(value: currentCapabilityRevision),
       "contentRevision": NSNumber(value: contentRevision),
       "capabilities": currentCapabilities.map(\.rawValue).sorted(),
@@ -318,7 +638,7 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
       propertyList["sourceBundleIdentifier"] = bundleIdentifier
     }
     if let name = MediaSession.bounded(
-      application?.localizedName,
+      application?.applicationName,
       maximum: MediaSession.maximumApplicationNameBytes
     ) {
       propertyList["applicationName"] = name
@@ -348,6 +668,8 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
       return
     }
     currentSessionID = nil
+    currentClient = nil
+    currentSourceBundleIdentifier = nil
     currentContentIdentity = nil
     currentCapabilities = []
     client?.mediaRemoteDidUpdate([
@@ -420,17 +742,23 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     monitoringGeneration &+= 1
     pendingRefresh?.cancel()
     pendingRefresh = nil
+    pendingDormantUpgrade?.cancel()
+    pendingDormantUpgrade = nil
     observerTokens.forEach(NotificationCenter.default.removeObserver)
     observerTokens = []
     runtime?.unregisterNotifications()
     runtime = nil
     monitoringClientGeneration = nil
     currentSessionID = nil
+    currentClient = nil
+    currentSourceBundleIdentifier = nil
     currentContentIdentity = nil
     currentCapabilities = []
     currentCapabilityRevision = 0
     currentArtworkData = nil
     currentArtworkMIMEType = nil
+    hostRunningApplications = []
+    hostFrontmostBundleIdentifier = nil
   }
 
   private func isCurrent(
@@ -464,11 +792,34 @@ private struct ContentIdentity: Equatable {
   let title: String?
   let artist: String?
   let album: String?
+
+  var hasMetadata: Bool {
+    uniqueIdentifier != nil || title != nil || artist != nil || album != nil
+  }
+}
+
+private struct ResolvedArtwork {
+  let data: Data?
+  let mimeType: String?
 }
 
 private final class MediaRemoteRuntime {
+  private typealias CreateClientFunction =
+    @convention(c) (Int32, CFString) -> Unmanaged<AnyObject>?
   private typealias SendCommandFunction =
     @convention(c) (Int32, UnsafeRawPointer?) -> UInt8
+  private typealias ClientCommandCompletion =
+    @convention(block) (UInt8) -> Void
+  private typealias SendCommandToClientFunction =
+    @convention(c) (
+      Int32,
+      AnyObject?,
+      AnyObject,
+      AnyObject,
+      AnyObject?,
+      DispatchQueue,
+      ClientCommandCompletion
+    ) -> Void
   private typealias SetElapsedTimeFunction =
     @convention(c) (Double) -> Void
   private typealias RegisterFunction =
@@ -479,6 +830,82 @@ private final class MediaRemoteRuntime {
     @convention(block) (CFDictionary?) -> Void
   private typealias InformationFunction =
     @convention(c) (DispatchQueue, InformationCompletion) -> Void
+  private typealias ClientCompletion =
+    @convention(block) (AnyObject?) -> Void
+  private typealias ClientsCompletion =
+    @convention(block) (NSArray?) -> Void
+  private typealias ClientFunction =
+    @convention(c) (DispatchQueue, ClientCompletion) -> Void
+  private typealias ClientsFunction =
+    @convention(c) (DispatchQueue, ClientsCompletion) -> Void
+  private typealias LocalOriginFunction =
+    @convention(c) () -> Unmanaged<AnyObject>?
+  private typealias InformationForClientFunction =
+    @convention(c) (
+      AnyObject,
+      AnyObject,
+      Int32,
+      DispatchQueue,
+      InformationCompletion
+    ) -> Void
+  private typealias PlayerCompletion =
+    @convention(block) (AnyObject?) -> Void
+  private typealias PlayerForClientFunction =
+    @convention(c) (
+      AnyObject,
+      AnyObject,
+      DispatchQueue,
+      PlayerCompletion
+    ) -> Void
+  private typealias PlayerPathCreateFunction =
+    @convention(c) (
+      AnyObject,
+      AnyObject,
+      AnyObject
+    ) -> Unmanaged<AnyObject>?
+  private typealias InformationForPlayerFunction =
+    @convention(c) (
+      AnyObject,
+      UInt8,
+      DispatchQueue,
+      InformationCompletion
+    ) -> Void
+  private typealias CommandsCompletion =
+    @convention(block) (NSArray?) -> Void
+  private typealias CommandsForClientFunction =
+    @convention(c) (
+      AnyObject,
+      AnyObject,
+      DispatchQueue,
+      CommandsCompletion
+    ) -> Void
+  private typealias CommandsForPlayerFunction =
+    @convention(c) (
+      AnyObject,
+      DispatchQueue,
+      CommandsCompletion
+    ) -> Void
+  private typealias CreatePlaybackQueueRequestFunction =
+    @convention(c) () -> Unmanaged<AnyObject>?
+  private typealias SetPlaybackQueueRequestFlagFunction =
+    @convention(c) (AnyObject, UInt8) -> Void
+  private typealias PlaybackQueueCompletion =
+    @convention(block) (AnyObject?, CFError?) -> Void
+  private typealias RequestPlaybackQueueFunction =
+    @convention(c) (
+      AnyObject,
+      AnyObject,
+      DispatchQueue,
+      PlaybackQueueCompletion
+    ) -> Void
+  private typealias ContentItemAtOffsetFunction =
+    @convention(c) (AnyObject, Int) -> Unmanaged<AnyObject>?
+  private typealias ContentItemArtworkDataFunction =
+    @convention(c) (AnyObject) -> Unmanaged<CFData>?
+  private typealias ContentItemArtworkMIMETypeFunction =
+    @convention(c) (AnyObject) -> Unmanaged<CFString>?
+  private typealias ClientIdentifierFunction =
+    @convention(c) (UnsafeRawPointer?) -> Unmanaged<CFString>?
   private typealias PlayingCompletion = @convention(block) (UInt8) -> Void
   private typealias PlayingFunction =
     @convention(c) (DispatchQueue, PlayingCompletion) -> Void
@@ -487,14 +914,38 @@ private final class MediaRemoteRuntime {
     @convention(c) (DispatchQueue, PIDCompletion) -> Void
 
   private let handle: UnsafeMutableRawPointer
+  private let createClientFunction: CreateClientFunction
   private let sendCommandFunction: SendCommandFunction
+  private let sendCommandToClientFunction: SendCommandToClientFunction
   private let registerFunction: RegisterFunction
   private let unregisterFunction: UnregisterFunction
   private let informationFunction: InformationFunction
+  private let clientFunction: ClientFunction
+  private let clientsFunction: ClientsFunction
+  private let localOriginFunction: LocalOriginFunction
+  private let informationForClientFunction: InformationForClientFunction
+  private let playerForClientFunction: PlayerForClientFunction
+  private let playerPathCreateFunction: PlayerPathCreateFunction
+  private let informationForPlayerFunction: InformationForPlayerFunction
+  private let commandsForClientFunction: CommandsForClientFunction
+  private let commandsForPlayerFunction: CommandsForPlayerFunction
+  private let createPlaybackQueueRequestFunction:
+    CreatePlaybackQueueRequestFunction
+  private let setPlaybackQueueRequestIncludeArtworkFunction:
+    SetPlaybackQueueRequestFlagFunction
+  private let setPlaybackQueueRequestReturnAssetsFunction:
+    SetPlaybackQueueRequestFlagFunction
+  private let requestPlaybackQueueFunction: RequestPlaybackQueueFunction
+  private let contentItemAtOffsetFunction: ContentItemAtOffsetFunction
+  private let contentItemArtworkDataFunction: ContentItemArtworkDataFunction
+  private let contentItemArtworkMIMETypeFunction:
+    ContentItemArtworkMIMETypeFunction
+  private let clientBundleIdentifierFunction: ClientIdentifierFunction
+  private let clientParentBundleIdentifierFunction: ClientIdentifierFunction
   private let playingFunction: PlayingFunction
   private let pidFunction: PIDFunction
   private let setElapsedTimeFunction: SetElapsedTimeFunction?
-  private let supportedCommands: SupportedCommandsRuntime?
+  private let supportedCommands: SupportedCommandsRuntime
 
   init?(frameworkPath: String) {
     guard
@@ -506,10 +957,19 @@ private final class MediaRemoteRuntime {
       return nil
     }
     guard
+      let createClientFunction: CreateClientFunction = Self.resolve(
+        "MRNowPlayingClientCreate",
+        in: handle
+      ),
       let sendCommandFunction: SendCommandFunction = Self.resolve(
         "MRMediaRemoteSendCommand",
         in: handle
       ),
+      let sendCommandToClientFunction: SendCommandToClientFunction =
+        Self.resolve(
+          "MRMediaRemoteSendCommandToClient",
+          in: handle
+        ),
       let registerFunction: RegisterFunction = Self.resolve(
         "MRMediaRemoteRegisterForNowPlayingNotifications",
         in: handle
@@ -522,6 +982,97 @@ private final class MediaRemoteRuntime {
         "MRMediaRemoteGetNowPlayingInfo",
         in: handle
       ),
+      let clientFunction: ClientFunction = Self.resolve(
+        "MRMediaRemoteGetNowPlayingClient",
+        in: handle
+      ),
+      let clientsFunction: ClientsFunction = Self.resolve(
+        "MRMediaRemoteGetNowPlayingClients",
+        in: handle
+      ),
+      let localOriginFunction: LocalOriginFunction = Self.resolve(
+        "MRMediaRemoteGetLocalOrigin",
+        in: handle
+      ),
+      let informationForClientFunction: InformationForClientFunction =
+        Self.resolve(
+          "MRMediaRemoteGetNowPlayingInfoForClient",
+          in: handle
+        ),
+      let playerForClientFunction: PlayerForClientFunction =
+        Self.resolve(
+          "MRMediaRemoteGetNowPlayingPlayerForClient",
+          in: handle
+        ),
+      let playerPathCreateFunction: PlayerPathCreateFunction =
+        Self.resolve(
+          "MRNowPlayingPlayerPathCreate",
+          in: handle
+        ),
+      let informationForPlayerFunction: InformationForPlayerFunction =
+        Self.resolve(
+          "MRMediaRemoteGetNowPlayingInfoForPlayer",
+          in: handle
+        ),
+      let commandsForClientFunction: CommandsForClientFunction =
+        Self.resolve(
+          "MRMediaRemoteGetSupportedCommandsForClient",
+          in: handle
+        ),
+      let commandsForPlayerFunction: CommandsForPlayerFunction =
+        Self.resolve(
+          "MRMediaRemoteGetSupportedCommandsForPlayer",
+          in: handle
+        ),
+      let createPlaybackQueueRequestFunction:
+        CreatePlaybackQueueRequestFunction =
+        Self.resolve(
+          "MRPlaybackQueueRequestCreateDefault",
+          in: handle
+        ),
+      let setPlaybackQueueRequestIncludeArtworkFunction:
+        SetPlaybackQueueRequestFlagFunction =
+        Self.resolve(
+          "MRPlaybackQueueRequestSetIncludeArtwork",
+          in: handle
+        ),
+      let setPlaybackQueueRequestReturnAssetsFunction:
+        SetPlaybackQueueRequestFlagFunction =
+        Self.resolve(
+          "MRPlaybackQueueRequestSetReturnContentItemAssetsInUserCompletion",
+          in: handle
+        ),
+      let requestPlaybackQueueFunction: RequestPlaybackQueueFunction =
+        Self.resolve(
+          "MRMediaRemoteRequestNowPlayingPlaybackQueueForPlayerSync",
+          in: handle
+        ),
+      let contentItemAtOffsetFunction: ContentItemAtOffsetFunction =
+        Self.resolve(
+          "MRPlaybackQueueGetContentItemAtOffset",
+          in: handle
+        ),
+      let contentItemArtworkDataFunction: ContentItemArtworkDataFunction =
+        Self.resolve(
+          "MRContentItemGetArtworkData",
+          in: handle
+        ),
+      let contentItemArtworkMIMETypeFunction:
+        ContentItemArtworkMIMETypeFunction =
+        Self.resolve(
+          "MRContentItemGetArtworkMIMEType",
+          in: handle
+        ),
+      let clientBundleIdentifierFunction: ClientIdentifierFunction =
+        Self.resolve(
+          "MRNowPlayingClientGetBundleIdentifier",
+          in: handle
+        ),
+      let clientParentBundleIdentifierFunction: ClientIdentifierFunction =
+        Self.resolve(
+          "MRNowPlayingClientGetParentAppBundleIdentifier",
+          in: handle
+        ),
       let playingFunction: PlayingFunction = Self.resolve(
         "MRMediaRemoteGetNowPlayingApplicationIsPlaying",
         in: handle
@@ -529,19 +1080,46 @@ private final class MediaRemoteRuntime {
       let pidFunction: PIDFunction = Self.resolve(
         "MRMediaRemoteGetNowPlayingApplicationPID",
         in: handle
-      )
+      ),
+      let supportedCommands = SupportedCommandsRuntime(handle: handle)
     else {
       dlclose(handle)
       return nil
     }
 
     self.handle = handle
+    self.createClientFunction = createClientFunction
     self.sendCommandFunction = sendCommandFunction
+    self.sendCommandToClientFunction = sendCommandToClientFunction
     self.registerFunction = registerFunction
     self.unregisterFunction = unregisterFunction
     self.informationFunction = informationFunction
+    self.clientFunction = clientFunction
+    self.clientsFunction = clientsFunction
+    self.localOriginFunction = localOriginFunction
+    self.informationForClientFunction = informationForClientFunction
+    self.playerForClientFunction = playerForClientFunction
+    self.playerPathCreateFunction = playerPathCreateFunction
+    self.informationForPlayerFunction = informationForPlayerFunction
+    self.commandsForClientFunction = commandsForClientFunction
+    self.commandsForPlayerFunction = commandsForPlayerFunction
+    self.createPlaybackQueueRequestFunction =
+      createPlaybackQueueRequestFunction
+    self.setPlaybackQueueRequestIncludeArtworkFunction =
+      setPlaybackQueueRequestIncludeArtworkFunction
+    self.setPlaybackQueueRequestReturnAssetsFunction =
+      setPlaybackQueueRequestReturnAssetsFunction
+    self.requestPlaybackQueueFunction = requestPlaybackQueueFunction
+    self.contentItemAtOffsetFunction = contentItemAtOffsetFunction
+    self.contentItemArtworkDataFunction = contentItemArtworkDataFunction
+    self.contentItemArtworkMIMETypeFunction =
+      contentItemArtworkMIMETypeFunction
+    self.clientBundleIdentifierFunction = clientBundleIdentifierFunction
+    self.clientParentBundleIdentifierFunction =
+      clientParentBundleIdentifierFunction
     self.playingFunction = playingFunction
     self.pidFunction = pidFunction
+    self.supportedCommands = supportedCommands
 
     let elapsed: SetElapsedTimeFunction? = Self.resolve(
       "MRMediaRemoteSetElapsedTime",
@@ -549,7 +1127,6 @@ private final class MediaRemoteRuntime {
     )
     setElapsedTimeFunction = elapsed
 
-    supportedCommands = SupportedCommandsRuntime(handle: handle)
   }
 
   deinit {
@@ -564,6 +1141,16 @@ private final class MediaRemoteRuntime {
     unregisterFunction()
   }
 
+  func createClient(
+    processIdentifier: Int32,
+    bundleIdentifier: String
+  ) -> AnyObject? {
+    createClientFunction(
+      processIdentifier,
+      bundleIdentifier as CFString
+    )?.takeRetainedValue()
+  }
+
   func getNowPlayingInfo(
     on queue: DispatchQueue,
     completion: @escaping (NSDictionary?) -> Void
@@ -572,6 +1159,97 @@ private final class MediaRemoteRuntime {
       completion(information as NSDictionary?)
     }
     informationFunction(queue, block)
+  }
+
+  func getNowPlayingClient(
+    on queue: DispatchQueue,
+    completion: @escaping (AnyObject?) -> Void
+  ) {
+    let block: ClientCompletion = completion
+    clientFunction(queue, block)
+  }
+
+  func getNowPlayingClients(
+    on queue: DispatchQueue,
+    completion: @escaping ([AnyObject]) -> Void
+  ) {
+    let block: ClientsCompletion = { clients in
+      completion(clients as? [AnyObject] ?? [])
+    }
+    clientsFunction(queue, block)
+  }
+
+  func getNowPlayingInfo(
+    for client: AnyObject,
+    on queue: DispatchQueue,
+    completion: @escaping (NSDictionary?) -> Void
+  ) {
+    guard let origin = localOriginFunction()?.takeUnretainedValue() else {
+      completion(nil)
+      return
+    }
+    let block: InformationCompletion = { information in
+      completion(information as NSDictionary?)
+    }
+    informationForClientFunction(
+      client,
+      origin,
+      1,
+      queue,
+      block
+    )
+  }
+
+  func getNowPlayingInfoForResolvedPlayer(
+    for client: AnyObject,
+    on queue: DispatchQueue,
+    completion: @escaping (NSDictionary?) -> Void
+  ) {
+    guard let origin = localOriginFunction()?.takeUnretainedValue() else {
+      completion(nil)
+      return
+    }
+    let completion = UncheckedClosure(completion)
+    let block: PlayerCompletion = {
+      [playerPathCreateFunction, informationForPlayerFunction] player in
+      guard
+        let player,
+        let playerPath = playerPathCreateFunction(
+          origin,
+          client,
+          player
+        )?.takeRetainedValue()
+      else {
+        queue.async {
+          completion.call(nil)
+        }
+        return
+      }
+      let informationBlock: InformationCompletion = { information in
+        completion.call(information as NSDictionary?)
+      }
+      informationForPlayerFunction(
+        playerPath,
+        1,
+        queue,
+        informationBlock
+      )
+    }
+    playerForClientFunction(client, origin, queue, block)
+  }
+
+  func bundleIdentifier(for client: AnyObject) -> String? {
+    let pointer = Unmanaged.passUnretained(client).toOpaque()
+    let parentIdentifier =
+      clientParentBundleIdentifierFunction(pointer)?
+      .takeUnretainedValue() as String?
+    let clientIdentifier =
+      clientBundleIdentifierFunction(pointer)?
+      .takeUnretainedValue() as String?
+    return MediaSession.bounded(
+      parentIdentifier ?? clientIdentifier,
+      maximum: MediaSession.maximumBundleIdentifierBytes
+    )
   }
 
   func getIsPlaying(
@@ -598,27 +1276,166 @@ private final class MediaRemoteRuntime {
   ) {
     let independentTransports: Set<MediaCapability> =
       setElapsedTimeFunction == nil ? [] : [.seek]
-    guard let supportedCommands else {
-      completion(independentTransports)
-      return
-    }
     supportedCommands.getCapabilities(on: queue) { capabilities in
       completion(capabilities.union(independentTransports))
     }
   }
 
-  func send(command: MediaRemoteCommandName, value: NSNumber?) -> Bool {
+  func getSupportedCapabilities(
+    for client: AnyObject,
+    on queue: DispatchQueue,
+    completion: @escaping (Set<MediaCapability>) -> Void
+  ) {
+    guard let origin = localOriginFunction()?.takeUnretainedValue() else {
+      completion([])
+      return
+    }
+    let completion = UncheckedClosure(completion)
+    let block: CommandsCompletion = { [supportedCommands] commands in
+      let capabilities = supportedCommands.capabilities(from: commands)
+      queue.async {
+        completion.call(capabilities)
+      }
+    }
+    commandsForClientFunction(client, origin, queue, block)
+  }
+
+  func getSupportedCapabilitiesForResolvedPlayer(
+    for client: AnyObject,
+    on queue: DispatchQueue,
+    completion: @escaping (Set<MediaCapability>) -> Void
+  ) {
+    let completion = UncheckedClosure(completion)
+    resolvePlayerPath(for: client, on: queue) {
+      [commandsForPlayerFunction, supportedCommands] playerPath in
+      guard let playerPath else {
+        completion.call([])
+        return
+      }
+      let block: CommandsCompletion = { commands in
+        completion.call(supportedCommands.capabilities(from: commands))
+      }
+      commandsForPlayerFunction(playerPath, queue, block)
+    }
+  }
+
+  func getNowPlayingArtworkForResolvedPlayer(
+    for client: AnyObject,
+    on queue: DispatchQueue,
+    completion: @escaping (ResolvedArtwork) -> Void
+  ) {
+    let completion = UncheckedClosure(completion)
+    resolvePlayerPath(for: client, on: queue) {
+      [
+        createPlaybackQueueRequestFunction,
+        setPlaybackQueueRequestIncludeArtworkFunction,
+        setPlaybackQueueRequestReturnAssetsFunction,
+        requestPlaybackQueueFunction,
+        contentItemAtOffsetFunction,
+        contentItemArtworkDataFunction,
+        contentItemArtworkMIMETypeFunction,
+      ] playerPath in
+      guard
+        let playerPath,
+        let request =
+          createPlaybackQueueRequestFunction()?.takeRetainedValue()
+      else {
+        completion.call(.init(data: nil, mimeType: nil))
+        return
+      }
+      setPlaybackQueueRequestIncludeArtworkFunction(request, 1)
+      setPlaybackQueueRequestReturnAssetsFunction(request, 1)
+      let artworkRequestSelectors = [
+        NSSelectorFromString("setArtworkWidth:"),
+        NSSelectorFromString("setArtworkHeight:"),
+        NSSelectorFromString("setCachingPolicy:"),
+        NSSelectorFromString("setLegacyNowPlayingInfoRequest:"),
+      ]
+      if let requestObject = request as? NSObject,
+        artworkRequestSelectors.allSatisfy({
+          requestObject.responds(to: $0)
+        })
+      {
+        requestObject.setValue(
+          NSNumber(value: 512),
+          forKey: "artworkWidth"
+        )
+        requestObject.setValue(
+          NSNumber(value: 512),
+          forKey: "artworkHeight"
+        )
+        requestObject.setValue(
+          NSNumber(value: 2),
+          forKey: "cachingPolicy"
+        )
+        requestObject.setValue(
+          true,
+          forKey: "legacyNowPlayingInfoRequest"
+        )
+      }
+      let block: PlaybackQueueCompletion = { playbackQueue, _ in
+        guard
+          let playbackQueue,
+          let contentItem =
+            contentItemAtOffsetFunction(
+              playbackQueue,
+              0
+            )?.takeUnretainedValue()
+        else {
+          completion.call(.init(data: nil, mimeType: nil))
+          return
+        }
+        completion.call(
+          .init(
+            data:
+              contentItemArtworkDataFunction(contentItem)?
+              .takeUnretainedValue() as Data?,
+            mimeType:
+              contentItemArtworkMIMETypeFunction(contentItem)?
+              .takeUnretainedValue() as String?
+          )
+        )
+      }
+      requestPlaybackQueueFunction(request, playerPath, queue, block)
+    }
+  }
+
+  func send(
+    command: MediaRemoteCommandName,
+    value: NSNumber?,
+    to client: AnyObject?,
+    on queue: DispatchQueue,
+    completion: @escaping (Bool) -> Void
+  ) {
+    guard let client else {
+      completion(sendGlobal(command: command, value: value))
+      return
+    }
+    guard command != .seek,
+      let origin = localOriginFunction()?.takeUnretainedValue()
+    else {
+      completion(false)
+      return
+    }
+    let block: ClientCommandCompletion = { status in
+      completion(MediaRemoteClientCommandStatus.isAccepted(status))
+    }
+    sendCommandToClientFunction(
+      command.commandValue,
+      nil,
+      origin,
+      client,
+      nil,
+      queue,
+      block
+    )
+  }
+
+  private func sendGlobal(
+    command: MediaRemoteCommandName,
+    value: NSNumber?
+  ) -> Bool {
     switch command {
-    case .togglePlayPause:
-      return sendCommandFunction(2, nil) != 0
-    case .next:
-      return sendCommandFunction(4, nil) != 0
-    case .previous:
-      return sendCommandFunction(5, nil) != 0
-    case .shuffle:
-      return sendCommandFunction(6, nil) != 0
-    case .repeatMode:
-      return sendCommandFunction(7, nil) != 0
     case .seek:
       guard let value, let setElapsedTimeFunction,
         value.doubleValue.isFinite, value.doubleValue >= 0
@@ -627,7 +1444,32 @@ private final class MediaRemoteRuntime {
       }
       setElapsedTimeFunction(value.doubleValue)
       return true
+    default:
+      return sendCommandFunction(command.commandValue, nil) != 0
     }
+  }
+
+  private func resolvePlayerPath(
+    for client: AnyObject,
+    on queue: DispatchQueue,
+    completion: @escaping (AnyObject?) -> Void
+  ) {
+    guard let origin = localOriginFunction()?.takeUnretainedValue() else {
+      completion(nil)
+      return
+    }
+    let completion = UncheckedClosure(completion)
+    let block: PlayerCompletion = { [playerPathCreateFunction] player in
+      let playerPath = player.flatMap {
+        playerPathCreateFunction(
+          origin,
+          client,
+          $0
+        )?.takeRetainedValue()
+      }
+      completion.call(playerPath)
+    }
+    playerForClientFunction(client, origin, queue, block)
   }
 
   private static func resolve<Function>(
@@ -685,23 +1527,43 @@ private final class SupportedCommandsRuntime {
     let getEnabled = getEnabled
     let completion = UncheckedClosure(completion)
     let block: CommandsCompletion = { commands in
-      let enabledCommands =
-        (commands as? [AnyObject] ?? []).compactMap { commandInfo -> Int32? in
-          let pointer = Unmanaged.passUnretained(commandInfo).toOpaque()
-          guard getEnabled(pointer) != 0 else {
-            return nil
-          }
-          return getCommand(pointer)
-        }
-      let capabilities = MediaRemoteCapabilityPolicy.capabilities(
-        forEnabledCommands: enabledCommands,
-        independentTransports: []
+      let capabilities = Self.capabilities(
+        from: commands,
+        getCommand: getCommand,
+        getEnabled: getEnabled
       )
       queue.async {
         completion.call(capabilities)
       }
     }
     copySupportedCommands(queue, block)
+  }
+
+  func capabilities(from commands: NSArray?) -> Set<MediaCapability> {
+    Self.capabilities(
+      from: commands,
+      getCommand: getCommand,
+      getEnabled: getEnabled
+    )
+  }
+
+  private static func capabilities(
+    from commands: NSArray?,
+    getCommand: CommandInfoGetCommandFunction,
+    getEnabled: CommandInfoGetEnabledFunction
+  ) -> Set<MediaCapability> {
+    let enabledCommands =
+      (commands as? [AnyObject] ?? []).compactMap { commandInfo -> Int32? in
+        let pointer = Unmanaged.passUnretained(commandInfo).toOpaque()
+        guard getEnabled(pointer) != 0 else {
+          return nil
+        }
+        return getCommand(pointer)
+      }
+    return MediaRemoteCapabilityPolicy.capabilities(
+      forEnabledCommands: enabledCommands,
+      independentTransports: []
+    )
   }
 
   private static func resolve<Function>(

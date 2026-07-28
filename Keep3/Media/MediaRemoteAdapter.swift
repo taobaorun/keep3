@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 actor UnavailableMediaRemoteAdapter: MediaSessionAdapter {
@@ -90,8 +91,31 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
       return report
     }
 
+    let workspaceContext: ([MediaRemoteRunningApplication], String?) = await MainActor.run {
+      let applications = NSWorkspace.shared.runningApplications.compactMap {
+        application -> MediaRemoteRunningApplication? in
+        guard !application.isTerminated,
+          let bundleIdentifier = application.bundleIdentifier
+        else {
+          return nil
+        }
+        return MediaRemoteRunningApplication(
+          processIdentifier: application.processIdentifier,
+          bundleIdentifier: bundleIdentifier,
+          applicationName: application.localizedName
+        )
+      }
+      return (
+        applications,
+        NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+      )
+    }
     let monitoringRequest = OneShotRequest<Bool>()
-    service.startMonitoring { started in
+    service.startMonitoring(
+      runningApplications:
+        workspaceContext.0.map(\.propertyList) as NSArray,
+      frontmostBundleIdentifier: workspaceContext.1
+    ) { started in
       monitoringRequest.complete(with: started)
     }
     guard

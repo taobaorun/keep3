@@ -24,6 +24,23 @@ enum MediaRemoteCommandName: String, Sendable {
       return .seek
     }
   }
+
+  var commandValue: Int32 {
+    switch self {
+    case .togglePlayPause:
+      return 2
+    case .next:
+      return 4
+    case .previous:
+      return 5
+    case .shuffle:
+      return 6
+    case .repeatMode:
+      return 7
+    case .seek:
+      return 24
+    }
+  }
 }
 
 @objc(MediaRemoteClientProtocol)
@@ -36,7 +53,11 @@ protocol MediaRemoteServiceProtocol: AnyObject {
   func compatibilityReport(
     reply: @escaping @Sendable (NSDictionary) -> Void
   )
-  func startMonitoring(reply: @escaping @Sendable (Bool) -> Void)
+  func startMonitoring(
+    runningApplications: NSArray,
+    frontmostBundleIdentifier: String?,
+    reply: @escaping @Sendable (Bool) -> Void
+  )
   func stopMonitoring()
   func sendCommand(
     _ action: String,
