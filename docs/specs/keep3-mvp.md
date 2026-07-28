@@ -102,6 +102,9 @@ measures.
 4. Closing the main window does not quit Keep3 or remove the top surface.
 5. Quitting Keep3 removes the top surface immediately.
 6. Launch-at-login is opt-in and disabled by default.
+7. Launching Keep3 starts the top surface without automatically opening the
+   main editor or Settings window. Explicitly reopening the running application
+   still presents the main window.
 
 ### FR-4: Top Surface Placement
 
