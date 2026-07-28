@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct EditorView: View {
@@ -19,9 +20,13 @@ struct EditorView: View {
   private var sidebar: some View {
     VStack(alignment: .leading, spacing: 16) {
       VStack(alignment: .leading, spacing: 4) {
-        Text("Keep3")
-          .font(.title)
-          .fontWeight(.semibold)
+        Image(nsImage: NSApplication.shared.applicationIconImage)
+          .resizable()
+          .renderingMode(.original)
+          .aspectRatio(contentMode: .fit)
+          .frame(width: 48, height: 48)
+          .accessibilityLabel("Keep3")
+          .accessibilityIdentifier("editor.brandLogo")
         Text("把重要的事留在视线里")
           .font(.caption)
           .foregroundStyle(.secondary)

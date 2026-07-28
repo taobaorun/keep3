@@ -6,6 +6,30 @@ final class Keep3UITests: XCTestCase {
   private var testDirectoryURL: URL!
   private var defaultsSuiteName: String!
 
+  func testEditorSidebarUsesAccessiblePackagedLogoAtMinimumWindowSize()
+    throws
+  {
+    try launchIsolatedApp()
+    defer { cleanUpIsolatedApp() }
+
+    let brandLogo = app.images["editor.brandLogo"]
+    XCTAssertTrue(
+      brandLogo.waitForExistence(timeout: 2),
+      app.debugDescription
+    )
+    XCTAssertEqual(
+      app.images.matching(identifier: "editor.brandLogo").count,
+      1
+    )
+    XCTAssertEqual(brandLogo.label, "Keep3")
+    XCTAssertTrue(app.staticTexts["把重要的事留在视线里"].exists)
+    XCTAssertFalse(app.staticTexts["Keep3"].exists)
+    XCTAssertEqual(brandLogo.frame.width, brandLogo.frame.height, accuracy: 1)
+    let editorWindow = app.windows["Keep3"]
+    XCTAssertEqual(editorWindow.frame.width, 720, accuracy: 1)
+    XCTAssertTrue(editorWindow.frame.contains(brandLogo.frame))
+  }
+
   func testThreeItemLimitCurrentFocusAndReordering() throws {
     try launchIsolatedApp()
     defer { cleanUpIsolatedApp() }
