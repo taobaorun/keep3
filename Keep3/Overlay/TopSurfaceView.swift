@@ -67,6 +67,21 @@ enum TopSurfacePresentationStyle: Equatable, Sendable {
   }
 }
 
+struct FocusTitleCardBackingPolicy {
+  static func shouldShow(
+    presentationStyle: TopSurfacePresentationStyle,
+    transition: FocusItemSwitchTransition
+  ) -> Bool {
+    guard case .notchAttached = presentationStyle else {
+      return false
+    }
+    guard case .cardFlip = transition else {
+      return false
+    }
+    return true
+  }
+}
+
 struct NotchCompactContentLayout: Equatable {
   let surfaceSize: CGSize
   let obstructionSize: CGSize
@@ -444,9 +459,6 @@ struct TopSurfaceView: View {
         compactContent
       }
     }
-    .id(content.item.id)
-    .transition(.opacity)
-    .animation(itemSwitchAnimation, value: content.item.id)
     .foregroundStyle(.white)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background {
@@ -481,12 +493,12 @@ struct TopSurfaceView: View {
       HStack(spacing: 8) {
         focusMarker
 
-        Text(content.item.title)
-          .font(.subheadline.weight(.medium))
-          .lineLimit(1)
-          .truncationMode(.tail)
-          .id(content.transitionIdentity)
-          .transition(titleTransition)
+        compactTitleSwitchingSlot {
+          Text(content.item.title)
+            .font(.subheadline.weight(.medium))
+            .lineLimit(1)
+            .truncationMode(.tail)
+        }
       }
       .padding(.horizontal, 16)
     }
@@ -508,16 +520,38 @@ struct TopSurfaceView: View {
           .frame(width: layout.obstructionFrame.width)
           .accessibilityHidden(true)
 
-        Text(content.item.title)
-          .font(.caption.weight(.medium))
-          .lineLimit(1)
-          .truncationMode(.tail)
-          .minimumScaleFactor(0.72)
-          .frame(width: layout.rightWingFrame.width)
-          .id(content.transitionIdentity)
-          .transition(titleTransition)
+        compactTitleSwitchingSlot {
+          Text(content.item.title)
+            .font(.caption.weight(.medium))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .minimumScaleFactor(0.72)
+        }
+        .frame(width: layout.rightWingFrame.width)
       }
     }
+  }
+
+  private func compactTitleSwitchingSlot<SlotContent: View>(
+    @ViewBuilder slotContent: () -> SlotContent
+  ) -> some View {
+    ZStack {
+      slotContent()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+          if FocusTitleCardBackingPolicy.shouldShow(
+            presentationStyle: presentationStyle,
+            transition: resolvedItemSwitchTransition
+          ) {
+            Color.black
+          }
+        }
+        .id(content.item.id)
+        .transition(itemSwitchTransition)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .clipped()
+    .animation(itemSwitchAnimation, value: content.item.id)
   }
 
   private func compactButton<Label: View>(
@@ -782,8 +816,43 @@ struct TopSurfaceView: View {
     )
   }
 
-  private var itemSwitchAnimation: Animation {
-    .easeInOut(duration: reduceMotion ? 0.12 : 0.22)
+  private var resolvedItemSwitchTransition: FocusItemSwitchTransition {
+    FocusItemSwitchTransition.resolve(
+      effect: content.appearance.itemSwitchEffect,
+      level: content.level,
+      reduceMotion: reduceMotion
+    )
+  }
+
+  private var itemSwitchAnimation: Animation? {
+    switch resolvedItemSwitchTransition {
+    case .instant:
+      nil
+    case .crossfade(let duration):
+      .easeInOut(duration: duration)
+    case .cardFlip(let duration):
+      .timingCurve(0.33, 0, 0.2, 1, duration: duration)
+    }
+  }
+
+  private var itemSwitchTransition: AnyTransition {
+    switch resolvedItemSwitchTransition {
+    case .instant:
+      .identity
+    case .crossfade:
+      .opacity
+    case .cardFlip:
+      .asymmetric(
+        insertion: .modifier(
+          active: FocusTitleCardFoldModifier(progress: 0, role: .incoming),
+          identity: FocusTitleCardFoldModifier(progress: 1, role: .incoming)
+        ),
+        removal: .modifier(
+          active: FocusTitleCardFoldModifier(progress: 0, role: .outgoing),
+          identity: FocusTitleCardFoldModifier(progress: 1, role: .outgoing)
+        )
+      )
+    }
   }
 
   private var titleTransition: AnyTransition {
@@ -835,5 +904,78 @@ private struct ProgressiveTitleBlurModifier: ViewModifier {
     content
       .blur(radius: blurRadius)
       .opacity(opacity)
+  }
+}
+
+private enum FocusTitleCardFoldRole {
+  case incoming
+  case outgoing
+}
+
+private struct FocusTitleCardFoldModifier: ViewModifier, @preconcurrency Animatable {
+  var progress: Double
+  let role: FocusTitleCardFoldRole
+
+  var animatableData: Double {
+    get { progress }
+    set { progress = newValue }
+  }
+
+  func body(content: Content) -> some View {
+    let phase = FocusTitleCardFoldPhase(progress: progress, role: role)
+    content
+      .rotation3DEffect(
+        .degrees(phase.angle),
+        axis: (x: 1, y: 0, z: 0),
+        anchor: .center,
+        perspective: 0.68
+      )
+      .brightness(phase.brightness)
+      .opacity(phase.opacity)
+      .shadow(
+        color: .black.opacity(phase.shadowOpacity),
+        radius: phase.shadowRadius,
+        y: phase.shadowOffset
+      )
+      .overlay {
+        Rectangle()
+          .fill(.black.opacity(phase.seamOpacity))
+          .frame(height: 1)
+          .accessibilityHidden(true)
+      }
+  }
+}
+
+private struct FocusTitleCardFoldPhase {
+  let angle: Double
+  let opacity: Double
+  let brightness: Double
+  let seamOpacity: Double
+  let shadowOpacity: Double
+  let shadowRadius: Double
+  let shadowOffset: Double
+
+  init(progress: Double, role: FocusTitleCardFoldRole) {
+    let progress = progress.clamped(to: 0...1)
+    let elapsed = role == .incoming ? progress : 1 - progress
+    let turnProgress: Double
+
+    switch role {
+    case .incoming:
+      turnProgress = ((elapsed - 0.44) / 0.56).clamped(to: 0...1)
+      angle = 88 * (1 - turnProgress)
+      opacity = elapsed < 0.42 ? 0 : 1
+    case .outgoing:
+      turnProgress = (elapsed / 0.56).clamped(to: 0...1)
+      angle = -88 * turnProgress
+      opacity = elapsed > 0.58 ? 0 : 1
+    }
+
+    let depth = sin(turnProgress * .pi)
+    brightness = -0.16 * depth
+    seamOpacity = 0.34 * depth
+    shadowOpacity = 0.28 * depth
+    shadowRadius = 8 * depth
+    shadowOffset = 5 * depth
   }
 }

@@ -575,7 +575,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       isCurrentFocus: id == state.currentFocusID,
       presentation: payload,
       appearance: SurfaceAppearance(
-        backgroundOpacity: preferences.backgroundOpacity
+        backgroundOpacity: preferences.backgroundOpacity,
+        itemSwitchEffect: preferences.itemSwitchEffect
       )
     )
     topSurfaceController.showOnPrimaryDisplay(

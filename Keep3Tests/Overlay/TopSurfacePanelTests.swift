@@ -276,6 +276,37 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertTrue(path.contains(CGPoint(x: 10, y: 16)))
   }
 
+  func testFocusTitleCardBackingOnlyAppearsForNotchedCardFold() {
+    let notched = TopSurfacePresentationStyle.notchAttached(
+      notchSize: CGSize(width: 185, height: 32)
+    )
+
+    XCTAssertTrue(
+      FocusTitleCardBackingPolicy.shouldShow(
+        presentationStyle: notched,
+        transition: .cardFlip(duration: 0.58)
+      )
+    )
+    XCTAssertFalse(
+      FocusTitleCardBackingPolicy.shouldShow(
+        presentationStyle: .floatingCapsule,
+        transition: .cardFlip(duration: 0.58)
+      )
+    )
+    XCTAssertFalse(
+      FocusTitleCardBackingPolicy.shouldShow(
+        presentationStyle: notched,
+        transition: .instant
+      )
+    )
+    XCTAssertFalse(
+      FocusTitleCardBackingPolicy.shouldShow(
+        presentationStyle: notched,
+        transition: .crossfade(duration: 0.12)
+      )
+    )
+  }
+
   func testHostedMediaSurfaceConvertsTopAnchoredPanelCoordinatesToSwiftUI() {
     let layout = TopSurfaceHostedLayout(
       panelSize: CGSize(width: 344, height: 170),
