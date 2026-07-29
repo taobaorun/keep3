@@ -48,6 +48,62 @@ private final class TopSurfaceKeyboardNavigationPresentation:
 }
 
 @MainActor
+private struct TopSurfaceFocusActions {
+  let onActivateSurface: () -> Void
+  let onRequestKeyboardNavigation: () -> Void
+  let onSurfaceNavigation: (SurfaceGestureIntent) -> Void
+  let onNavigate: (TopSurfaceBrowseDirection) -> Void
+  let onOpenItem: () -> Void
+  let onOpenKeep3: () -> Void
+}
+
+@MainActor
+private final class TopSurfaceFocusPresentation: ObservableObject {
+  @Published private(set) var content: TopSurfaceContent
+  private var actions: TopSurfaceFocusActions
+
+  init(content: TopSurfaceContent, actions: TopSurfaceFocusActions) {
+    self.content = content
+    self.actions = actions
+  }
+
+  func update(
+    content: TopSurfaceContent,
+    actions: TopSurfaceFocusActions
+  ) {
+    self.actions = actions
+    guard self.content != content else {
+      return
+    }
+    self.content = content
+  }
+
+  func activateSurface() {
+    actions.onActivateSurface()
+  }
+
+  func requestKeyboardNavigation() {
+    actions.onRequestKeyboardNavigation()
+  }
+
+  func navigateSurface(_ intent: SurfaceGestureIntent) {
+    actions.onSurfaceNavigation(intent)
+  }
+
+  func navigate(_ direction: TopSurfaceBrowseDirection) {
+    actions.onNavigate(direction)
+  }
+
+  func openItem() {
+    actions.onOpenItem()
+  }
+
+  func openKeep3() {
+    actions.onOpenKeep3()
+  }
+}
+
+@MainActor
 final class TopSurfacePanel: NSPanel {
   override var canBecomeKey: Bool {
     keyboardNavigationPresentation.isActive
@@ -56,16 +112,17 @@ final class TopSurfacePanel: NSPanel {
 
   private let eventView: TopSurfaceEventView
   private var panelContent: PanelContent
+  private var renderedPanelSize: CGSize
   private(set) var renderedPresentationStyle: TopSurfacePresentationStyle
   private(set) var renderedSurfaceFrameInPanel: CGRect
   private let keyboardNavigationPresentation: TopSurfaceKeyboardNavigationPresentation
   private var keyboardEventMonitor: Any?
 
   var renderedContent: TopSurfaceContent {
-    guard case .focus(let content) = panelContent else {
+    guard case .focus(let presentation) = panelContent else {
       preconditionFailure("The panel is currently rendering media")
     }
-    return content
+    return presentation.content
   }
 
   var renderedMediaPayload: MediaSurfacePayload? {
@@ -97,10 +154,21 @@ final class TopSurfacePanel: NSPanel {
     onOpenItem: @escaping () -> Void = {},
     onOpenKeep3: @escaping () -> Void = {}
   ) {
+    let presentation = TopSurfaceFocusPresentation(
+      content: content,
+      actions: TopSurfaceFocusActions(
+        onActivateSurface: onActivateSurface,
+        onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+        onSurfaceNavigation: onSurfaceNavigation,
+        onNavigate: onNavigate,
+        onOpenItem: onOpenItem,
+        onOpenKeep3: onOpenKeep3
+      )
+    )
     self.init(
       contentRect: contentRect,
       surfaceFrameInPanel: surfaceFrameInPanel,
-      panelContent: .focus(content),
+      panelContent: .focus(presentation),
       presentationStyle: presentationStyle,
       onHoverChanged: onHoverChanged,
       onScroll: onScroll,
@@ -198,6 +266,7 @@ final class TopSurfacePanel: NSPanel {
     let keyboardNavigationPresentation =
       TopSurfaceKeyboardNavigationPresentation()
     self.panelContent = panelContent
+    renderedPanelSize = contentRect.size
     renderedPresentationStyle = presentationStyle
     renderedSurfaceFrameInPanel = resolvedSurfaceFrame
     self.keyboardNavigationPresentation = keyboardNavigationPresentation
@@ -278,9 +347,36 @@ final class TopSurfacePanel: NSPanel {
     onOpenItem: @escaping () -> Void,
     onOpenKeep3: @escaping () -> Void
   ) {
-    panelContent = .focus(content)
+    let currentPresentation = panelContent.focusPresentation
+    let needsRootViewUpdate =
+      currentPresentation == nil
+      || renderedPresentationStyle != presentationStyle
+      || renderedSurfaceFrameInPanel != surfaceFrameInPanel
+      || renderedPanelSize != eventView.bounds.size
+
+    let actions = TopSurfaceFocusActions(
+      onActivateSurface: onActivateSurface,
+      onRequestKeyboardNavigation: onRequestKeyboardNavigation,
+      onSurfaceNavigation: onSurfaceNavigation,
+      onNavigate: onNavigate,
+      onOpenItem: onOpenItem,
+      onOpenKeep3: onOpenKeep3
+    )
+    let presentation: TopSurfaceFocusPresentation
+    if let currentPresentation {
+      presentation = currentPresentation
+      presentation.update(content: content, actions: actions)
+    } else {
+      presentation = TopSurfaceFocusPresentation(
+        content: content,
+        actions: actions
+      )
+    }
+
+    panelContent = .focus(presentation)
     renderedPresentationStyle = presentationStyle
     renderedSurfaceFrameInPanel = surfaceFrameInPanel
+    renderedPanelSize = eventView.bounds.size
     hasShadow = presentationStyle.hasPanelShadow
     eventView.onHoverChanged = onHoverChanged
     eventView.onScroll = onScroll
@@ -288,6 +384,9 @@ final class TopSurfacePanel: NSPanel {
     eventView.onDismiss = onDismiss
     eventView.onOpenItem = onOpenItem
     eventView.updateActiveFrame(surfaceFrameInPanel)
+    guard needsRootViewUpdate else {
+      return
+    }
     eventView.hostingView.rootView = Self.rootView(
       for: panelContent,
       presentationStyle: presentationStyle,
@@ -320,6 +419,7 @@ final class TopSurfacePanel: NSPanel {
     panelContent = .media(mediaPayload)
     renderedPresentationStyle = presentationStyle
     renderedSurfaceFrameInPanel = surfaceFrameInPanel
+    renderedPanelSize = eventView.bounds.size
     hasShadow = presentationStyle.hasPanelShadow
     eventView.onHoverChanged = onHoverChanged
     eventView.onScroll = onScroll
@@ -357,6 +457,7 @@ final class TopSurfacePanel: NSPanel {
     panelContent = .calendar(calendarPayload)
     renderedPresentationStyle = presentationStyle
     renderedSurfaceFrameInPanel = surfaceFrameInPanel
+    renderedPanelSize = eventView.bounds.size
     hasShadow = presentationStyle.hasPanelShadow
     eventView.onHoverChanged = onHoverChanged
     eventView.onScroll = onScroll
@@ -402,23 +503,14 @@ final class TopSurfacePanel: NSPanel {
     )
 
     switch content {
-    case .focus(let focus):
+    case .focus(let presentation):
       return AnyView(
-        TopSurfaceRootView(
+        TopSurfaceFocusRootView(
           layout: layout,
-          isHovered: focus.isHovered && focus.level != .expanded,
           keyboardNavigationPresentation: keyboardNavigationPresentation,
-          content: TopSurfaceView(
-            content: focus,
-            presentationStyle: presentationStyle,
-            surfaceSize: surfaceSize,
-            onActivateSurface: onActivateSurface,
-            onRequestKeyboardNavigation: onRequestKeyboardNavigation,
-            onSurfaceNavigation: onSurfaceNavigation,
-            onNavigate: onNavigate,
-            onOpenItem: onOpenItem,
-            onOpenKeep3: onOpenKeep3
-          )
+          presentation: presentation,
+          presentationStyle: presentationStyle,
+          surfaceSize: surfaceSize
         )
       )
     case .media(let media):
@@ -529,8 +621,8 @@ final class TopSurfacePanel: NSPanel {
   private var activationAnnouncement: String {
     let guidance: TopSurfaceKeyboardNavigationGuidance
     switch panelContent {
-    case .focus(let content):
-      guidance = .priorities(itemCount: content.itemCount)
+    case .focus(let presentation):
+      guidance = .priorities(itemCount: presentation.content.itemCount)
     case .media(let payload):
       guidance = .media(
         capabilities: payload.session?.capabilities ?? []
@@ -558,9 +650,45 @@ final class TopSurfacePanel: NSPanel {
 }
 
 private enum PanelContent {
-  case focus(TopSurfaceContent)
+  case focus(TopSurfaceFocusPresentation)
   case media(MediaSurfacePayload)
   case calendar(CalendarSurfacePayload)
+
+  var focusPresentation: TopSurfaceFocusPresentation? {
+    guard case .focus(let presentation) = self else {
+      return nil
+    }
+    return presentation
+  }
+}
+
+private struct TopSurfaceFocusRootView: View {
+  let layout: TopSurfaceHostedLayout
+  @ObservedObject var keyboardNavigationPresentation: TopSurfaceKeyboardNavigationPresentation
+  @ObservedObject var presentation: TopSurfaceFocusPresentation
+  let presentationStyle: TopSurfacePresentationStyle
+  let surfaceSize: CGSize
+
+  var body: some View {
+    TopSurfaceRootView(
+      layout: layout,
+      isHovered:
+        presentation.content.isHovered
+        && presentation.content.level != .expanded,
+      keyboardNavigationPresentation: keyboardNavigationPresentation,
+      content: TopSurfaceView(
+        content: presentation.content,
+        presentationStyle: presentationStyle,
+        surfaceSize: surfaceSize,
+        onActivateSurface: presentation.activateSurface,
+        onRequestKeyboardNavigation: presentation.requestKeyboardNavigation,
+        onSurfaceNavigation: presentation.navigateSurface,
+        onNavigate: presentation.navigate,
+        onOpenItem: presentation.openItem,
+        onOpenKeep3: presentation.openKeep3
+      )
+    )
+  }
 }
 
 struct TopSurfaceHostedLayout: Equatable {

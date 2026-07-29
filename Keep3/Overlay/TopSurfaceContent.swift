@@ -1,9 +1,38 @@
 import Foundation
 
 struct SurfaceAppearance: Equatable, Sendable {
-  static let `default` = SurfaceAppearance(backgroundOpacity: 0.94)
+  static let `default` = SurfaceAppearance(
+    backgroundOpacity: 0.94,
+    itemSwitchEffect: .instant
+  )
 
   let backgroundOpacity: Double
+  let itemSwitchEffect: FocusItemSwitchEffect
+}
+
+enum FocusItemSwitchTransition: Equatable, Sendable {
+  case instant
+  case crossfade(duration: TimeInterval)
+  case cardFlip(duration: TimeInterval)
+
+  static func resolve(
+    effect: FocusItemSwitchEffect,
+    level: SurfaceLevel,
+    reduceMotion: Bool
+  ) -> Self {
+    guard level == .compact else {
+      return .instant
+    }
+    guard !reduceMotion else {
+      return effect == .instant ? .instant : .crossfade(duration: 0.12)
+    }
+    switch effect {
+    case .instant:
+      return .instant
+    case .cardFlip:
+      return .cardFlip(duration: 0.58)
+    }
+  }
 }
 
 struct TopSurfaceContent: Equatable, Sendable {

@@ -5,6 +5,11 @@ enum SurfaceExpansionTrigger: String, CaseIterable, Sendable {
   case click
 }
 
+enum FocusItemSwitchEffect: String, CaseIterable, Sendable {
+  case instant
+  case cardFlip
+}
+
 @MainActor
 final class AppPreferences: ObservableObject {
   private enum Key {
@@ -14,6 +19,7 @@ final class AppPreferences: ObservableObject {
     static let expansionTrigger = "expansionTrigger"
     static let capsuleWidth = "capsuleWidth"
     static let backgroundOpacity = "backgroundOpacity"
+    static let itemSwitchEffect = "itemSwitchEffect"
   }
 
   static let capsuleWidthRange = 240.0...420.0
@@ -25,6 +31,7 @@ final class AppPreferences: ObservableObject {
   @Published private(set) var expansionTrigger: SurfaceExpansionTrigger
   @Published private(set) var capsuleWidth: Double
   @Published private(set) var backgroundOpacity: Double
+  @Published private(set) var itemSwitchEffect: FocusItemSwitchEffect
 
   var onChange: (() -> Void)?
 
@@ -49,6 +56,9 @@ final class AppPreferences: ObservableObject {
     backgroundOpacity =
       (defaults.object(forKey: Key.backgroundOpacity) as? Double ?? 0.94)
       .clamped(to: Self.backgroundOpacityRange)
+    itemSwitchEffect =
+      defaults.string(forKey: Key.itemSwitchEffect)
+      .flatMap(FocusItemSwitchEffect.init(rawValue:)) ?? .instant
   }
 
   static func live() -> AppPreferences {
@@ -108,6 +118,15 @@ final class AppPreferences: ObservableObject {
       \.backgroundOpacity,
       value: value.clamped(to: Self.backgroundOpacityRange),
       key: Key.backgroundOpacity
+    )
+  }
+
+  func setItemSwitchEffect(_ value: FocusItemSwitchEffect) {
+    update(
+      \.itemSwitchEffect,
+      value: value,
+      key: Key.itemSwitchEffect,
+      storedValue: value.rawValue
     )
   }
 

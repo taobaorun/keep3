@@ -15,6 +15,7 @@ final class AppPreferencesTests: XCTestCase {
     XCTAssertEqual(preferences.expansionTrigger, .hover)
     XCTAssertEqual(preferences.capsuleWidth, 280)
     XCTAssertEqual(preferences.backgroundOpacity, 0.94)
+    XCTAssertEqual(preferences.itemSwitchEffect, .instant)
   }
 
   func testBehaviorValuesClampPersistAndEmitOneChangeEach() {
@@ -28,18 +29,21 @@ final class AppPreferencesTests: XCTestCase {
     preferences.setCurrentFocusDuration(999)
     preferences.setSecondaryDuration(99)
     preferences.setExpansionTrigger(.click)
+    preferences.setItemSwitchEffect(.cardFlip)
 
     XCTAssertFalse(preferences.isAutomaticRotationEnabled)
     XCTAssertEqual(preferences.currentFocusDuration, 600)
     XCTAssertEqual(preferences.secondaryDuration, 30)
     XCTAssertEqual(preferences.expansionTrigger, .click)
-    XCTAssertEqual(changeCount, 4)
+    XCTAssertEqual(preferences.itemSwitchEffect, .cardFlip)
+    XCTAssertEqual(changeCount, 5)
 
     let reloaded = AppPreferences(defaults: defaults)
     XCTAssertFalse(reloaded.isAutomaticRotationEnabled)
     XCTAssertEqual(reloaded.currentFocusDuration, 600)
     XCTAssertEqual(reloaded.secondaryDuration, 30)
     XCTAssertEqual(reloaded.expansionTrigger, .click)
+    XCTAssertEqual(reloaded.itemSwitchEffect, .cardFlip)
   }
 
   func testAppearanceValuesClampAndPersist() {
@@ -59,17 +63,66 @@ final class AppPreferencesTests: XCTestCase {
     let (defaults, suiteName) = makeDefaults()
     defer { defaults.removePersistentDomain(forName: suiteName) }
     defaults.set("unknown-trigger", forKey: "expansionTrigger")
+    defaults.set("carousel", forKey: "itemSwitchEffect")
     defaults.set(360, forKey: "capsuleWidth")
 
     let preferences = AppPreferences(defaults: defaults)
 
     XCTAssertEqual(preferences.expansionTrigger, .hover)
+    XCTAssertEqual(preferences.itemSwitchEffect, .instant)
     XCTAssertEqual(preferences.capsuleWidth, 360)
   }
 
-  func testSurfaceAppearanceKeepsConfiguredOpacity() {
-    let appearance = SurfaceAppearance(backgroundOpacity: 0.78)
+  func testSurfaceAppearanceKeepsConfiguredOpacityAndSwitchEffect() {
+    let appearance = SurfaceAppearance(
+      backgroundOpacity: 0.78,
+      itemSwitchEffect: .cardFlip
+    )
     XCTAssertEqual(appearance.backgroundOpacity, 0.78)
+    XCTAssertEqual(appearance.itemSwitchEffect, .cardFlip)
+  }
+
+  func testItemSwitchTransitionOnlyRunsCardFlipInCompactLevel() {
+    XCTAssertEqual(
+      FocusItemSwitchTransition.resolve(
+        effect: .instant,
+        level: .compact,
+        reduceMotion: false
+      ),
+      .instant
+    )
+    XCTAssertEqual(
+      FocusItemSwitchTransition.resolve(
+        effect: .cardFlip,
+        level: .compact,
+        reduceMotion: false
+      ),
+      .cardFlip(duration: 0.58)
+    )
+    XCTAssertEqual(
+      FocusItemSwitchTransition.resolve(
+        effect: .cardFlip,
+        level: .compact,
+        reduceMotion: true
+      ),
+      .crossfade(duration: 0.12)
+    )
+    XCTAssertEqual(
+      FocusItemSwitchTransition.resolve(
+        effect: .cardFlip,
+        level: .expanded,
+        reduceMotion: false
+      ),
+      .instant
+    )
+    XCTAssertEqual(
+      FocusItemSwitchTransition.resolve(
+        effect: .cardFlip,
+        level: .hardware,
+        reduceMotion: false
+      ),
+      .instant
+    )
   }
 
   func testSettingsCategoriesPreserveVisualOrderAndExposeEventEntries() {
