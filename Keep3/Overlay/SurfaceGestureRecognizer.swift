@@ -6,6 +6,8 @@ enum SurfaceGestureIntent: Equatable, Sendable {
   case retreatDepth
   case previousComponent
   case nextComponent
+  case previousItem
+  case nextItem
   case previousTrack
   case nextTrack
 }
@@ -157,10 +159,13 @@ struct SurfaceGestureRecognizer {
     }
     switch lockedAxis {
     case .horizontal:
-      guard context.component == .media, context.mediaSessionID != nil else {
-        return nil
+      if context.component == .priorities, context.level == .expanded {
+        armedIntent = accumulatedX < 0 ? .previousItem : .nextItem
+      } else if context.component == .media,
+        context.mediaSessionID != nil
+      {
+        armedIntent = accumulatedX < 0 ? .previousTrack : .nextTrack
       }
-      armedIntent = accumulatedX < 0 ? .previousTrack : .nextTrack
     case .vertical:
       if context.level == .expanded {
         if context.component == .media, accumulatedY < 0 {

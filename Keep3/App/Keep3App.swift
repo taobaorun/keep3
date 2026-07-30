@@ -750,6 +750,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return
     }
     switch intent {
+    case .previousItem:
+      interactionModel.browse(.previous)
+    case .nextItem:
+      interactionModel.browse(.next)
     case .previousTrack:
       handleMediaAction(.previous)
     case .nextTrack:
@@ -763,7 +767,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     for intent: SurfaceGestureIntent
   ) {
     switch intent {
-    case .advanceDepth, .previousComponent, .nextComponent:
+    case .advanceDepth, .previousComponent, .nextComponent,
+      .previousItem, .nextItem:
       surfaceHapticFeedback.performNavigationGesture()
     case .retreatDepth:
       let navigation = surfaceNavigationCoordinator.state
