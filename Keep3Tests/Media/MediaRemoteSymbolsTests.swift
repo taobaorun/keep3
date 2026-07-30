@@ -179,6 +179,45 @@ final class MediaRemoteSymbolsTests: XCTestCase {
     )
   }
 
+  func testUnavailableDormantPlayerKeepsRetryingUntilRecovery() {
+    var policy = MediaRemoteAvailabilityRecoveryPolicy()
+
+    XCTAssertNil(
+      policy.nextRetryDelay(hasSupportedRunningApplication: false)
+    )
+    XCTAssertEqual(
+      policy.nextRetryDelay(hasSupportedRunningApplication: true),
+      0.5
+    )
+    XCTAssertEqual(
+      policy.nextRetryDelay(hasSupportedRunningApplication: true),
+      2
+    )
+    XCTAssertEqual(
+      policy.nextRetryDelay(hasSupportedRunningApplication: true),
+      5
+    )
+    XCTAssertEqual(
+      policy.nextRetryDelay(hasSupportedRunningApplication: true),
+      15
+    )
+    XCTAssertEqual(
+      policy.nextRetryDelay(hasSupportedRunningApplication: true),
+      30
+    )
+    XCTAssertEqual(
+      policy.nextRetryDelay(hasSupportedRunningApplication: true),
+      30
+    )
+
+    policy.reset()
+
+    XCTAssertEqual(
+      policy.nextRetryDelay(hasSupportedRunningApplication: true),
+      0.5
+    )
+  }
+
   func testRunningApplicationContextRoundTripsAcrossPropertyListBoundary() {
     let application = MediaRemoteRunningApplication(
       processIdentifier: 33,
