@@ -214,6 +214,24 @@ final class SurfaceGestureRecognizerTests: XCTestCase {
     )
   }
 
+  func testExpandedPrioritiesHorizontalIntentBrowsesVisibleItems() {
+    var recognizer = SurfaceGestureRecognizer()
+    recognizer.updateContext(
+      .init(component: .priorities, level: .expanded, generation: 1)
+    )
+
+    XCTAssertNil(recognizer.handle(event(x: -30, phase: .began)))
+    XCTAssertEqual(
+      recognizer.handle(event(phase: .ended)),
+      .previousItem
+    )
+    XCTAssertNil(recognizer.handle(event(x: 30, phase: .began)))
+    XCTAssertEqual(
+      recognizer.handle(event(phase: .ended)),
+      .nextItem
+    )
+  }
+
   func testDominantAxisLocksAndContextChangeCancelsGesture() {
     var recognizer = SurfaceGestureRecognizer()
     recognizer.updateContext(

@@ -138,7 +138,7 @@ final class SurfaceNavigationCoordinator {
 
   func apply(_ intent: SurfaceGestureIntent) {
     switch intent {
-    case .previousTrack, .nextTrack:
+    case .previousItem, .nextItem, .previousTrack, .nextTrack:
       return
     case .advanceDepth, .retreatDepth, .previousComponent, .nextComponent:
       break
@@ -185,7 +185,7 @@ final class SurfaceNavigationCoordinator {
         level = .compact
         didChange = true
       }
-    case .previousTrack, .nextTrack:
+    case .previousItem, .nextItem, .previousTrack, .nextTrack:
       return
     }
     if didChange {
