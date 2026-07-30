@@ -19,6 +19,9 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
   private var observerTokens: [NSObjectProtocol] = []
   private var pendingRefresh: DispatchWorkItem?
   private var pendingDormantUpgrade: DispatchWorkItem?
+  private var pendingAvailabilityRecovery: DispatchWorkItem?
+  private var availabilityRecoveryPolicy =
+    MediaRemoteAvailabilityRecoveryPolicy()
   private var monitoringGeneration: UInt64 = 0
   private var monitoringClientGeneration: UInt64?
   private var contentRevision: UInt64 = 0
@@ -240,6 +243,36 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
         + MediaRemoteDormantPlayerPolicy.upgradeRetryDelays[attempt],
       execute: work
     )
+  }
+
+  private func scheduleAvailabilityRecovery(generation: UInt64) {
+    guard generation == monitoringGeneration,
+      pendingAvailabilityRecovery == nil
+    else {
+      return
+    }
+    let hasSupportedRunningApplication =
+      hostRunningApplications.contains {
+        MediaRemoteDormantPlayerPolicy.supportedBundleIdentifiers.contains(
+          $0.bundleIdentifier
+        )
+      }
+    guard
+      let delay = availabilityRecoveryPolicy.nextRetryDelay(
+        hasSupportedRunningApplication: hasSupportedRunningApplication
+      )
+    else {
+      return
+    }
+    let work = DispatchWorkItem { [weak self] in
+      guard let self, generation == self.monitoringGeneration else {
+        return
+      }
+      self.pendingAvailabilityRecovery = nil
+      self.refresh(generation: generation)
+    }
+    pendingAvailabilityRecovery = work
+    queue.asyncAfter(deadline: .now() + delay, execute: work)
   }
 
   private func refresh(generation: UInt64) {
@@ -548,6 +581,9 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     else {
       return
     }
+    pendingAvailabilityRecovery?.cancel()
+    pendingAvailabilityRecovery = nil
+    availabilityRecoveryPolicy.reset()
     let bundleIdentifier = MediaSession.bounded(
       suppliedBundleIdentifier ?? application?.bundleIdentifier,
       maximum: MediaSession.maximumBundleIdentifierBytes
@@ -679,6 +715,7 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
       "isPresent": false,
       "contentRevision": NSNumber(value: contentRevision),
     ])
+    scheduleAvailabilityRecovery(generation: generation)
   }
 
   private func boundedMetadataString(_ value: Any?) -> String? {
@@ -744,6 +781,9 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     pendingRefresh = nil
     pendingDormantUpgrade?.cancel()
     pendingDormantUpgrade = nil
+    pendingAvailabilityRecovery?.cancel()
+    pendingAvailabilityRecovery = nil
+    availabilityRecoveryPolicy.reset()
     observerTokens.forEach(NotificationCenter.default.removeObserver)
     observerTokens = []
     runtime?.unregisterNotifications()

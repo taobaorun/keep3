@@ -181,6 +181,29 @@ enum MediaRemoteDormantPlayerPolicy {
   }
 }
 
+struct MediaRemoteAvailabilityRecoveryPolicy {
+  private static let retryDelays: [TimeInterval] = [0.5, 2, 5, 15, 30]
+  private var retryAttempt = 0
+
+  mutating func nextRetryDelay(
+    hasSupportedRunningApplication: Bool
+  ) -> TimeInterval? {
+    guard hasSupportedRunningApplication else {
+      reset()
+      return nil
+    }
+    let delay = Self.retryDelays[
+      min(retryAttempt, Self.retryDelays.count - 1)
+    ]
+    retryAttempt = min(retryAttempt + 1, Self.retryDelays.count - 1)
+    return delay
+  }
+
+  mutating func reset() {
+    retryAttempt = 0
+  }
+}
+
 enum MediaRemoteClientCommandStatus {
   static func isAccepted(_ status: UInt8) -> Bool {
     status == 0
