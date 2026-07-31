@@ -278,6 +278,53 @@ final class MediaSurfacePresentationTests: XCTestCase {
     )
   }
 
+  func testArtworkOpenTargetRequiresPersistableBundleIdentifier() {
+    XCTAssertEqual(
+      MediaSurfacePresentation(payload: payload()).sourceBundleIdentifier,
+      "com.netease.163music"
+    )
+    XCTAssertNil(
+      MediaSurfacePresentation(
+        payload: payload(sourceBundleIdentifier: nil)
+      ).sourceBundleIdentifier
+    )
+    XCTAssertNil(
+      MediaSurfacePresentation(
+        payload: payload(sourceBundleIdentifier: "not stable")
+      ).sourceBundleIdentifier
+    )
+  }
+
+  @MainActor
+  func testPlayerApplicationActivatorUsesCurrentSourceBundleIdentifier() {
+    var activatedBundleIdentifiers: [String] = []
+    let activator = MediaPlayerApplicationActivator {
+      activatedBundleIdentifiers.append($0)
+      return true
+    }
+
+    XCTAssertTrue(
+      activator.activate(bundleIdentifier: "com.netease.163music")
+    )
+    XCTAssertEqual(
+      activatedBundleIdentifiers,
+      ["com.netease.163music"]
+    )
+  }
+
+  @MainActor
+  func testPlayerApplicationActivatorRejectsMissingOrUnstableIdentifiers() {
+    var activationCount = 0
+    let activator = MediaPlayerApplicationActivator { _ in
+      activationCount += 1
+      return true
+    }
+
+    XCTAssertFalse(activator.activate(bundleIdentifier: nil))
+    XCTAssertFalse(activator.activate(bundleIdentifier: "not stable"))
+    XCTAssertEqual(activationCount, 0)
+  }
+
   func testTitleExtrasAreOptIn() {
     let hidden = MediaSurfacePresentation(payload: payload())
     let visible = MediaSurfacePresentation(

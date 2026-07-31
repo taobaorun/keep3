@@ -277,6 +277,8 @@ private struct MediaRemoteCommand {
 extension MediaSurfaceAction {
   fileprivate var remoteCommand: MediaRemoteCommand? {
     switch self {
+    case .openPlayer:
+      return nil
     case .previous:
       return MediaRemoteCommand(name: .previous, value: nil)
     case .togglePlayPause:

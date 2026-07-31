@@ -1,5 +1,44 @@
+import AppKit
 import EventKit
 import SwiftUI
+
+@MainActor
+struct MediaPlayerApplicationActivator {
+  private let activateApplication: (String) -> Bool
+
+  init(_ activateApplication: @escaping (String) -> Bool) {
+    self.activateApplication = activateApplication
+  }
+
+  func activate(bundleIdentifier: String?) -> Bool {
+    guard let bundleIdentifier,
+      MediaPreferences.isPersistableBundleIdentifier(bundleIdentifier)
+    else {
+      return false
+    }
+    return activateApplication(bundleIdentifier)
+  }
+
+  static let live = Self { bundleIdentifier in
+    guard
+      let applicationURL = NSWorkspace.shared.urlForApplication(
+        withBundleIdentifier: bundleIdentifier
+      )
+    else {
+      return false
+    }
+    let configuration = NSWorkspace.OpenConfiguration()
+    configuration.activates = true
+    configuration.createsNewApplicationInstance = false
+    NSWorkspace.shared.openApplication(
+      at: applicationURL,
+      configuration: configuration
+    ) { application, _ in
+      application?.activate(options: [.activateAllWindows])
+    }
+    return true
+  }
+}
 
 @main
 struct Keep3App: App {
@@ -20,6 +59,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let calendarPreferences = AppDelegate.makeCalendarPreferences()
   private let launchAtLoginController = LaunchAtLoginController.live()
   private let topSurfaceController = TopSurfaceController()
+  private let mediaPlayerApplicationActivator =
+    MediaPlayerApplicationActivator.live
   private let surfaceHapticFeedback = AppKitSurfaceHapticFeedback()
   private var state = Keep3State()
   private var isSurfaceAvailable = true
@@ -794,6 +835,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func handleMediaAction(_ action: MediaSurfaceAction) {
+    if case .openPlayer(let bundleIdentifier) = action {
+      topSurfaceController
+        .performActionWithoutRestoringPreviousApplication {
+          _ = mediaPlayerApplicationActivator.activate(
+            bundleIdentifier: bundleIdentifier
+          )
+        }
+      return
+    }
     if action == .hideSource {
       mediaPreferences.setSuppressed(
         currentMediaSnapshot?.session.sourceBundleIdentifier,

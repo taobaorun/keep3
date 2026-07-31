@@ -3,6 +3,8 @@ import SwiftUI
 
 struct MediaSurfacePresentation: Equatable, Sendable {
   let sessionID: String
+  let sourceBundleIdentifier: String?
+  let playerApplicationName: String?
   let title: String
   let artist: String?
   let album: String?
@@ -29,6 +31,10 @@ struct MediaSurfacePresentation: Equatable, Sendable {
   init(payload: MediaSurfacePayload) {
     let session = payload.session
     sessionID = payload.sessionID
+    sourceBundleIdentifier = session?.sourceBundleIdentifier.flatMap {
+      MediaPreferences.isPersistableBundleIdentifier($0) ? $0 : nil
+    }
+    playerApplicationName = session?.applicationName
     title = session?.title ?? session?.applicationName ?? "播放器"
     artist = session?.artist
     album =
@@ -723,7 +729,31 @@ struct MediaSurfaceView: View {
   }
 
   private func expandedArtwork(artwork: CGImage?) -> some View {
-    artworkView(artwork: artwork, size: 56, cornerRadius: 14)
+    Group {
+      if let sourceBundleIdentifier = presentation.sourceBundleIdentifier {
+        Button {
+          onAction(
+            .openPlayer(bundleIdentifier: sourceBundleIdentifier)
+          )
+        } label: {
+          artworkView(artwork: artwork, size: 56, cornerRadius: 14)
+        }
+        .buttonStyle(.plain)
+        .contentShape(
+          RoundedRectangle(cornerRadius: 14, style: .continuous)
+        )
+        .help(
+          "打开\(presentation.playerApplicationName ?? "播放器")"
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+          "打开\(presentation.playerApplicationName ?? "播放器")"
+        )
+        .accessibilityIdentifier("media.expanded.openPlayer")
+      } else {
+        artworkView(artwork: artwork, size: 56, cornerRadius: 14)
+      }
+    }
   }
 
   private func progressView(
@@ -851,6 +881,7 @@ struct MediaSurfaceView: View {
 
   private func symbol(for action: MediaSurfaceAction) -> String {
     switch action {
+    case .openPlayer: "macwindow"
     case .previous: "backward.end.fill"
     case .togglePlayPause: presentation.isPlaying ? "pause.fill" : "play.fill"
     case .next: "forward.end.fill"
@@ -877,6 +908,7 @@ struct MediaSurfaceView: View {
 
   private func label(for action: MediaSurfaceAction) -> String {
     switch action {
+    case .openPlayer: "打开播放器"
     case .previous: "上一首"
     case .togglePlayPause: presentation.isPlaying ? "暂停" : "播放"
     case .next: "下一首"
@@ -892,6 +924,7 @@ struct MediaSurfaceView: View {
 
   private func identifier(for action: MediaSurfaceAction) -> String {
     switch action {
+    case .openPlayer: "openPlayer"
     case .previous: "previous"
     case .togglePlayPause: "playPause"
     case .next: "next"
