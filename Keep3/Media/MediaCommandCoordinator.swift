@@ -193,6 +193,8 @@ final class MediaCommandCoordinator {
   ) -> Bool {
     let requiredCapability: MediaCapability?
     switch action {
+    case .openPlayer:
+      return false
     case .previous:
       requiredCapability = .previous
     case .togglePlayPause:

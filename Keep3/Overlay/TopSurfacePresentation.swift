@@ -49,6 +49,7 @@ enum MediaSecondaryAction: String, CaseIterable, Codable, Equatable, Sendable {
 }
 
 enum MediaSurfaceAction: Equatable, Sendable {
+  case openPlayer(bundleIdentifier: String)
   case previous
   case togglePlayPause
   case next
