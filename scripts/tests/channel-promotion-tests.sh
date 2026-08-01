@@ -158,8 +158,17 @@ grep -Eq 'gh pr create' "$release_scripts_dir/publish-release-channel.sh" \
   || fail "Homebrew promotion does not stage a candidate PR"
 grep -Eq 'gh pr merge' "$release_scripts_dir/publish-release-channel.sh" \
   || fail "Homebrew promotion does not merge the verified candidate PR"
-grep -Eq -- '--force-with-lease' "$release_scripts_dir/publish-release-channel.sh" \
-  || fail "Homebrew candidate branch updates are not race-safe"
+if grep -Fq -- '--force-with-lease=' \
+  "$release_scripts_dir/publish-release-channel.sh"
+then
+  fail "Homebrew promotion can rewrite a tap PR head after review"
+fi
+grep -Fq 'tap candidate branch exists without an open PR' \
+  "$release_scripts_dir/publish-release-channel.sh" \
+  || fail "Homebrew promotion does not reject an unreviewed stale candidate branch"
+grep -Fq 'expected_tap_head=$remote_branch_sha' \
+  "$release_scripts_dir/publish-release-channel.sh" \
+  || fail "Homebrew promotion does not preserve the reviewed tap PR head"
 grep -Eq -- '--match-head-commit' "$release_scripts_dir/publish-release-channel.sh" \
   || fail "Homebrew merge is not pinned to the verified PR head"
 grep -Eq 'headRefOid' "$release_scripts_dir/publish-release-channel.sh" \
@@ -167,6 +176,19 @@ grep -Eq 'headRefOid' "$release_scripts_dir/publish-release-channel.sh" \
 grep -Fq 'paths == ["Casks/keep3.rb"]' \
   "$release_scripts_dir/publish-release-channel.sh" \
   || fail "Homebrew promotion does not constrain the candidate file set"
+if grep -Fq 'reviewDecision' \
+  "$release_scripts_dir/publish-release-channel.sh"
+then
+  fail "single-maintainer Homebrew promotion still requires a second account approval"
+fi
+grep -Fq 'statusCheckRollup' \
+  "$release_scripts_dir/publish-release-channel.sh" \
+  || fail "single-maintainer Homebrew promotion does not require tap CI"
+grep -Fq 'tap candidate PR was staged; inspect it and rerun promotion after CI passes' \
+  "$release_scripts_dir/publish-release-channel.sh" \
+  || fail "single-maintainer Homebrew promotion does not require a review-window rerun"
+grep -Fq 'Single-maintainer tap approval' "$docs_dir/release-runbook.md" \
+  || fail "release runbook does not document the single-maintainer tap gate"
 if grep -En 'publish-release-channel\.sh --help|release-runbook\.md >/dev/null' \
   "$promotion_workflow" >/dev/null
 then
