@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "signed": {
+    "repository": "taobaorun/keep3",
+    "canonicalOrigin": "https://taobaorun.github.io",
+    "sequence": 1,
+    "state": "NoRelease",
+    "version": null,
+    "build": null,
+    "tag": null,
+    "trustState": null,
+    "publishedAt": "2026-08-01T00:00:00Z",
+    "expiresAt": "2099-08-01T00:00:00Z",
+    "keyId": "keep3-release-metadata-fixture-2026",
+    "candidateManifestUrl": null,
+    "currentManifestUrl": null,
+    "message": "No public Keep3 release is active.",
+    "fallbackUrl": "https://github.com/taobaorun/keep3/releases"
+  },
+  "signature": {
+    "algorithm": "Ed25519",
+    "keyId": "keep3-release-metadata-fixture-2026",
+    "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+  }
+}
