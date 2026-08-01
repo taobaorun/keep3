@@ -1,0 +1,20 @@
+cask "keep3" do
+  version "__KEEP3_VERSION__"
+  sha256 "__KEEP3_SHA256__"
+
+  url "__KEEP3_URL__"
+  name "Keep3"
+  desc "Keep three priorities visible in the MacBook notch"
+  homepage "https://github.com/taobaorun/keep3"
+
+  depends_on macos: ">= :sonoma"
+
+  app "Keep3.app"
+
+  caveats <<~EOS
+    Keep3 is currently distributed without Apple Developer ID notarization.
+    macOS may ask you to confirm the first launch from System Settings >
+    Privacy & Security. This cask preserves quarantine and does not bypass
+    Gatekeeper automatically.
+  EOS
+end

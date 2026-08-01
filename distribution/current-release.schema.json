@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://taobaorun.github.io/keep3/release-channel/schemas/current-release.schema.json",
+  "title": "Keep3 signed current release discovery document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "signed", "signature"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "signed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "canonicalOrigin",
+        "sequence",
+        "state",
+        "version",
+        "build",
+        "tag",
+        "trustState",
+        "publishedAt",
+        "expiresAt",
+        "keyId",
+        "manifestUrl",
+        "artifactUrl",
+        "fallbackUrl"
+      ],
+      "properties": {
+        "repository": { "const": "taobaorun/keep3" },
+        "canonicalOrigin": { "const": "https://taobaorun.github.io" },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "state": { "const": "Converged" },
+        "version": { "$ref": "#/$defs/version" },
+        "build": { "type": "integer", "minimum": 1 },
+        "tag": { "$ref": "#/$defs/tag" },
+        "trustState": { "enum": ["unsigned", "developer-id"] },
+        "publishedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "keyId": { "$ref": "#/$defs/keyId" },
+        "manifestUrl": { "$ref": "#/$defs/manifestUrl" },
+        "artifactUrl": { "$ref": "#/$defs/immutableGitHubUrl" },
+        "fallbackUrl": {
+          "const": "https://github.com/taobaorun/keep3/releases"
+        }
+      }
+    },
+    "signature": { "$ref": "#/$defs/signature" }
+  },
+  "$defs": {
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "tag": {
+      "type": "string",
+      "pattern": "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "keyId": {
+      "type": "string",
+      "pattern": "^keep3-release-metadata-[a-z0-9-]+$"
+    },
+    "manifestUrl": {
+      "type": "string",
+      "pattern": "^https://taobaorun\\.github\\.io/keep3/release-channel/releases/v[0-9]+\\.[0-9]+\\.[0-9]+/manifest\\.json$"
+    },
+    "immutableGitHubUrl": {
+      "type": "string",
+      "pattern": "^https://github\\.com/taobaorun/keep3/releases/download/v[0-9]+\\.[0-9]+\\.[0-9]+/Keep3-[0-9]+\\.[0-9]+\\.[0-9]+\\.dmg$"
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "keyId", "value"],
+      "properties": {
+        "algorithm": { "const": "Ed25519" },
+        "keyId": { "$ref": "#/$defs/keyId" },
+        "value": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]{86}==$"
+        }
+      }
+    }
+  }
+}

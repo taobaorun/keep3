@@ -4,3 +4,10 @@ DerivedData/
 xcuserdata/
 .DS_Store
 /website/
+/distribution/generated/
+/distribution/private/
+/.release-secrets/
+/*.dmg
+*.private-key.pem
+*.p12
+*.keychain-db
