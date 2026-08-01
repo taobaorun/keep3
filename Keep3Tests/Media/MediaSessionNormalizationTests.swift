@@ -51,6 +51,7 @@ final class MediaSessionNormalizationTests: XCTestCase {
       "playbackState": "playing",
       "capabilityRevision": 1,
       "contentRevision": 2,
+      "artworkRevision": 4,
       "capabilities": ["previous", "playPause", "next"],
     ]
 
@@ -62,6 +63,14 @@ final class MediaSessionNormalizationTests: XCTestCase {
     )
     XCTAssertEqual(snapshot?.playbackState, .playing)
     XCTAssertEqual(snapshot?.contentRevision, 2)
+    XCTAssertEqual(snapshot?.artworkRevision, 4)
+
+    let legacy = propertyList.mutableCopy() as! NSMutableDictionary
+    legacy.removeObject(forKey: "artworkRevision")
+    XCTAssertEqual(
+      MediaAdapterSnapshot(propertyList: legacy)?.artworkRevision,
+      2
+    )
 
     let mismatched = propertyList.mutableCopy() as! NSMutableDictionary
     mismatched["protocolVersion"] = -1

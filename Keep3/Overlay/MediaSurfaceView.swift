@@ -1,6 +1,11 @@
 import AppKit
 import SwiftUI
 
+struct MediaArtworkTransitionIdentity: Hashable, Sendable {
+  let contentRevision: UInt64
+  let artworkRevision: UInt64
+}
+
 struct MediaSurfacePresentation: Equatable, Sendable {
   let sessionID: String
   let sourceBundleIdentifier: String?
@@ -10,6 +15,7 @@ struct MediaSurfacePresentation: Equatable, Sendable {
   let album: String?
   let applicationName: String?
   let artworkData: Data?
+  let artworkTransitionIdentity: MediaArtworkTransitionIdentity
   let isPlaying: Bool
   let isExpanded: Bool
   let isTemporaryExpansion: Bool
@@ -43,6 +49,10 @@ struct MediaSurfacePresentation: Equatable, Sendable {
       payload.appearance.showsMediaTitleExtras
       ? session?.applicationName : nil
     artworkData = session?.artworkData
+    artworkTransitionIdentity = MediaArtworkTransitionIdentity(
+      contentRevision: payload.contentRevision,
+      artworkRevision: payload.artworkRevision
+    )
     isPlaying = payload.playbackState == .playing
     isExpanded = payload.isExpanded
     isTemporaryExpansion = payload.isTemporaryExpansion
@@ -217,7 +227,10 @@ struct MediaSurfaceView: View {
         .accessibilityFocused($isCompactMediaAccessibilityFocused)
       }
     }
-    .animation(artworkAnimation, value: payload.contentRevision)
+    .animation(
+      artworkAnimation,
+      value: presentation.artworkTransitionIdentity
+    )
     .foregroundStyle(.white)
     .frame(width: surfaceSize.width, height: surfaceSize.height)
     .background { mediaBackground(artwork: artwork.image) }
@@ -528,7 +541,7 @@ struct MediaSurfaceView: View {
     .clipShape(
       RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
     )
-    .id(payload.contentRevision)
+    .id(presentation.artworkTransitionIdentity)
     .transition(artworkTransition)
   }
 

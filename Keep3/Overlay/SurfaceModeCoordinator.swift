@@ -228,6 +228,7 @@ final class SurfaceModeCoordinator {
     let disabledMedia = MediaSurfacePayload(
       sessionID: renderedMedia.sessionID,
       contentRevision: renderedMedia.contentRevision,
+      artworkRevision: renderedMedia.artworkRevision,
       isExpanded: renderedMedia.isExpanded,
       areControlsEnabled: false,
       session: renderedMedia.session,
@@ -277,6 +278,7 @@ final class SurfaceModeCoordinator {
       .init(
         sessionID: mediaSnapshot.session.sessionID,
         contentRevision: mediaSnapshot.contentRevision,
+        artworkRevision: mediaSnapshot.artworkRevision,
         isExpanded: false,
         areControlsEnabled: areMediaControlsEnabled,
         session: mediaSnapshot.session,

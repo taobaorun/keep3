@@ -537,6 +537,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         MediaSurfacePayload(
           sessionID: sourceMediaPayload.sessionID,
           contentRevision: sourceMediaPayload.contentRevision,
+          artworkRevision: sourceMediaPayload.artworkRevision,
           isExpanded: level == .expanded,
           level: level,
           areControlsEnabled: sourceMediaPayload.areControlsEnabled,
@@ -916,7 +917,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             playbackState: adapterSnapshot.playbackState,
             subscriptionEpoch: epoch,
             capabilityRevision: adapterSnapshot.capabilityRevision,
-            contentRevision: adapterSnapshot.contentRevision
+            contentRevision: adapterSnapshot.contentRevision,
+            artworkRevision: adapterSnapshot.artworkRevision
           )
         )
       } else {

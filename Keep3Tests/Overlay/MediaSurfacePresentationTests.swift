@@ -410,7 +410,43 @@ final class MediaSurfacePresentationTests: XCTestCase {
     XCTAssertEqual(metrics.bottomInset, 22, accuracy: 0.001)
   }
 
+  func testArtworkTransitionIdentityTracksArtworkArrivingAfterMetadata() {
+    let pendingArtwork = MediaSurfacePresentation(
+      payload: payload(
+        contentRevision: 2,
+        artworkRevision: 3
+      )
+    )
+    let artwork = Data([1, 2, 3])
+    let resolvedArtwork = MediaSurfacePresentation(
+      payload: payload(
+        contentRevision: 2,
+        artworkRevision: 4,
+        artworkData: artwork
+      )
+    )
+    let progressOnlyUpdate = MediaSurfacePresentation(
+      payload: payload(
+        contentRevision: 2,
+        artworkRevision: 4,
+        progress: 10,
+        artworkData: artwork
+      )
+    )
+
+    XCTAssertNotEqual(
+      pendingArtwork.artworkTransitionIdentity,
+      resolvedArtwork.artworkTransitionIdentity
+    )
+    XCTAssertEqual(
+      resolvedArtwork.artworkTransitionIdentity,
+      progressOnlyUpdate.artworkTransitionIdentity
+    )
+  }
+
   private func payload(
+    contentRevision: UInt64 = 1,
+    artworkRevision: UInt64? = nil,
     isExpanded: Bool = false,
     expansionReason: SurfaceExpansionReason = .none,
     duration: TimeInterval? = nil,
@@ -422,6 +458,7 @@ final class MediaSurfacePresentationTests: XCTestCase {
     publicShareURL: String? = nil,
     showsMediaTitleExtras: Bool = false,
     title: String? = "Track",
+    artworkData: Data? = nil,
     playbackState: MediaPlaybackState = .playing
   ) -> MediaSurfacePayload {
     let session = MediaSession.normalize(
@@ -433,6 +470,8 @@ final class MediaSurfacePresentationTests: XCTestCase {
         album: "Album",
         applicationName: "网易云音乐",
         publicShareURL: publicShareURL,
+        artworkData: artworkData,
+        artworkMIMEType: artworkData == nil ? nil : "image/png",
         duration: duration,
         progress: progress,
         progressSampleDate: progressSampleDate,
@@ -441,7 +480,8 @@ final class MediaSurfacePresentationTests: XCTestCase {
     )
     return MediaSurfacePayload(
       sessionID: "session-1",
-      contentRevision: 1,
+      contentRevision: contentRevision,
+      artworkRevision: artworkRevision,
       isExpanded: isExpanded,
       areControlsEnabled: true,
       session: session,

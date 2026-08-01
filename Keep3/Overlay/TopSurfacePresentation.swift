@@ -89,6 +89,7 @@ struct MediaTrackPeek: Hashable, Sendable {
 struct MediaSurfacePayload: Equatable, Sendable {
   let sessionID: String
   let contentRevision: UInt64
+  let artworkRevision: UInt64
   let isExpanded: Bool
   let level: SurfaceLevel
   let areControlsEnabled: Bool
@@ -104,6 +105,7 @@ struct MediaSurfacePayload: Equatable, Sendable {
   init(
     sessionID: String,
     contentRevision: UInt64,
+    artworkRevision: UInt64? = nil,
     isExpanded: Bool,
     level: SurfaceLevel? = nil,
     areControlsEnabled: Bool,
@@ -118,6 +120,7 @@ struct MediaSurfacePayload: Equatable, Sendable {
   ) {
     self.sessionID = sessionID
     self.contentRevision = contentRevision
+    self.artworkRevision = artworkRevision ?? contentRevision
     self.isExpanded = isExpanded
     self.level = level ?? (isExpanded ? .expanded : .compact)
     self.areControlsEnabled = areControlsEnabled

@@ -25,6 +25,7 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
   private var monitoringGeneration: UInt64 = 0
   private var monitoringClientGeneration: UInt64?
   private var contentRevision: UInt64 = 0
+  private var artworkRevision: UInt64 = 0
   private var currentSessionID: String?
   private var currentClient: AnyObject?
   private var currentSourceBundleIdentifier: String?
@@ -737,6 +738,7 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
       didContentChange: didContentChange,
       to: &propertyList
     )
+    propertyList["artworkRevision"] = NSNumber(value: artworkRevision)
     propertyList = propertyList.compactMapValues { $0 }
     client?.mediaRemoteDidUpdate(propertyList as NSDictionary)
   }
@@ -759,6 +761,7 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
       ),
       "isPresent": false,
       "contentRevision": NSNumber(value: contentRevision),
+      "artworkRevision": NSNumber(value: artworkRevision),
     ])
     scheduleAvailabilityRecovery(generation: generation)
   }
@@ -803,6 +806,9 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
         ? MediaArtworkWireUpdate.clear.rawValue
         : MediaArtworkWireUpdate.unchanged.rawValue
       if didContentChange {
+        if currentArtworkData != nil || currentArtworkMIMEType != nil {
+          artworkRevision &+= 1
+        }
         currentArtworkData = nil
         currentArtworkMIMEType = nil
       }
@@ -815,6 +821,7 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     }
     currentArtworkData = artwork
     currentArtworkMIMEType = mimeType
+    artworkRevision &+= 1
     propertyList["artworkUpdate"] = MediaArtworkWireUpdate.replace.rawValue
     propertyList["artworkData"] = artwork
     propertyList["artworkMIMEType"] = mimeType
