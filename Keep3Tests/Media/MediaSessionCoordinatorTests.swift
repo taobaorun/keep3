@@ -45,6 +45,34 @@ final class MediaSessionCoordinatorTests: XCTestCase {
     XCTAssertFalse(generation.accepts(secondConnection))
   }
 
+  func testConnectionRecoveryKeepsRetryingUntilTransportRecovers() {
+    var recovery = MediaAdapterConnectionRecoveryPolicy()
+
+    recovery.beginMonitoring()
+
+    XCTAssertEqual(recovery.nextRetryDelay(), 0.5)
+    XCTAssertEqual(recovery.nextRetryDelay(), 2)
+    XCTAssertEqual(recovery.nextRetryDelay(), 5)
+    XCTAssertEqual(recovery.nextRetryDelay(), 15)
+    XCTAssertEqual(recovery.nextRetryDelay(), 30)
+    XCTAssertEqual(recovery.nextRetryDelay(), 30)
+
+    recovery.didRecover()
+
+    XCTAssertEqual(recovery.nextRetryDelay(), 0.5)
+  }
+
+  func testConnectionRecoveryStopsWithMediaSubscription() {
+    var recovery = MediaAdapterConnectionRecoveryPolicy()
+
+    recovery.beginMonitoring()
+    XCTAssertEqual(recovery.nextRetryDelay(), 0.5)
+
+    recovery.endMonitoring()
+
+    XCTAssertNil(recovery.nextRetryDelay())
+  }
+
   func testRejectsOldEpochAndRegressingRevisions() async {
     var deliveries: [MediaSessionSnapshot?] = []
     let coordinator = MediaSessionCoordinator {

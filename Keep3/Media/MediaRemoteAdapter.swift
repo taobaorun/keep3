@@ -25,12 +25,22 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
   private var connection: NSXPCConnection?
   private var receiver: MediaRemoteClientReceiver?
   private var connectionGeneration = MediaAdapterConnectionGeneration()
+  private var connectionRecoveryPolicy =
+    MediaAdapterConnectionRecoveryPolicy()
+  private var connectionRecoveryTask: Task<Void, Never>?
 
   init(onSnapshot: @escaping MediaAdapterSnapshotDelivery = { _ in }) {
     self.onSnapshot = onSnapshot
   }
 
   func start() async -> MediaCompatibilityReport {
+    connectionRecoveryTask?.cancel()
+    connectionRecoveryTask = nil
+    connectionRecoveryPolicy.beginMonitoring()
+    return await establishConnection()
+  }
+
+  private func establishConnection() async -> MediaCompatibilityReport {
     invalidateConnection()
     let generation = connectionGeneration.advance()
 
@@ -50,14 +60,16 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
       }
     }
     connection.exportedObject = receiver
-    connection.interruptionHandler = { [weak receiver] in
+    let connectionUnavailable: @Sendable () -> Void = { [weak self] in
       compatibilityRequest.complete(with: .unavailable)
-      receiver?.publishUnavailable()
+      Task {
+        await self?.connectionDidBecomeUnavailable(
+          generation: generation
+        )
+      }
     }
-    connection.invalidationHandler = { [weak receiver] in
-      compatibilityRequest.complete(with: .unavailable)
-      receiver?.publishUnavailable()
-    }
+    connection.interruptionHandler = connectionUnavailable
+    connection.invalidationHandler = connectionUnavailable
     self.connection = connection
     self.receiver = receiver
     connection.resume()
@@ -86,6 +98,12 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
       timeout: Self.requestTimeout,
       fallback: .unavailable
     )
+    guard connectionGeneration.accepts(generation),
+      connectionRecoveryPolicy.isMonitoring,
+      self.connection === connection
+    else {
+      return .unavailable
+    }
     guard report.status == .available else {
       invalidateConnection()
       return report
@@ -122,15 +140,22 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
       await monitoringRequest.value(
         timeout: Self.requestTimeout,
         fallback: false
-      )
+      ),
+      connectionGeneration.accepts(generation),
+      connectionRecoveryPolicy.isMonitoring,
+      self.connection === connection
     else {
       invalidateConnection()
       return .unavailable
     }
+    connectionRecoveryPolicy.didRecover()
     return report
   }
 
   func stop() async {
+    connectionRecoveryPolicy.endMonitoring()
+    connectionRecoveryTask?.cancel()
+    connectionRecoveryTask = nil
     if let connection,
       let service = remoteService(from: connection)
     {
@@ -186,6 +211,54 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
       return
     }
     await onSnapshot(snapshot)
+  }
+
+  private func connectionDidBecomeUnavailable(
+    generation: UInt64
+  ) async {
+    guard connectionRecoveryPolicy.isMonitoring,
+      connectionGeneration.accepts(generation)
+    else {
+      return
+    }
+    await onSnapshot(nil)
+    guard connectionRecoveryPolicy.isMonitoring,
+      connectionGeneration.accepts(generation)
+    else {
+      return
+    }
+    invalidateConnection()
+    scheduleConnectionRecovery()
+  }
+
+  private func scheduleConnectionRecovery() {
+    guard connectionRecoveryTask == nil,
+      let delay = connectionRecoveryPolicy.nextRetryDelay()
+    else {
+      return
+    }
+    connectionRecoveryTask = Task { [weak self] in
+      do {
+        try await Task.sleep(for: .seconds(delay))
+      } catch {
+        return
+      }
+      await self?.performConnectionRecovery()
+    }
+  }
+
+  private func performConnectionRecovery() async {
+    connectionRecoveryTask = nil
+    guard connectionRecoveryPolicy.isMonitoring else {
+      return
+    }
+    let report = await establishConnection()
+    guard connectionRecoveryPolicy.isMonitoring,
+      report.status != .available
+    else {
+      return
+    }
+    scheduleConnectionRecovery()
   }
 
   private func invalidateConnection() {
