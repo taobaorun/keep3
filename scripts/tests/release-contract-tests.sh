@@ -318,8 +318,11 @@ xmllint --noout "$metadata_dir/appcast.xml" \
   || fail "generated appcast is not signed"
 ruby -c "$metadata_dir/keep3.rb" >/dev/null \
   || fail "generated Homebrew cask is not valid Ruby"
-grep -q 'depends_on macos: ">= :sonoma"' "$metadata_dir/keep3.rb" \
-  || fail "generated Homebrew cask does not require macOS 14"
+grep -q 'depends_on macos: :sonoma' "$metadata_dir/keep3.rb" \
+  || fail "generated Homebrew cask must use the supported Sonoma dependency syntax"
+if grep -q 'depends_on macos: "' "$metadata_dir/keep3.rb"; then
+  fail "generated Homebrew cask must not use deprecated string comparison syntax"
+fi
 grep -q 'depends_on arch: :arm64' "$metadata_dir/keep3.rb" \
   || fail "generated Homebrew cask does not declare its arm64 artifact"
 
