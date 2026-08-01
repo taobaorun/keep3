@@ -35,6 +35,7 @@ or donor-only functionality. Voluntary donations do not change the software.
 Release artifacts, checksums, update metadata, and custom Homebrew tap details
 will be documented with each release. The initial direct-distribution builds
 may be unsigned until the documented Apple Developer funding gate is met.
+User-facing release notes are maintained in [CHANGELOG.md](CHANGELOG.md).
 
 Repository readiness and remaining public-launch blockers are recorded in
 [docs/verification/keep3-distribution.md](docs/verification/keep3-distribution.md).
