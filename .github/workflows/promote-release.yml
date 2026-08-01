@@ -19,7 +19,7 @@ env:
   RELEASE_TAG: ${{ inputs.tag }}
 
 concurrency:
-  group: promote-${{ inputs.tag }}
+  group: promote-release-channel
   cancel-in-progress: false
 
 jobs:
@@ -36,6 +36,8 @@ jobs:
       sequence: ${{ steps.contract.outputs.sequence }}
       commit: ${{ steps.contract.outputs.commit }}
       previous_sequence: ${{ steps.contract.outputs.previous_sequence }}
+      previous_status_sequence: ${{ steps.contract.outputs.previous_status_sequence }}
+      already_current: ${{ steps.contract.outputs.already_current }}
     steps:
       - name: Check out trusted main tooling
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -160,6 +162,8 @@ jobs:
             "$public_dir/release-status.json"
 
           previous_sequence=0
+          previous_status_sequence=0
+          already_current=false
           if test -f "$public_dir/current-release.json"; then
             scripts/release/sign-release-metadata.sh verify \
               --input "$public_dir/current-release.json" \
@@ -167,28 +171,46 @@ jobs:
               --expected-key-id keep3-release-metadata-production
             previous=$(/usr/bin/ruby -rjson -rtime -e '
               signed = JSON.parse(File.read(ARGV.fetch(0))).fetch("signed")
+              version, tag, build, sequence = ARGV.drop(1)
               abort "unexpected current repository" unless signed["repository"] == "taobaorun/keep3"
               abort "unexpected current origin" unless signed["canonicalOrigin"] == "https://taobaorun.github.io"
               abort "current metadata expired" unless Time.now.utc < Time.iso8601(signed.fetch("expiresAt"))
-              puts signed.fetch("build"), signed.fetch("sequence")
-            ' "$public_dir/current-release.json")
+              expected_manifest = "https://taobaorun.github.io/keep3/release-channel/releases/#{tag}/manifest.json"
+              expected_artifact = "https://github.com/taobaorun/keep3/releases/download/#{tag}/Keep3-#{version}.dmg"
+              old_build = signed.fetch("build")
+              old_sequence = signed.fetch("sequence")
+              if Integer(build) > old_build
+                abort "candidate sequence is not monotonic" unless Integer(sequence) > old_sequence
+                already_current = false
+              elsif Integer(build) == old_build
+                abort "equal build identifies a different release" unless
+                  signed["state"] == "Converged" && signed["tag"] == tag &&
+                    signed["version"] == version && signed["manifestUrl"] == expected_manifest &&
+                    signed["artifactUrl"] == expected_artifact
+                already_current = true
+              else
+                abort "candidate build is not monotonic"
+              end
+              puts old_build, old_sequence, already_current
+            ' "$public_dir/current-release.json" "$version" "$tag" "$build" "$sequence")
             previous_build=$(printf '%s\n' "$previous" | sed -n '1p')
             previous_sequence=$(printf '%s\n' "$previous" | sed -n '2p')
-            test "$build" -gt "$previous_build"
-            test "$sequence" -gt "$previous_sequence"
+            already_current=$(printf '%s\n' "$previous" | sed -n '3p')
           fi
           if test -f "$public_dir/release-status.json"; then
             scripts/release/sign-release-metadata.sh verify \
               --input "$public_dir/release-status.json" \
               --public-key distribution/release-metadata-public-key.pem \
               --expected-key-id keep3-release-metadata-production
-            state=$(/usr/bin/ruby -rjson -rtime -e '
+            status_values=$(/usr/bin/ruby -rjson -rtime -e '
               signed = JSON.parse(File.read(ARGV.fetch(0))).fetch("signed")
               abort "unexpected status repository" unless signed["repository"] == "taobaorun/keep3"
               abort "unexpected status origin" unless signed["canonicalOrigin"] == "https://taobaorun.github.io"
               abort "status metadata expired" unless Time.now.utc < Time.iso8601(signed.fetch("expiresAt"))
-              puts signed.fetch("state")
+              puts signed.fetch("state"), signed.fetch("sequence")
             ' "$public_dir/release-status.json")
+            state=$(printf '%s\n' "$status_values" | sed -n '1p')
+            previous_status_sequence=$(printf '%s\n' "$status_values" | sed -n '2p')
             test "$state" != Compromised
           fi
 
@@ -197,6 +219,8 @@ jobs:
           echo "sequence=$sequence" >> "$GITHUB_OUTPUT"
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
           echo "previous_sequence=$previous_sequence" >> "$GITHUB_OUTPUT"
+          echo "previous_status_sequence=$previous_status_sequence" >> "$GITHUB_OUTPUT"
+          echo "already_current=$already_current" >> "$GITHUB_OUTPUT"
 
   promote:
     needs: preflight
@@ -371,26 +395,29 @@ jobs:
             exit 1
           fi
           /usr/bin/ruby -rjson -e '
-            base_path, output, previous = ARGV
+            base_path, output, previous, previous_status_sequence = ARGV
             base = JSON.parse(File.read(base_path))
+            next_status_sequence = Integer(previous_status_sequence) + 1
             current_url = if previous.empty?
               nil
             else
               JSON.parse(File.read(previous)).dig("signed", "manifestUrl")
             end
             {
-              "promoting" => ["Promoting", current_url, "Passive channels are converging."],
-              "degraded" => ["Degraded", current_url, "Promotion paused; the prior current release remains active."],
-              "converged" => ["Converged", base.dig("signed", "candidateManifestUrl"), "All release channels agree."]
+              "promoting" => ["Promoting", current_url, "Passive channels are converging.", next_status_sequence],
+              "degraded" => ["Degraded", current_url, "Promotion paused; the prior current release remains active.", next_status_sequence + 1],
+              "converged" => ["Converged", base.dig("signed", "candidateManifestUrl"), "All release channels agree.", next_status_sequence + 2]
             }.each do |name, values|
               document = Marshal.load(Marshal.dump(base))
               document.fetch("signed")["state"] = values[0]
               document.fetch("signed")["currentManifestUrl"] = values[1]
               document.fetch("signed")["message"] = values[2]
+              document.fetch("signed")["sequence"] = values[3]
               File.write(File.join(output, "release-status-#{name}.unsigned.json"),
                 JSON.pretty_generate(document) + "\n")
             end
-          ' "$release/release-status.unsigned.json" "$release" "$previous"
+          ' "$release/release-status.unsigned.json" "$release" "$previous" \
+            '${{ needs.preflight.outputs.previous_status_sequence }}'
 
           signer=scripts/release/sign-release-metadata.sh
           for name in manifest current-release release-status; do
@@ -425,7 +452,9 @@ jobs:
             --sparkle-sign-update "$sign_update"
             --sparkle-private-key .build/promotion/sparkle.key
           )
-          if test -n "$previous"; then
+          if test -n "$previous" \
+            && test '${{ needs.preflight.outputs.already_current }}' != true
+          then
             validation+=(--current "$previous")
           fi
           "${validation[@]}"
