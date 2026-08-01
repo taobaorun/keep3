@@ -54,6 +54,8 @@ rg -q '^  contents: read$' "$ci_workflow" \
 if rg -n 'secrets\.|gh release|git push|pages|homebrew' "$ci_workflow" >/dev/null; then
   fail "ordinary CI contains a publication capability"
 fi
+rg -q 'website-handoff-tests.sh' "$ci_workflow" \
+  || fail "ordinary CI skips the website handoff contract"
 
 rg -q 'tags:' "$candidate_workflow" \
   || fail "candidate workflow is not tag-triggered"
@@ -129,6 +131,11 @@ rg -q 'appcast.xml.*>/dev/null' "$promotion_workflow" \
   || fail "promotion does not sign the required Sparkle feed"
 rg -q 'unexpected channel response' "$promotion_workflow" \
   || fail "promotion does not fail closed on channel read errors"
+rg -Fq -- '--connect-timeout 10 --max-time 60' "$promotion_workflow" \
+  || fail "promotion channel reads have no bounded timeout"
+rg -Fq -- '--connect-timeout 10 --max-time 60' \
+  "$release_scripts_dir/probe-channels.sh" \
+  || fail "live channel probes have no bounded timeout"
 for required_command in \
   generate-channel-metadata.sh \
   sign-release-metadata.sh \
@@ -182,6 +189,11 @@ git -C "$source_repository" add side.txt
 git -C "$source_repository" commit -q -m 'Off-branch tag'
 git -C "$source_repository" tag v1.1.0
 git -C "$source_repository" switch -q main
+printf 'next protected release\n' >> "$source_repository/README.md"
+git -C "$source_repository" add README.md
+git -C "$source_repository" commit -q -m 'Next protected release source'
+git -C "$source_repository" tag v1.2.0
+next_release_commit=$(git -C "$source_repository" rev-parse HEAD)
 
 candidate="$test_directory/candidate"
 mkdir -p "$candidate"
@@ -477,5 +489,94 @@ expect_rejected "stale remote cask" \
   --sha256 "$candidate_digest" --dmg-name Keep3-1.0.0.dmg \
   --manifest "$candidate/manifest.json" --appcast "$candidate/appcast.xml" \
   --cask "$candidate/keep3.rb" --channel-root "$remote"
+
+next_candidate="$test_directory/next-candidate"
+/usr/bin/ditto "$candidate" "$next_candidate"
+mv "$next_candidate/Keep3-1.0.0.dmg" "$next_candidate/Keep3-1.2.0.dmg"
+rm "$next_candidate/Keep3-1.0.0.dmg.sha256"
+printf 'next release bytes\n' >> "$next_candidate/Keep3-1.2.0.dmg"
+next_digest=$(shasum -a 256 "$next_candidate/Keep3-1.2.0.dmg" | awk '{print $1}')
+next_size=$(stat -f '%z' "$next_candidate/Keep3-1.2.0.dmg")
+printf '%s\n' "$next_digest" > "$next_candidate/Keep3-1.2.0.dmg.sha256"
+/usr/bin/ruby -rjson -e '
+  directory, digest, size, commit = ARGV
+  artifact_url = "https://github.com/taobaorun/keep3/releases/download/v1.2.0/Keep3-1.2.0.dmg"
+  manifest_url = "https://taobaorun.github.io/keep3/release-channel/releases/v1.2.0/manifest.json"
+  old_manifest_url = "https://taobaorun.github.io/keep3/release-channel/releases/v1.0.0/manifest.json"
+  manifest_path = File.join(directory, "manifest.unsigned.json")
+  manifest = JSON.parse(File.read(manifest_path))
+  release = manifest.fetch("signed")
+  release.merge!("sequence" => 3, "version" => "1.2.0", "build" => 3,
+    "tag" => "v1.2.0", "publishedAt" => "2030-01-02T00:00:00Z")
+  release.fetch("artifact").merge!("fileName" => "Keep3-1.2.0.dmg",
+    "url" => artifact_url, "sha256" => digest, "size" => Integer(size))
+  release.fetch("source").merge!(
+    "tagUrl" => "https://github.com/taobaorun/keep3/tree/v1.2.0",
+    "archiveUrl" => "https://github.com/taobaorun/keep3/archive/refs/tags/v1.2.0.tar.gz",
+    "commit" => commit)
+  release.fetch("channels")["manifestUrl"] = manifest_url
+  release.fetch("provenance").merge!("gitCommit" => commit,
+    "candidateDigest" => digest)
+  File.write(manifest_path, JSON.pretty_generate(manifest) + "\n")
+
+  current_path = File.join(directory, "current-release.unsigned.json")
+  current = JSON.parse(File.read(current_path))
+  stable = current.fetch("signed")
+  stable.merge!("sequence" => 3, "version" => "1.2.0", "build" => 3,
+    "tag" => "v1.2.0", "publishedAt" => "2030-01-02T00:00:00Z",
+    "manifestUrl" => manifest_url, "artifactUrl" => artifact_url)
+  File.write(current_path, JSON.pretty_generate(current) + "\n")
+
+  { "promoting" => ["Promoting", 7, old_manifest_url],
+    "degraded" => ["Degraded", 8, old_manifest_url],
+    "converged" => ["Converged", 9, manifest_url] }.each do |name, values|
+    path = File.join(directory, "release-status-#{name}.unsigned.json")
+    status = JSON.parse(File.read(path))
+    signed = status.fetch("signed")
+    signed.merge!("sequence" => values[1], "version" => "1.2.0", "build" => 3,
+      "tag" => "v1.2.0", "publishedAt" => "2030-01-02T00:00:00Z",
+      "expiresAt" => "2030-04-02T00:00:00Z",
+      "candidateManifestUrl" => manifest_url,
+      "currentManifestUrl" => values[2], "state" => values[0])
+    File.write(path, JSON.pretty_generate(status) + "\n")
+  end
+
+  appcast_path = File.join(directory, "appcast.xml")
+  appcast = File.read(appcast_path).gsub("1.0.0", "1.2.0")
+    .sub(%q[sparkle:version="2"], %q[sparkle:version="3"])
+  File.write(appcast_path, appcast)
+  cask_path = File.join(directory, "keep3.rb")
+  cask = File.read(cask_path).gsub("1.0.0", "1.2.0")
+    .sub(/sha256 "[0-9a-f]+"/, "sha256 \"#{digest}\"")
+  File.write(cask_path, cask)
+  receipt = { "repository" => "taobaorun/keep3", "tag" => "v1.2.0",
+    "commit" => commit, "build" => 3, "sha256" => digest }
+  File.write(File.join(directory, "attestation.json"),
+    JSON.pretty_generate(receipt) + "\n")
+' "$next_candidate" "$next_digest" "$next_size" "$next_release_commit"
+for name in manifest current-release release-status-promoting \
+  release-status-degraded release-status-converged
+do
+  "$signer" sign \
+    --input "$next_candidate/$name.unsigned.json" \
+    --output "$next_candidate/$name.json" \
+    --private-key "$private_key" --key-id "$key_id"
+done
+
+next_state="$test_directory/next-promotion-state"
+run_publisher "$next_candidate" "$remote" "$next_state" v1.2.0 \
+  "$remote/pages/release-channel/current-release.json" \
+  "$remote/pages/release-channel/release-status.json" >/dev/null
+cmp -s "$next_candidate/appcast.xml" \
+  "$remote/pages/release-channel/appcast.xml" \
+  || fail "a later release could not replace the active appcast"
+cmp -s "$next_candidate/keep3.rb" "$remote/tap/Casks/keep3.rb" \
+  || fail "a later release could not replace the active cask"
+"$release_scripts_dir/probe-channels.sh" \
+  --mode fixture --tag v1.2.0 --version 1.2.0 --build 3 \
+  --sha256 "$next_digest" --dmg-name Keep3-1.2.0.dmg \
+  --manifest "$next_candidate/manifest.json" \
+  --appcast "$next_candidate/appcast.xml" --cask "$next_candidate/keep3.rb" \
+  --channel-root "$remote" --require-current >/dev/null
 
 printf 'channel-promotion-tests: passed\n'

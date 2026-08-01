@@ -50,6 +50,9 @@ jobs:
       - name: Verify staged channel state machine
         run: scripts/tests/channel-promotion-tests.sh
 
+      - name: Verify standalone website handoff contract
+        run: scripts/tests/website-handoff-tests.sh
+
       - name: Analyze native targets
         run: >-
           xcodebuild analyze
