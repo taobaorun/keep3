@@ -18,9 +18,11 @@ copied into stable release discovery: only operational status expires.
    `taobaorun/homebrew-keep3` tap with a protected `main` branch.
 4. Configure the approved `release-production` environment with
    `KEEP3_SPARKLE_PRIVATE_KEY`, `KEEP3_RELEASE_METADATA_PRIVATE_KEY`, and a
-   least-privilege `KEEP3_TAP_TOKEN`. Confirm the checked-in metadata and
-   Sparkle public keys match the backed-up permanent private roots in a
-   reviewed build before creating its tag.
+   repository-scoped `KEEP3_TAP_TOKEN`. Grant only `Contents: Read and write`,
+   `Pull requests: Read and write`, `Checks: Read-only`, and
+   `Commit statuses: Read-only` on `taobaorun/homebrew-keep3`. Confirm the
+   checked-in metadata and Sparkle public keys match the backed-up permanent
+   private roots in a reviewed build before creating its tag.
 5. Review native, release-contract, GPL/source, media-provider, Sparkle-key,
    and website-handoff contract gates. The separately owned website can launch
    later and is not required to activate the canonical release channels.
@@ -28,6 +30,17 @@ copied into stable release discovery: only operational status expires.
 7. Approve the `release-production` environment only after the credential-free
    preflight verifies reachability, digest, attestation, signature, sequence,
    and strict build monotonicity.
+
+### Single-maintainer tap approval
+
+The tap token and the generated tap pull request belong to the same maintainer,
+so GitHub cannot provide an independent pull-request approval. Keep3 uses two
+protected promotion runs instead. The first approved run creates the pinned
+`Casks/keep3.rb` pull request and stops before any public release write. Review
+that exact PR head and wait for every tap CI check to pass. Then rerun promotion
+through `release-production`; the second approval authorizes merging only that
+unchanged head. The publisher still rejects a changed head, unexpected files,
+missing checks, incomplete checks, or a non-mergeable PR.
 
 ## Promotion order
 

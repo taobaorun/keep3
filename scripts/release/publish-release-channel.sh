@@ -328,40 +328,59 @@ stage_tap_candidate() {
   tap_branch="release/keep3-$tag"
   remote_branch_sha=$(git -C "$tap_worktree" ls-remote --heads origin \
     "refs/heads/$tap_branch" | awk 'NR == 1 { print $1 }')
-  git -C "$tap_worktree" switch -C "$tap_branch" origin/main >/dev/null
-  destination="$tap_worktree/Casks/keep3.rb"
-  mkdir -p "$(dirname -- "$destination")"
-  cp "$cask" "$destination"
-  git -C "$tap_worktree" add -- Casks/keep3.rb
-  if ! git -C "$tap_worktree" diff --cached --quiet; then
-    git -C "$tap_worktree" commit -m "Stage Keep3 $version" >/dev/null
-  fi
-  changed_paths=$(git -C "$tap_worktree" diff --name-only origin/main...HEAD)
-  test "$changed_paths" = 'Casks/keep3.rb' \
-    || fail "tap candidate contains changes outside Casks/keep3.rb"
-  expected_tap_head=$(git -C "$tap_worktree" rev-parse HEAD)
-  if test -n "$remote_branch_sha"; then
-    git -C "$tap_worktree" push origin \
-      --force-with-lease="refs/heads/$tap_branch:$remote_branch_sha" \
-      "HEAD:refs/heads/$tap_branch" >/dev/null
-  else
-    git -C "$tap_worktree" push origin \
-      "HEAD:refs/heads/$tap_branch" >/dev/null
-  fi
-
   tap_pr=$(GH_TOKEN=$TAP_TOKEN gh pr list --repo "$tap_repository" \
     --head "$tap_branch" --state open --json number --jq '.[0].number')
-  if test -z "$tap_pr"; then
+  tap_pr_created=false
+  if test -n "$tap_pr"; then
+    test -n "$remote_branch_sha" \
+      || fail "open tap candidate PR has no remote branch"
+    git -C "$tap_worktree" fetch origin \
+      "refs/heads/$tap_branch" >/dev/null
+    fetched_tap_head=$(git -C "$tap_worktree" rev-parse FETCH_HEAD)
+    test "$fetched_tap_head" = "$remote_branch_sha" \
+      || fail "tap candidate branch changed while it was fetched"
+    changed_paths=$(git -C "$tap_worktree" diff --name-only \
+      "origin/main...$remote_branch_sha")
+    test "$changed_paths" = 'Casks/keep3.rb' \
+      || fail "tap candidate contains changes outside Casks/keep3.rb"
+    remote_cask="$state_dir/tap-pr-candidate.rb"
+    git -C "$tap_worktree" show \
+      "$remote_branch_sha:Casks/keep3.rb" > "$remote_cask" \
+      || fail "tap candidate PR has no Keep3 cask"
+    cmp -s "$cask" "$remote_cask" \
+      || fail "tap candidate PR does not match the canonical cask"
+    expected_tap_head=$remote_branch_sha
+  else
+    test -z "$remote_branch_sha" \
+      || fail "tap candidate branch exists without an open PR"
+    git -C "$tap_worktree" switch -C "$tap_branch" origin/main >/dev/null
+    destination="$tap_worktree/Casks/keep3.rb"
+    mkdir -p "$(dirname -- "$destination")"
+    cp "$cask" "$destination"
+    git -C "$tap_worktree" add -- Casks/keep3.rb
+    if ! git -C "$tap_worktree" diff --cached --quiet; then
+      git -C "$tap_worktree" commit -m "Stage Keep3 $version" >/dev/null
+    fi
+    changed_paths=$(git -C "$tap_worktree" diff --name-only origin/main...HEAD)
+    test "$changed_paths" = 'Casks/keep3.rb' \
+      || fail "tap candidate contains changes outside Casks/keep3.rb"
+    expected_tap_head=$(git -C "$tap_worktree" rev-parse HEAD)
+    git -C "$tap_worktree" push origin \
+      "HEAD:refs/heads/$tap_branch" >/dev/null
     GH_TOKEN=$TAP_TOKEN gh pr create --repo "$tap_repository" \
       --base main --head "$tap_branch" \
       --title "Promote Keep3 $version" \
       --body "Promotes the verified canonical Keep3 $version DMG." >/dev/null
+    tap_pr_created=true
     tap_pr=$(GH_TOKEN=$TAP_TOKEN gh pr list --repo "$tap_repository" \
       --head "$tap_branch" --state open --json number --jq '.[0].number')
   fi
   test -n "$tap_pr" || fail "could not stage the tap candidate PR"
   printf '%s\n' "$tap_pr" > "$state_dir/tap-pr-number"
   printf '%s\n' "$expected_tap_head" > "$state_dir/tap-head-sha"
+  if $tap_pr_created; then
+    fail "tap candidate PR was staged; inspect it and rerun promotion after CI passes"
+  fi
 }
 
 stage_draft() {
@@ -422,7 +441,7 @@ publish_tap() {
       expected_tap_head=$(tr -d '[:space:]' < "$state_dir/tap-head-sha")
       tap_pr_metadata=$(GH_TOKEN=$TAP_TOKEN gh pr view "$tap_pr" \
         --repo "$tap_repository" \
-        --json baseRefName,files,headRefName,headRefOid,isCrossRepository,mergeable,reviewDecision,state,statusCheckRollup)
+        --json baseRefName,files,headRefName,headRefOid,isCrossRepository,mergeable,state,statusCheckRollup)
       printf '%s' "$tap_pr_metadata" | /usr/bin/ruby -rjson -e '
         expected_branch, expected_head = ARGV
         value = JSON.parse(STDIN.read)
@@ -434,7 +453,6 @@ publish_tap() {
         paths = value.fetch("files").map { |file| file.fetch("path") }
         abort "tap PR contains unexpected files" unless paths == ["Casks/keep3.rb"]
         abort "tap PR is not mergeable" unless value["mergeable"] == "MERGEABLE"
-        abort "tap PR is not approved" unless value["reviewDecision"] == "APPROVED"
         checks = value.fetch("statusCheckRollup")
         abort "tap PR has no required checks" if checks.empty?
         accepted = %w[SUCCESS NEUTRAL SKIPPED]
@@ -442,7 +460,7 @@ publish_tap() {
           accepted.include?(check["conclusion"] || check["state"])
         end
       ' "$tap_branch" "$expected_tap_head" \
-        || fail "tap candidate PR changed or is not approved"
+        || fail "tap candidate PR changed or checks are incomplete"
       GH_TOKEN=$TAP_TOKEN gh pr merge "$tap_pr" --repo "$tap_repository" \
         --squash --delete-branch \
         --match-head-commit "$expected_tap_head" >/dev/null
