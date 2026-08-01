@@ -362,7 +362,7 @@ cat > "$candidate/keep3.rb" <<RUBY
 cask "keep3" do
   version "1.0.0"
   sha256 "$candidate_digest"
-  url "$artifact_url"
+  url "https://github.com/taobaorun/keep3/releases/download/v#{version}/Keep3-#{version}.dmg"
   app "Keep3.app"
 end
 RUBY
