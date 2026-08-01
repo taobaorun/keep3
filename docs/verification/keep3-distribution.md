@@ -1,7 +1,7 @@
 # Keep3 distribution readiness
 
 Date: 2026-08-01
-Implementation baseline: `8b17512`
+Implementation baseline: `feat/open-source-distribution` through `9914418`
 Status: Native unsigned-distribution implementation present; public launch
 blocked by the pending gates below
 
@@ -37,10 +37,10 @@ does not authorize a return to unsigned artifacts.
 | Gate | Command | Result |
 | --- | --- | --- |
 | Website handoff and documentation links | `scripts/tests/website-handoff-tests.sh` | Pass on 2026-08-01 |
-| Release schemas, signatures, packaging, and projections | `scripts/tests/release-contract-tests.sh` | Passed during U3 implementation; rerun in final native gate |
-| Sparkle archive/update fixtures | `scripts/tests/sparkle-integration-tests.sh` | Passed during U2 implementation; rerun in final native gate |
-| Promotion state and failure matrix | `scripts/tests/channel-promotion-tests.sh` | Passed during U4 implementation; rerun in final native gate |
-| Native full suite, format, analysis, and Release build | Plan verification commands | Pending final branch-wide validation |
+| Release schemas, signatures, packaging, and projections | `scripts/tests/release-contract-tests.sh` | Pass on 2026-08-01 |
+| Sparkle archive/update fixtures | `scripts/tests/sparkle-integration-tests.sh` | Pass on 2026-08-01 |
+| Promotion state and failure matrix | `scripts/tests/channel-promotion-tests.sh` | Pass on 2026-08-01, including sequential release replacement and resumable failure paths |
+| Native full suite, format, analysis, and Release build | Plan verification commands | Local pass on 2026-08-01; four keyboard-routing cases explicitly skipped because the locked desktop did not grant key-window ownership |
 
 The release scripts keep private keys and channel credentials outside the
 repository. The checked-in metadata key contains public material only. A final
@@ -84,7 +84,7 @@ All rows are mandatory. “Pending” is intentionally release-blocking.
 | Protected publisher live exercise | Pending | Exercise the wired U4 generate, Sparkle-sign, metadata-sign, validate, tap-PR, publish, probe, and recovery path in the reviewed `release-production` environment; prove trusted-main preflight completes before protected credentials are read |
 | Unsigned installation proof | Pending | A clean supported Mac verifies SHA-256, downloads the canonical DMG, completes documented macOS approval without automatic quarantine removal, launches, upgrades, and uninstalls |
 | Cross-channel production dry run | Pending | Protected workflow re-verifies ancestry, attestation, signatures, exact bytes, monotonic build, appcast, tap, GitHub asset, current/status state, and forward recovery |
-| Final native regression gate | Pending | Current branch passes format, focused and full tests, static analysis, Release build, property-list validation, source/privacy/secret audit, and the remaining physical MVP checks |
+| Final native regression gate | Local automation pass; physical checks pending | Current branch passed format, focused and full tests, static analysis, Release build, property-list validation, and source/privacy/secret audit. Complete the key-window/UI cases from an unlocked desktop and the remaining physical MVP checks before public launch |
 
 ## Standalone website gate
 
