@@ -286,13 +286,9 @@ stage_tap_candidate() {
   fi
 
   tap_branch="release/keep3-$tag"
-  if git -C "$tap_worktree" ls-remote --exit-code --heads origin \
-    "refs/heads/$tap_branch" >/dev/null 2>&1; then
-    git -C "$tap_worktree" fetch origin "$tap_branch" >/dev/null
-    git -C "$tap_worktree" switch -C "$tap_branch" FETCH_HEAD >/dev/null
-  else
-    git -C "$tap_worktree" switch -c "$tap_branch" >/dev/null
-  fi
+  remote_branch_sha=$(git -C "$tap_worktree" ls-remote --heads origin \
+    "refs/heads/$tap_branch" | awk 'NR == 1 { print $1 }')
+  git -C "$tap_worktree" switch -C "$tap_branch" origin/main >/dev/null
   destination="$tap_worktree/Casks/keep3.rb"
   mkdir -p "$(dirname -- "$destination")"
   cp "$cask" "$destination"
@@ -300,8 +296,18 @@ stage_tap_candidate() {
   if ! git -C "$tap_worktree" diff --cached --quiet; then
     git -C "$tap_worktree" commit -m "Stage Keep3 $version" >/dev/null
   fi
-  git -C "$tap_worktree" push origin \
-    "HEAD:refs/heads/$tap_branch" >/dev/null
+  changed_paths=$(git -C "$tap_worktree" diff --name-only origin/main...HEAD)
+  test "$changed_paths" = 'Casks/keep3.rb' \
+    || fail "tap candidate contains changes outside Casks/keep3.rb"
+  expected_tap_head=$(git -C "$tap_worktree" rev-parse HEAD)
+  if test -n "$remote_branch_sha"; then
+    git -C "$tap_worktree" push origin \
+      --force-with-lease="refs/heads/$tap_branch:$remote_branch_sha" \
+      "HEAD:refs/heads/$tap_branch" >/dev/null
+  else
+    git -C "$tap_worktree" push origin \
+      "HEAD:refs/heads/$tap_branch" >/dev/null
+  fi
 
   tap_pr=$(GH_TOKEN=$TAP_TOKEN gh pr list --repo "$tap_repository" \
     --head "$tap_branch" --state open --json number --jq '.[0].number')
@@ -315,6 +321,7 @@ stage_tap_candidate() {
   fi
   test -n "$tap_pr" || fail "could not stage the tap candidate PR"
   printf '%s\n' "$tap_pr" > "$state_dir/tap-pr-number"
+  printf '%s\n' "$expected_tap_head" > "$state_dir/tap-head-sha"
 }
 
 stage_draft() {
@@ -368,9 +375,36 @@ publish_tap() {
     if test ! -f "$state_dir/tap-already-current"; then
       test -f "$state_dir/tap-pr-number" \
         || fail "tap candidate PR was not staged"
+      test -f "$state_dir/tap-head-sha" \
+        || fail "tap candidate head SHA was not recorded"
       tap_pr=$(tr -d '[:space:]' < "$state_dir/tap-pr-number")
+      expected_tap_head=$(tr -d '[:space:]' < "$state_dir/tap-head-sha")
+      tap_pr_metadata=$(GH_TOKEN=$TAP_TOKEN gh pr view "$tap_pr" \
+        --repo "$tap_repository" \
+        --json baseRefName,files,headRefName,headRefOid,isCrossRepository,mergeable,reviewDecision,state,statusCheckRollup)
+      printf '%s' "$tap_pr_metadata" | /usr/bin/ruby -rjson -e '
+        expected_branch, expected_head = ARGV
+        value = JSON.parse(STDIN.read)
+        abort "tap PR is not open" unless value["state"] == "OPEN"
+        abort "tap PR base mismatch" unless value["baseRefName"] == "main"
+        abort "tap PR head branch mismatch" unless value["headRefName"] == expected_branch
+        abort "tap PR head changed" unless value["headRefOid"] == expected_head
+        abort "tap PR must originate in the tap repository" if value["isCrossRepository"]
+        paths = value.fetch("files").map { |file| file.fetch("path") }
+        abort "tap PR contains unexpected files" unless paths == ["Casks/keep3.rb"]
+        abort "tap PR is not mergeable" unless value["mergeable"] == "MERGEABLE"
+        abort "tap PR is not approved" unless value["reviewDecision"] == "APPROVED"
+        checks = value.fetch("statusCheckRollup")
+        abort "tap PR has no required checks" if checks.empty?
+        accepted = %w[SUCCESS NEUTRAL SKIPPED]
+        abort "tap PR checks are incomplete" unless checks.all? do |check|
+          accepted.include?(check["conclusion"] || check["state"])
+        end
+      ' "$tap_branch" "$expected_tap_head" \
+        || fail "tap candidate PR changed or is not approved"
       GH_TOKEN=$TAP_TOKEN gh pr merge "$tap_pr" --repo "$tap_repository" \
-        --squash --delete-branch >/dev/null
+        --squash --delete-branch \
+        --match-head-commit "$expected_tap_head" >/dev/null
     fi
     git -C "$tap_worktree" fetch origin main >/dev/null
     git -C "$tap_worktree" show origin/main:Casks/keep3.rb \

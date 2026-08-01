@@ -63,11 +63,34 @@ jobs:
           git fetch origin main --tags
           tag_commit=$(git rev-parse "refs/tags/$tag^{commit}")
           git merge-base --is-ancestor "$tag_commit" origin/main
-          gh attestation verify .build/promotion/candidate/Keep3-*.dmg \
-            --repo "$GITHUB_REPOSITORY"
-          gh attestation verify .build/promotion/candidate/attestation.json \
-            --repo "$GITHUB_REPOSITORY"
+          candidate_run_id=$CANDIDATE_RUN_ID
+          run_metadata=$(gh run view "$candidate_run_id" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json conclusion,event,headBranch,headSha,workflowName)
+          run_head_sha=$(printf '%s' "$run_metadata" | \
+            /usr/bin/ruby -rjson -e '
+              value = JSON.parse(STDIN.read)
+              abort "candidate run did not succeed" unless value["conclusion"] == "success"
+              abort "candidate run event mismatch" unless value["event"] == "push"
+              abort "candidate run tag mismatch" unless value["headBranch"] == ARGV.fetch(0)
+              abort "candidate workflow mismatch" unless value["workflowName"] == "Build release candidate"
+              puts value.fetch("headSha")
+            ' "$tag")
+          test "$run_head_sha" = "$tag_commit"
+          signer_workflow="${GITHUB_SERVER_URL#https://}/$GITHUB_REPOSITORY/.github/workflows/release-candidate.yml"
+          verify_attestation() {
+            gh attestation verify "$1" \
+              --repo "$GITHUB_REPOSITORY" \
+              --source-digest "$tag_commit" \
+              --source-ref "refs/tags/$tag" \
+              --signer-workflow "$signer_workflow" \
+              --signer-digest "$tag_commit" \
+              --deny-self-hosted-runners
+          }
+          verify_attestation .build/promotion/candidate/Keep3-*.dmg
+          verify_attestation .build/promotion/candidate/attestation.json
         env:
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
           GH_TOKEN: ${{ github.token }}
 
       - name: Verify candidate and strict-monotonic public contract before protected secrets
@@ -206,10 +229,18 @@ jobs:
           tag_commit=$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")
           test "$tag_commit" = '${{ needs.preflight.outputs.commit }}'
           git merge-base --is-ancestor "$tag_commit" origin/main
-          gh attestation verify .build/promotion/candidate/Keep3-*.dmg \
-            --repo "$GITHUB_REPOSITORY"
-          gh attestation verify .build/promotion/candidate/attestation.json \
-            --repo "$GITHUB_REPOSITORY"
+          signer_workflow="${GITHUB_SERVER_URL#https://}/$GITHUB_REPOSITORY/.github/workflows/release-candidate.yml"
+          verify_attestation() {
+            gh attestation verify "$1" \
+              --repo "$GITHUB_REPOSITORY" \
+              --source-digest "$tag_commit" \
+              --source-ref "refs/tags/$RELEASE_TAG" \
+              --signer-workflow "$signer_workflow" \
+              --signer-digest "$tag_commit" \
+              --deny-self-hosted-runners
+          }
+          verify_attestation .build/promotion/candidate/Keep3-*.dmg
+          verify_attestation .build/promotion/candidate/attestation.json
           version=$RELEASE_TAG
           version=${version#v}
           dmg=".build/promotion/candidate/Keep3-$version.dmg"
