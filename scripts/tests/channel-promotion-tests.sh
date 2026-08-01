@@ -285,30 +285,18 @@ run_publisher() {
   previous_path=$5
   incident_path=$6
   shift 6
-  if test -n "$previous_path" && test -n "$incident_path"; then
-    "$publisher" --mode fixture --repository-root "$repository_root" \
-      --source-repository "$source_repository" --protected-ref main \
-      --tag "$release_tag" --candidate-dir "$candidate_path" \
-      --attestation "$candidate_path/attestation.json" \
-      --metadata-public-key "$public_key" --metadata-key-id "$key_id" \
-      --state-dir "$state_path" --channel-root "$remote_path" \
-      --previous-current "$previous_path" --operational-status "$incident_path" "$@"
-  elif test -n "$previous_path"; then
-    "$publisher" --mode fixture --repository-root "$repository_root" \
-      --source-repository "$source_repository" --protected-ref main \
-      --tag "$release_tag" --candidate-dir "$candidate_path" \
-      --attestation "$candidate_path/attestation.json" \
-      --metadata-public-key "$public_key" --metadata-key-id "$key_id" \
-      --state-dir "$state_path" --channel-root "$remote_path" \
-      --previous-current "$previous_path" "$@"
-  else
-    "$publisher" --mode fixture --repository-root "$repository_root" \
-      --source-repository "$source_repository" --protected-ref main \
-      --tag "$release_tag" --candidate-dir "$candidate_path" \
-      --attestation "$candidate_path/attestation.json" \
-      --metadata-public-key "$public_key" --metadata-key-id "$key_id" \
-      --state-dir "$state_path" --channel-root "$remote_path" "$@"
+  if test -n "$previous_path"; then
+    set -- --previous-current "$previous_path" "$@"
+    if test -n "$incident_path"; then
+      set -- --operational-status "$incident_path" "$@"
+    fi
   fi
+  "$publisher" --mode fixture --repository-root "$repository_root" \
+    --source-repository "$source_repository" --protected-ref main \
+    --tag "$release_tag" --candidate-dir "$candidate_path" \
+    --attestation "$candidate_path/attestation.json" \
+    --metadata-public-key "$public_key" --metadata-key-id "$key_id" \
+    --state-dir "$state_path" --channel-root "$remote_path" "$@"
 }
 
 expect_rejected "off-main release tag" run_publisher \
