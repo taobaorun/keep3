@@ -104,6 +104,84 @@ final class ProjectSmokeTests: XCTestCase {
     )
   }
 
+  func testReleaseBuildUsesAdHocSigningForMediaCompatibility() throws {
+    let project = try source(at: "Keep3.xcodeproj/project.pbxproj")
+    let buildScript = try source(at: "scripts/release/build-app.sh")
+    let adHocEntitlements = try propertyList(
+      at: "Keep3/Keep3AdHoc.entitlements"
+    )
+
+    for bundleIdentifier in [
+      "dev.keep3.Keep3",
+      "com.apple.controlcenter.Keep3MediaService",
+    ] {
+      let settings = try releaseBuildSettings(
+        in: project,
+        bundleIdentifier: bundleIdentifier
+      )
+      XCTAssertTrue(settings.contains("CODE_SIGN_IDENTITY = \"-\";"))
+      XCTAssertTrue(settings.contains("CODE_SIGNING_ALLOWED = YES;"))
+      XCTAssertFalse(settings.contains("CODE_SIGNING_ALLOWED = NO;"))
+    }
+
+    let helperSettings = try releaseBuildSettings(
+      in: project,
+      bundleIdentifier: "com.apple.controlcenter.Keep3MediaService"
+    )
+    XCTAssertTrue(
+      helperSettings.contains("ENABLE_HARDENED_RUNTIME = YES;")
+    )
+
+    XCTAssertTrue(buildScript.contains("CODE_SIGNING_ALLOWED=YES"))
+    XCTAssertTrue(buildScript.contains("CODE_SIGN_IDENTITY=-"))
+    XCTAssertFalse(buildScript.contains("CODE_SIGNING_ALLOWED=NO"))
+    XCTAssertEqual(
+      adHocEntitlements[
+        "com.apple.security.cs.disable-library-validation"
+      ] as? Bool,
+      true
+    )
+    XCTAssertTrue(buildScript.contains("Keep3AdHoc.entitlements"))
+    XCTAssertTrue(
+      buildScript.contains("codesign --force --sign - --options runtime")
+    )
+    XCTAssertTrue(
+      buildScript.contains("--options runtime \"$helper\"")
+    )
+    XCTAssertTrue(
+      buildScript.contains("test -z \"$helper_entitlements\"")
+    )
+    XCTAssertTrue(
+      buildScript.contains("flags=.*runtime")
+    )
+    XCTAssertTrue(
+      buildScript.contains("cmp -s")
+    )
+    XCTAssertTrue(
+      buildScript.contains("codesign --verify --deep --strict")
+    )
+  }
+
+  private func releaseBuildSettings(
+    in project: String,
+    bundleIdentifier: String
+  ) throws -> String {
+    let releaseBlocks = project.components(separatedBy: "/* Release */ = {")
+      .dropFirst()
+      .compactMap { block -> String? in
+        guard let end = block.range(of: "name = Release;") else {
+          return nil
+        }
+        return String(block[..<end.lowerBound])
+      }
+
+    return try XCTUnwrap(
+      releaseBlocks.first {
+        $0.contains("PRODUCT_BUNDLE_IDENTIFIER = \(bundleIdentifier);")
+      }
+    )
+  }
+
   private func propertyList(at relativePath: String) throws -> [String: Any] {
     let repositoryRoot = URL(fileURLWithPath: #filePath)
       .deletingLastPathComponent()
