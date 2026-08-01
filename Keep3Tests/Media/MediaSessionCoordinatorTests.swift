@@ -101,6 +101,26 @@ final class MediaSessionCoordinatorTests: XCTestCase {
     XCTAssertEqual(deliveries.last??.subscriptionEpoch, secondEpoch)
   }
 
+  func testRejectsRegressingArtworkRevisionWithinTheSameTrack() async {
+    var deliveries: [MediaSessionSnapshot?] = []
+    let coordinator = MediaSessionCoordinator {
+      deliveries.append($0)
+    }
+    let epoch = await coordinator.beginSubscription()
+
+    await coordinator.receive(
+      snapshot(epoch: epoch, artworkRevision: 5)
+    )
+    await coordinator.receive(
+      snapshot(epoch: epoch, artworkRevision: 4)
+    )
+    await coordinator.receive(
+      snapshot(epoch: epoch, artworkRevision: 6)
+    )
+
+    XCTAssertEqual(deliveries.compactMap { $0?.artworkRevision }, [5, 6])
+  }
+
   func testEndSubscriptionRejectsLateActorToMainDelivery() async {
     var deliveries: [MediaSessionSnapshot?] = []
     let coordinator = MediaSessionCoordinator {
@@ -142,7 +162,8 @@ final class MediaSessionCoordinatorTests: XCTestCase {
   private func snapshot(
     epoch: UInt64,
     capabilityRevision: UInt64 = 1,
-    contentRevision: UInt64 = 1
+    contentRevision: UInt64 = 1,
+    artworkRevision: UInt64? = nil
   ) -> MediaSessionSnapshot {
     .init(
       session: MediaSession.normalize(
@@ -159,7 +180,8 @@ final class MediaSessionCoordinatorTests: XCTestCase {
       playbackState: .playing,
       subscriptionEpoch: epoch,
       capabilityRevision: capabilityRevision,
-      contentRevision: contentRevision
+      contentRevision: contentRevision,
+      artworkRevision: artworkRevision
     )
   }
 }

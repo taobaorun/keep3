@@ -232,6 +232,23 @@ struct MediaSessionSnapshot: Equatable, Sendable {
   let subscriptionEpoch: UInt64
   let capabilityRevision: UInt64
   let contentRevision: UInt64
+  let artworkRevision: UInt64
+
+  init(
+    session: MediaSession,
+    playbackState: MediaPlaybackState,
+    subscriptionEpoch: UInt64,
+    capabilityRevision: UInt64,
+    contentRevision: UInt64,
+    artworkRevision: UInt64? = nil
+  ) {
+    self.session = session
+    self.playbackState = playbackState
+    self.subscriptionEpoch = subscriptionEpoch
+    self.capabilityRevision = capabilityRevision
+    self.contentRevision = contentRevision
+    self.artworkRevision = artworkRevision ?? contentRevision
+  }
 }
 
 struct MediaAdapterSnapshot: Equatable, Sendable {
@@ -239,17 +256,20 @@ struct MediaAdapterSnapshot: Equatable, Sendable {
   let playbackState: MediaPlaybackState
   let capabilityRevision: UInt64
   let contentRevision: UInt64
+  let artworkRevision: UInt64
 
   init(
     session: MediaSession,
     playbackState: MediaPlaybackState,
     capabilityRevision: UInt64,
-    contentRevision: UInt64
+    contentRevision: UInt64,
+    artworkRevision: UInt64? = nil
   ) {
     self.session = session
     self.playbackState = playbackState
     self.capabilityRevision = capabilityRevision
     self.contentRevision = contentRevision
+    self.artworkRevision = artworkRevision ?? contentRevision
   }
 
   init?(
@@ -319,6 +339,17 @@ struct MediaAdapterSnapshot: Equatable, Sendable {
     self.playbackState = playbackState
     self.capabilityRevision = capabilityRevision
     self.contentRevision = contentRevision
+    if let artworkRevisionValue = propertyList["artworkRevision"] {
+      guard
+        let artworkNumber = artworkRevisionValue as? NSNumber,
+        let artworkRevision = artworkNumber.exactUInt64
+      else {
+        return nil
+      }
+      self.artworkRevision = artworkRevision
+    } else {
+      self.artworkRevision = contentRevision
+    }
   }
 }
 

@@ -76,6 +76,7 @@ actor MediaSessionCoordinator {
     return candidate.capabilityRevision
       >= currentSnapshot.capabilityRevision
       && candidate.contentRevision >= currentSnapshot.contentRevision
+      && candidate.artworkRevision >= currentSnapshot.artworkRevision
   }
 
   private func isCurrent(_ candidate: MediaSessionSnapshot) -> Bool {
