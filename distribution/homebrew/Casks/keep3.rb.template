@@ -8,7 +8,7 @@ cask "keep3" do
   homepage "https://github.com/taobaorun/keep3"
 
   depends_on arch: :arm64
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "Keep3.app"
 
