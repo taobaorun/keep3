@@ -89,56 +89,58 @@ final class MediaRemoteSymbolsTests: XCTestCase {
     )
   }
 
-  func testDormantPlayerSelectionPrefersFrontmostThenPreviousThenDiscoveryOrder() {
-    let music = MediaRemoteRunningApplication(
+  func testDormantPlayerSelectionUsesDynamicallyDiscoveredPlayers() {
+    let qqMusic = MediaRemoteRunningApplication(
       processIdentifier: 11,
-      bundleIdentifier: "com.apple.Music",
-      applicationName: "Music"
+      bundleIdentifier: "com.tencent.QQMusicMac",
+      applicationName: "QQ音乐"
     )
-    let spotify = MediaRemoteRunningApplication(
+    let anotherPlayer = MediaRemoteRunningApplication(
       processIdentifier: 22,
-      bundleIdentifier: "com.spotify.client",
-      applicationName: "Spotify"
+      bundleIdentifier: "com.example.player",
+      applicationName: "Another Player"
     )
-    let netEase = MediaRemoteRunningApplication(
-      processIdentifier: 33,
-      bundleIdentifier: "com.netease.163music",
-      applicationName: "网易云音乐"
-    )
-    let unsupported = MediaRemoteRunningApplication(
+    let ordinaryApplication = MediaRemoteRunningApplication(
       processIdentifier: 44,
       bundleIdentifier: "com.example.video",
       applicationName: "Video"
     )
-    let applications = [unsupported, music, spotify, netEase]
+    let applications = [ordinaryApplication, qqMusic, anotherPlayer]
+    let discoveredBundleIdentifiers: Set<String> = [
+      qqMusic.bundleIdentifier,
+      anotherPlayer.bundleIdentifier,
+    ]
 
     XCTAssertEqual(
       MediaRemoteDormantPlayerPolicy.select(
         from: applications,
-        frontmostBundleIdentifier: netEase.bundleIdentifier,
-        previouslySelectedBundleIdentifier: spotify.bundleIdentifier
+        discoveredBundleIdentifiers: discoveredBundleIdentifiers,
+        frontmostBundleIdentifier: qqMusic.bundleIdentifier,
+        previouslySelectedBundleIdentifier: anotherPlayer.bundleIdentifier
       ),
-      netEase
+      qqMusic
     )
     XCTAssertEqual(
       MediaRemoteDormantPlayerPolicy.select(
         from: applications,
-        frontmostBundleIdentifier: unsupported.bundleIdentifier,
-        previouslySelectedBundleIdentifier: spotify.bundleIdentifier
+        discoveredBundleIdentifiers: discoveredBundleIdentifiers,
+        frontmostBundleIdentifier: ordinaryApplication.bundleIdentifier,
+        previouslySelectedBundleIdentifier: anotherPlayer.bundleIdentifier
       ),
-      spotify
+      anotherPlayer
     )
     XCTAssertEqual(
       MediaRemoteDormantPlayerPolicy.select(
         from: applications,
+        discoveredBundleIdentifiers: discoveredBundleIdentifiers,
         frontmostBundleIdentifier: nil,
         previouslySelectedBundleIdentifier: nil
       ),
-      music
+      qqMusic
     )
   }
 
-  func testDormantPlayerSelectionRejectsUnsupportedApplications() {
+  func testDormantPlayerSelectionRejectsApplicationsWithoutMediaValidation() {
     XCTAssertNil(
       MediaRemoteDormantPlayerPolicy.select(
         from: [
@@ -148,6 +150,7 @@ final class MediaRemoteSymbolsTests: XCTestCase {
             applicationName: "Video"
           )
         ],
+        discoveredBundleIdentifiers: [],
         frontmostBundleIdentifier: "com.example.video",
         previouslySelectedBundleIdentifier: nil
       )
@@ -183,37 +186,37 @@ final class MediaRemoteSymbolsTests: XCTestCase {
     var policy = MediaRemoteAvailabilityRecoveryPolicy()
 
     XCTAssertNil(
-      policy.nextRetryDelay(hasSupportedRunningApplication: false)
+      policy.nextRetryDelay(hasDiscoveredPlayerRunning: false)
     )
     XCTAssertEqual(
-      policy.nextRetryDelay(hasSupportedRunningApplication: true),
+      policy.nextRetryDelay(hasDiscoveredPlayerRunning: true),
       0.5
     )
     XCTAssertEqual(
-      policy.nextRetryDelay(hasSupportedRunningApplication: true),
+      policy.nextRetryDelay(hasDiscoveredPlayerRunning: true),
       2
     )
     XCTAssertEqual(
-      policy.nextRetryDelay(hasSupportedRunningApplication: true),
+      policy.nextRetryDelay(hasDiscoveredPlayerRunning: true),
       5
     )
     XCTAssertEqual(
-      policy.nextRetryDelay(hasSupportedRunningApplication: true),
+      policy.nextRetryDelay(hasDiscoveredPlayerRunning: true),
       15
     )
     XCTAssertEqual(
-      policy.nextRetryDelay(hasSupportedRunningApplication: true),
+      policy.nextRetryDelay(hasDiscoveredPlayerRunning: true),
       30
     )
     XCTAssertEqual(
-      policy.nextRetryDelay(hasSupportedRunningApplication: true),
+      policy.nextRetryDelay(hasDiscoveredPlayerRunning: true),
       30
     )
 
     policy.reset()
 
     XCTAssertEqual(
-      policy.nextRetryDelay(hasSupportedRunningApplication: true),
+      policy.nextRetryDelay(hasDiscoveredPlayerRunning: true),
       0.5
     )
   }
@@ -248,44 +251,6 @@ final class MediaRemoteSymbolsTests: XCTestCase {
     XCTAssertTrue(MediaRemoteClientCommandStatus.isAccepted(0))
     XCTAssertFalse(MediaRemoteClientCommandStatus.isAccepted(1))
     XCTAssertFalse(MediaRemoteClientCommandStatus.isAccepted(.max))
-  }
-
-  func testApplicationLifecycleReconciliationDetectsMissingAndStaleSessions() {
-    XCTAssertTrue(
-      MediaRemoteApplicationLifecyclePolicy.requiresRefresh(
-        isApplicationRunning: true,
-        hasAnySession: false,
-        hasMatchingSession: false
-      )
-    )
-    XCTAssertTrue(
-      MediaRemoteApplicationLifecyclePolicy.requiresRefresh(
-        isApplicationRunning: false,
-        hasAnySession: true,
-        hasMatchingSession: true
-      )
-    )
-    XCTAssertFalse(
-      MediaRemoteApplicationLifecyclePolicy.requiresRefresh(
-        isApplicationRunning: true,
-        hasAnySession: true,
-        hasMatchingSession: true
-      )
-    )
-    XCTAssertFalse(
-      MediaRemoteApplicationLifecyclePolicy.requiresRefresh(
-        isApplicationRunning: false,
-        hasAnySession: false,
-        hasMatchingSession: false
-      )
-    )
-    XCTAssertFalse(
-      MediaRemoteApplicationLifecyclePolicy.requiresRefresh(
-        isApplicationRunning: true,
-        hasAnySession: true,
-        hasMatchingSession: false
-      )
-    )
   }
 
   func testMissingMandatorySymbolDisablesTheWholeAdapter() {

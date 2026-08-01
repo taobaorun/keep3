@@ -8,7 +8,13 @@ protocol MediaSessionProviding: AnyObject, Sendable {
   func stop() async
 }
 
-protocol MediaSessionAdapter: MediaSessionProviding, MediaCommandSending {}
+protocol MediaSessionAdapter: MediaSessionProviding, MediaCommandSending {
+  func refreshWorkspaceContext() async
+}
+
+extension MediaSessionAdapter {
+  func refreshWorkspaceContext() async {}
+}
 
 @MainActor
 final class SerialMediaLifecycleQueue {

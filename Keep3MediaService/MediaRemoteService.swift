@@ -33,6 +33,9 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
   private var currentCapabilityRevision: UInt64 = 0
   private var currentArtworkData: Data?
   private var currentArtworkMIMEType: String?
+  // Learned only from MediaRemote sessions that expose playback control.
+  // Keeping this across monitoring restarts lets a known player recover dormant.
+  private var discoveredPlayerBundleIdentifiers: Set<String> = []
   private var hostRunningApplications: [MediaRemoteRunningApplication] = []
   private var hostFrontmostBundleIdentifier: String?
 
@@ -68,12 +71,11 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     frontmostBundleIdentifier: String?,
     reply: @escaping @Sendable (Bool) -> Void
   ) {
-    let runningApplications =
-      (runningApplications as? [NSDictionary] ?? [])
-      .compactMap(MediaRemoteRunningApplication.init(propertyList:))
-    let frontmostBundleIdentifier = MediaSession.bounded(
-      frontmostBundleIdentifier,
-      maximum: MediaSession.maximumBundleIdentifierBytes
+    let runningApplications = Self.runningApplications(
+      from: runningApplications
+    )
+    let frontmostBundleIdentifier = Self.bundleIdentifier(
+      from: frontmostBundleIdentifier
     )
     guard let clientGeneration = currentClientGeneration() else {
       reply(false)
@@ -105,6 +107,33 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
       self.installObservers(generation: generation)
       self.refresh(generation: generation)
       reply(true)
+    }
+  }
+
+  func updateWorkspaceContext(
+    runningApplications: NSArray,
+    frontmostBundleIdentifier: String?
+  ) {
+    let runningApplications = Self.runningApplications(
+      from: runningApplications
+    )
+    let frontmostBundleIdentifier = Self.bundleIdentifier(
+      from: frontmostBundleIdentifier
+    )
+    guard let clientGeneration = currentClientGeneration() else {
+      return
+    }
+    queue.async { [weak self] in
+      guard let self,
+        self.acceptsClient(clientGeneration),
+        self.monitoringClientGeneration == clientGeneration,
+        self.runtime != nil
+      else {
+        return
+      }
+      self.hostRunningApplications = runningApplications
+      self.hostFrontmostBundleIdentifier = frontmostBundleIdentifier
+      self.scheduleRefresh(generation: self.monitoringGeneration)
     }
   }
 
@@ -183,6 +212,20 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     }
   }
 
+  private static func runningApplications(
+    from propertyLists: NSArray
+  ) -> [MediaRemoteRunningApplication] {
+    (propertyLists as? [NSDictionary] ?? [])
+      .compactMap(MediaRemoteRunningApplication.init(propertyList:))
+  }
+
+  private static func bundleIdentifier(from value: String?) -> String? {
+    MediaSession.bounded(
+      value,
+      maximum: MediaSession.maximumBundleIdentifierBytes
+    )
+  }
+
   private func installObservers(generation: UInt64) {
     let names = [
       "kMRMediaRemoteNowPlayingInfoDidChangeNotification",
@@ -251,15 +294,13 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     else {
       return
     }
-    let hasSupportedRunningApplication =
+    let hasDiscoveredPlayerRunning =
       hostRunningApplications.contains {
-        MediaRemoteDormantPlayerPolicy.supportedBundleIdentifiers.contains(
-          $0.bundleIdentifier
-        )
+        discoveredPlayerBundleIdentifiers.contains($0.bundleIdentifier)
       }
     guard
       let delay = availabilityRecoveryPolicy.nextRetryDelay(
-        hasSupportedRunningApplication: hasSupportedRunningApplication
+        hasDiscoveredPlayerRunning: hasDiscoveredPlayerRunning
       )
     else {
       return
@@ -475,6 +516,7 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     guard
       let selected = MediaRemoteDormantPlayerPolicy.select(
         from: hostRunningApplications,
+        discoveredBundleIdentifiers: discoveredPlayerBundleIdentifiers,
         frontmostBundleIdentifier: hostFrontmostBundleIdentifier,
         previouslySelectedBundleIdentifier: currentSourceBundleIdentifier
       ),
@@ -639,6 +681,9 @@ final class MediaRemoteService: NSObject, MediaRemoteServiceProtocol,
     currentSessionID = sessionID
     currentClient = selectedClient
     currentSourceBundleIdentifier = bundleIdentifier
+    if let bundleIdentifier, capabilities.contains(.playPause) {
+      discoveredPlayerBundleIdentifiers.insert(bundleIdentifier)
+    }
     if capabilities != currentCapabilities {
       currentCapabilities = capabilities
       currentCapabilityRevision &+= 1
