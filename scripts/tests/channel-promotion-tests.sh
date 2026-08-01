@@ -88,6 +88,22 @@ rg -q 'merge-base --is-ancestor' "$promotion_workflow" \
   || fail "promotion does not prove tag reachability from main"
 rg -q 'gh attestation verify' "$promotion_workflow" \
   || fail "promotion does not verify candidate provenance"
+for provenance_policy in \
+  '--source-digest "$tag_commit"' \
+  '--source-ref "refs/tags/$tag"' \
+  '--signer-workflow "$signer_workflow"' \
+  '--signer-digest "$tag_commit"' \
+  '--deny-self-hosted-runners'
+do
+  rg -Fq -- "$provenance_policy" "$promotion_workflow" \
+    || fail "promotion does not bind attestation policy: $provenance_policy"
+done
+rg -q 'gh run view.*candidate_run_id' "$promotion_workflow" \
+  || fail "promotion does not verify the selected candidate workflow run"
+rg -q 'run_head_sha=' "$promotion_workflow" && rg -q 'headSha' "$promotion_workflow" \
+  || fail "promotion does not read the selected run head SHA"
+rg -q 'test.*run_head_sha.*tag_commit' "$promotion_workflow" \
+  || fail "promotion does not bind the selected run to the tag commit"
 rg -q 'strict-monotonic' "$promotion_workflow" \
   || fail "promotion does not enforce strict build monotonicity"
 rg -q 'hdiutil attach' "$promotion_workflow" \
@@ -111,6 +127,15 @@ rg -q 'gh pr create' "$release_scripts_dir/publish-release-channel.sh" \
   || fail "Homebrew promotion does not stage a candidate PR"
 rg -q 'gh pr merge' "$release_scripts_dir/publish-release-channel.sh" \
   || fail "Homebrew promotion does not merge the verified candidate PR"
+rg -q -- '--force-with-lease' "$release_scripts_dir/publish-release-channel.sh" \
+  || fail "Homebrew candidate branch updates are not race-safe"
+rg -q -- '--match-head-commit' "$release_scripts_dir/publish-release-channel.sh" \
+  || fail "Homebrew merge is not pinned to the verified PR head"
+rg -q 'headRefOid' "$release_scripts_dir/publish-release-channel.sh" \
+  || fail "Homebrew promotion does not inspect the remote PR head"
+rg -Fq 'paths == ["Casks/keep3.rb"]' \
+  "$release_scripts_dir/publish-release-channel.sh" \
+  || fail "Homebrew promotion does not constrain the candidate file set"
 if rg -n 'publish-release-channel\.sh --help|release-runbook\.md >/dev/null' \
   "$promotion_workflow" >/dev/null
 then
