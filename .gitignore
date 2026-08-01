@@ -3,7 +3,6 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 .DS_Store
-/website/
 /distribution/generated/
 /distribution/private/
 /.release-secrets/

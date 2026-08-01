@@ -583,10 +583,4 @@ git -C "$repository_root" check-ignore -q distribution/generated/example \
   || fail "generated distribution output is not ignored"
 git -C "$repository_root" check-ignore -q distribution/private/key.pem \
   || fail "private distribution material is not ignored"
-git -C "$repository_root" check-ignore -q --no-index \
-  website/.keep3-boundary-probe \
-  || fail "website is not protected by ignore rules"
-test -z "$(git -C "$repository_root" ls-files website)" \
-  || fail "website content is tracked"
-
 printf 'release-contract-tests: passed\n'

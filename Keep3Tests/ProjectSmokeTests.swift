@@ -64,10 +64,10 @@ final class ProjectSmokeTests: XCTestCase {
     }
   }
 
-  func testLocalWebsiteIsExcludedFromRepositoryInputs() throws {
-    let gitIgnore = try source(at: ".gitignore")
+  func testWebsiteIsExcludedFromNativeProjectInputs() throws {
+    let project = try source(at: "Keep3.xcodeproj/project.pbxproj")
 
-    XCTAssertTrue(gitIgnore.split(separator: "\n").contains("/website/"))
+    XCTAssertFalse(project.lowercased().contains("website"))
   }
 
   func testDebugAdHocBuildDisablesLibraryValidationWithoutWeakeningRelease()

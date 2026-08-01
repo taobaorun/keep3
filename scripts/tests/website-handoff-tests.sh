@@ -109,8 +109,4 @@ require_text "$repository_root/docs/verification/keep3-mvp.md" 'keep3-distributi
 require_text "$repository_root/docs/verification/keep3-media-compatibility.md" \
   'keep3-distribution.md'
 
-if git -C "$repository_root" ls-files | grep -Eq '^website(/|$)'; then
-  fail 'repository index contains a website path'
-fi
-
 printf 'website-handoff-tests: passed\n'

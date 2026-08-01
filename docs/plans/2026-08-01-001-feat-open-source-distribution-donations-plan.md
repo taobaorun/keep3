@@ -14,11 +14,11 @@ deepened: 2026-08-01
 
 ## Goal Capsule
 
-- **Objective:** Make the Keep3 application repository ready for free GPL-3.0 distribution through GitHub Releases, a maintainer-owned Homebrew tap, and Sparkle, while defining the release contract that a later standalone website application will consume.
-- **Product authority:** The Product Contract remains the authority for the complete launch. The user directed that `website/` stay untracked and that a separate application own the website, click measurement, and donation entry point.
-- **Execution profile:** Implement the native updater, legal/source materials, canonical single-artifact packaging, signed release metadata, unsigned channel automation, and post-threshold signing handoff in this repository. Do not modify or commit `website/`.
+- **Objective:** Make the Keep3 application repository ready for free GPL-3.0 distribution through GitHub Releases, a maintainer-owned Homebrew tap, and Sparkle, while defining the release contract consumed by the independently maintained website application.
+- **Product authority:** The Product Contract remains the authority for the complete launch. A separately owned website application handles click measurement and the donation entry point; after `f531674` added that application to `main`, this distribution branch continues to treat it as an independent surface.
+- **Execution profile:** Implement the native updater, legal/source materials, canonical single-artifact packaging, signed release metadata, unsigned channel automation, and post-threshold signing handoff in this repository. Do not modify `website/` in this feature diff.
 - **Stop conditions:** Do not publish a public stable release until the website follow-up, GPL/source review, pending native release checks, first-party tap, Sparkle signing key, and required channel credentials are ready. Do not claim Developer ID or notarization until Apple enrollment and every signed-release gate pass.
-- **Tail ownership:** This plan owns repository implementation and release-readiness evidence. The later website application owns its deployment, download-click experiment, privacy disclosure, and donation destination.
+- **Tail ownership:** This plan owns native distribution implementation and release-readiness evidence. The independent website application owns its deployment, download-click experiment, privacy disclosure, and donation destination.
 
 ---
 
@@ -27,7 +27,7 @@ deepened: 2026-08-01
 ### Summary
 
 Keep3 will be free and GPL-3.0 licensed, with the same complete product available to every user.
-The native repository will publish one verified release across GitHub, Homebrew, and Sparkle, while a separate website application will later become the public entry point and own website-only measurement and donations.
+The native distribution flow will publish one verified release across GitHub, Homebrew, and Sparkle, while the separately maintained website application becomes the public entry point and owns website-only measurement and donations.
 
 ### Problem Frame
 
@@ -239,7 +239,7 @@ Product Contract preservation note: this enrichment preserves R1–R19, A1–A4,
 
 ### Key Technical Decisions
 
-- KTD1. **Keep website implementation outside this repository.** (session-settled: user-directed — chosen over committing the current website artifact here: a later dedicated application will own the site, while `website/` remains untracked local material.) This repository publishes a versioned handoff contract but no website source, build output, analytics code, or deployment configuration. Implements the current-repository portion of R7, R8, R11, R14–R16.
+- KTD1. **Keep website implementation outside this feature boundary.** (session-settled: user-directed — chosen over coupling native distribution work to the website: a dedicated application owns the site, click measurement, and donation entry point.) The website application later landed independently on `main`; this branch publishes its versioned consumer handoff without modifying website source, analytics code, or deployment configuration. Implements the native-distribution portion of R7, R8, R11, R14–R16.
 - KTD2. **Separate immutable release facts from signed mutable discovery.** A semantic tag and strictly increasing numeric build produce one canonical DMG and immutable manifest whose URL, SHA-256, Sparkle signature, source tag, trust state, and channel projections never change. Signed, schema-versioned current and operational-status documents live at `https://taobaorun.github.io/keep3/release-channel/`; the current document points to one immutable manifest and moves only after convergence. A dedicated offline-backed Ed25519 metadata key signs canonical JSON, while consumers pin its public key, canonical host, and repository slug and reject expired, replayed, or non-monotonic metadata. Implements R8–R12.
 - KTD3. **Pin Sparkle 2.9.4 behind a Keep3-owned update boundary.** The app target owns one long-lived standard updater controller, while settings and app commands use an injected project protocol so tests avoid live network and Sparkle UI. Sparkle remains the only preference authority, and its standard UI owns checking, no-update, update-available, download, error, install, and relaunch presentation. The embedded feed is `https://taobaorun.github.io/keep3/release-channel/appcast.xml`. Implements R10, R13.
 - KTD4. **Establish EdDSA trust and compromise recovery before the first unsigned release.** Every update archive is signed with one protected EdDSA key from release one, the public key and HTTPS feed are embedded in the app, system profiling is disabled, and the same key spans the later Developer ID transition. A Compromised state freezes publication and requires credential revocation, advisory publication, key rotation, and a manual recovery build before automatic updates resume. Implements R12, R17, R18.
@@ -379,7 +379,7 @@ flowchart TB
 
 ### Implementation Constraints
 
-- `website/` is a protected user-owned untracked path for this work. No unit may edit, stage, commit, delete, move, or derive checked-in output from it.
+- `website/` is base-owned by an independent application. No unit in this work may edit, stage, commit, delete, move, or derive output from it.
 - Add Sparkle only to the application target. Keep priority, Media, Calendar, and persistence payloads out of updater requests and logs.
 - Keep automatic update checks and downloads off until the user enables them. Manual checks remain available.
 - Treat automatic download as dependent on automatic checking: enabling download first enables checks; disabling checks disables and clears download. Explain the disabled state in Settings.
@@ -397,7 +397,7 @@ flowchart TB
 - **Persistence:** Existing user content and preferences remain unchanged. Sparkle owns only updater preferences.
 - **Identity and permissions:** The app identifier remains stable. The embedded helper identifier changes before public release, and signed-transition testing checks Automation, Calendar, launch-at-login, and local-data continuity.
 - **Supply chain:** Sparkle becomes the first third-party native dependency. GitHub Actions, the Homebrew tap, and future signing credentials become release dependencies with explicit ownership and recovery requirements.
-- **External application boundary:** This repository owns native artifacts and publishes signed per-version manifests, current discovery, operational status, and the appcast through the protected `taobaorun/keep3` GitHub Pages release channel. The tap repository owns its protected default-branch cask. The later website application reads and verifies the discovery contract and owns only website content, measurement, and donations.
+- **External application boundary:** The native distribution flow owns app artifacts and publishes signed per-version manifests, current discovery, operational status, and the appcast through the protected `taobaorun/keep3` GitHub Pages release channel. The tap repository owns its protected default-branch cask. The independently maintained website application reads and verifies the discovery contract and owns only website content, measurement, and donations.
 
 ### Risks and Mitigations
 
@@ -439,7 +439,7 @@ flowchart TB
   - Modify `Keep3Tests/ProjectSmokeTests.swift`
   - Modify `docs/specs/keep3-mvp.md`
   - Modify `.gitignore`
-- **Approach:** Add canonical marketing and numeric build settings, expose them through both application metadata and future release tooling, move the helper out of Apple's namespace without changing its protocol, and add the legal/source files needed by an exact-tag binary release. Ignore the root `website/` path before other work begins. Update the living MVP spec to approve the bounded Sparkle dependency, update-only networking, and direct-distribution workflow while preserving its product exclusions.
+- **Approach:** Add canonical marketing and numeric build settings, expose them through both application metadata and future release tooling, move the helper out of Apple's namespace without changing its protocol, and add the legal/source files needed by an exact-tag binary release. Keep the independently owned website outside this feature diff. Update the living MVP spec to approve the bounded Sparkle dependency, update-only networking, and direct-distribution workflow while preserving its product exclusions.
 - **Patterns to follow:** Existing explicit Xcode project groups and build phases; `ProjectSmokeTests` for project metadata; the current service-name constant in `MediaRemoteAdapter` as the single helper protocol seam.
 - **Execution note:** Preserve current media behavior while changing only public distribution identity and metadata.
 - **Test scenarios:**
@@ -447,7 +447,7 @@ flowchart TB
   2. The app and helper use project-owned identifiers while the media bridge still connects through the unchanged protocol contract.
   3. Donor and non-donor builds have no license, trial, payment, entitlement, or feature-gate configuration.
   4. A release-source audit finds GPL-3.0 text, copyright, dependency notices, and the build metadata required to reproduce the tagged source.
-  5. The local `website/` tree remains present and untracked while ordinary repository status and staging exclude it.
+  5. The `website/` tree remains byte-for-byte unchanged and absent from this branch's diff against `main`.
 - **Verification:** Project smoke tests, full unit tests, Swift format lint, Release build, property-list validation, and a static scan for payment/license-gate symbols all pass.
 
 ### U2. Add a privacy-bounded Sparkle update experience
@@ -550,7 +550,7 @@ flowchart TB
 
 ### U5. Close unsigned release readiness and hand off future applications
 
-- **Goal:** Record the evidence required to declare the repository ready and give the later website application a stable, privacy-bounded integration contract without committing website code.
+- **Goal:** Record the evidence required to declare native distribution ready and give the independent website application a stable, privacy-bounded integration contract without changing website code in this branch.
 - **Requirements:** R1–R17 plus the identity/trust handoff for R18–R19; F1–F5; AE1–AE5; KTD1–KTD9.
 - **Dependencies:** U1–U4.
 - **Files:**
@@ -563,13 +563,13 @@ flowchart TB
 - **Approach:** Document the signed current/status/immutable-manifest contract, pinned metadata public key and canonical GitHub Pages origin, website-owned requirements and privacy boundary, unsigned/future-signed copy states, and the rule that click measurement never gates the download. Complete GPL, pending media/provider, update-network, unsigned-install, channel-consistency, key-incident, and secret-leak evidence. Preserve the bundle IDs, persistence paths, Sparkle key/feed, metadata key handoff, and version ordering that future Developer ID work must reuse. Leave website host, analytics implementation, donation provider, domain, and deployment to the follow-up application while marking them as public-launch gates.
 - **Patterns to follow:** Existing verification documents as evidence ledgers, explicit pending rows for hardware/provider checks, and product-language distinctions between interest, installation, and retention.
 - **Test scenarios:**
-  1. A clean clone can build, test, package, and validate the native release without `website/` present.
-  2. The repository index contains no tracked `website/` path and the current local directory remains byte-for-byte untouched by this work.
+  1. A clean clone can build, test, package, and validate the native release without reading or building `website/`.
+  2. The branch diff contains no `website/` path and the base-owned application remains byte-for-byte untouched by this work.
   3. The handoff contract lets the follow-up application verify the metadata key, canonical origin, signature, expiry, sequence, and build before resolving an immutable artifact, version, checksum, source tag, Homebrew command, Sparkle feed, and trust status.
   4. The handoff assigns unique-click measurement, the 90-day boundary, tracking failure behavior, donation failures, and privacy disclosure to the website application without adding app telemetry.
   5. Public-release readiness stays blocked when GPL compatibility, pending live media checks, update/metadata keys, tap ownership, site readiness, or channel credentials are incomplete.
   6. The R17 funding trigger creates a separate Developer ID implementation handoff and does not block the unsigned release; the handoff forbids identity, trust-root, or version-order changes.
-- **Verification:** Unit-owned website-handoff and documentation-link tests, full native gates, release dry run, signed-manifest consumer fixtures, key-compromise recovery fixtures, secret scan, tracked-file audit for `website/`, and final verification-ledger review pass.
+- **Verification:** Unit-owned website-handoff and documentation-link tests, full native gates, release dry run, signed-manifest consumer fixtures, key-compromise recovery fixtures, secret scan, branch-diff audit for `website/`, and final verification-ledger review pass.
 
 ---
 
@@ -600,12 +600,12 @@ Developer ID and notarization automation are deliberately outside the active imp
 | Project and plist validation | U1–U2 | Existing project smoke checks plus `plutil` validation of built app/helper metadata | Versions, feed/key configuration, package pin, and bundle identities agree |
 | Release-contract tests | U3 | `scripts/tests/release-contract-tests.sh` | Version, checksum, URL, source, schema, metadata signature, expiry, replay, monotonic build, trust state, and projection fixtures pass |
 | Channel-promotion tests | U4 | `scripts/tests/channel-promotion-tests.sh` | Credential-free candidate, protected promotion, off-branch rejection, NoRelease, public-step failure, Compromised freeze, convergence, and retry fixtures pass |
-| Website-handoff tests | U5 | `scripts/tests/website-handoff-tests.sh` | The signed read-only consumer contract, documentation links, future-signing trigger, and tracked-path exclusion pass |
+| Website-handoff tests | U5 | `scripts/tests/website-handoff-tests.sh` | The signed read-only consumer contract, documentation links, and future-signing trigger pass without coupling to website implementation files |
 | Unsigned packaging | U3–U4 | Release scripts in fixture/dry-run mode, followed by DMG and Sparkle signature checks | One immutable DMG validates across manifest, appcast, and cask projections |
 | Homebrew channel | U4 | Tap style/audit plus clean install, launch, upgrade, and uninstall on macOS 14+ | Cask uses real version/SHA, preserves quarantine, and matches the candidate |
 | Sparkle live upgrade | U2, U4 | Installed old-version fixture checks unsigned-to-unsigned paths | Valid update succeeds; bad feed/archive/version leaves installed app unchanged |
 | Privacy and source audit | U1–U5 | Network payload inspection, dependency/license review, exact-tag source check, and secret scan | Only update traffic exists; source/notices are complete; no private material leaks |
-| Website exclusion | U1–U5 | Tracked-file audit plus before/after fingerprint of local `website/` | No website path is tracked or changed |
+| Website exclusion | U1–U5 | `git diff --exit-code origin/main...HEAD -- website` plus before/after website fingerprints | No website path is changed by this branch |
 | Diff hygiene | U1–U5 | `git diff --check` and final changed-file scope review | No whitespace errors, abandoned attempts, generated artifacts, or unrelated files |
 
 ### Conditional Release Gates
@@ -626,7 +626,7 @@ Developer ID and notarization automation are deliberately outside the active imp
 - CI can validate ordinary changes, build a credential-free candidate, and run protected default-branch promotion without unpinned third-party actions, excessive permissions, untrusted-tag access to secrets, mutable tagged assets, or committed credentials.
 - Unsigned publication fails closed before public writes, models NoRelease/Promoting/Degraded/Compromised honestly afterward, and preserves the identity and trust contract required by deferred Developer ID work.
 - The release evidence keeps public launch blocked until the separate website application and every native/external prerequisite are ready.
-- `website/` remains untracked and unchanged; no website source, generated output, analytics implementation, or deployment configuration appears in the delivered diff.
+- `website/` remains unchanged from `main`; no website source, generated output, analytics implementation, or deployment configuration appears in the delivered diff.
 - Dead-end experiments, temporary credentials, local archives, fixture secrets, and superseded release artifacts are removed before completion.
 
 ### Unit completion
