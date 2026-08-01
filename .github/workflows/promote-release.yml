@@ -1,0 +1,432 @@
+name: Promote verified release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Immutable semantic release tag
+        required: true
+        type: string
+      candidate_run_id:
+        description: Successful release-candidate workflow run ID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_TAG: ${{ inputs.tag }}
+
+concurrency:
+  group: promote-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: macos-15
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+    outputs:
+      digest: ${{ steps.contract.outputs.digest }}
+      build: ${{ steps.contract.outputs.build }}
+      sequence: ${{ steps.contract.outputs.sequence }}
+      commit: ${{ steps.contract.outputs.commit }}
+      previous_sequence: ${{ steps.contract.outputs.previous_sequence }}
+    steps:
+      - name: Check out trusted main tooling
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download candidate from the selected run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: keep3-candidate-${{ inputs.tag }}
+          path: .build/promotion/candidate
+          run-id: ${{ inputs.candidate_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Verify tag reachability and GitHub attestation
+        run: |
+          tag=$RELEASE_TAG
+          printf '%s\n' "$tag" | /usr/bin/ruby -e '
+            value = STDIN.read.strip
+            abort "invalid semantic tag" unless value.match?(
+              /\Av(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\z/)
+          '
+          git fetch origin main --tags
+          tag_commit=$(git rev-parse "refs/tags/$tag^{commit}")
+          git merge-base --is-ancestor "$tag_commit" origin/main
+          gh attestation verify .build/promotion/candidate/Keep3-*.dmg \
+            --repo "$GITHUB_REPOSITORY"
+          gh attestation verify .build/promotion/candidate/attestation.json \
+            --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Verify candidate and strict-monotonic public contract before protected secrets
+        id: contract
+        run: |
+          set -o pipefail
+          tag=$RELEASE_TAG
+          version=${tag#v}
+          candidate=.build/promotion/candidate
+          dmg="$candidate/Keep3-$version.dmg"
+          receipt="$candidate/attestation.json"
+          test -f "$dmg" && test -f "$dmg.sha256" && test -f "$receipt"
+          digest=$(shasum -a 256 "$dmg" | awk '{print $1}')
+          test "$digest" = "$(tr -d '[:space:]' < "$dmg.sha256")"
+          commit=$(git rev-parse "refs/tags/$tag^{commit}")
+          mount_point=$(mktemp -d /tmp/keep3-preflight-mount-XXXXXX)
+          hdiutil attach -quiet -readonly -nobrowse \
+            -mountpoint "$mount_point" "$dmg"
+          detach_candidate() { hdiutil detach -quiet "$mount_point" || :; }
+          trap detach_candidate EXIT HUP INT TERM
+          app_plist="$mount_point/Keep3.app/Contents/Info.plist"
+          test -f "$app_plist"
+          build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' \
+            "$app_plist")
+          app_version=$(/usr/libexec/PlistBuddy -c \
+            'Print :CFBundleShortVersionString' \
+            "$app_plist")
+          test "$app_version" = "$version"
+          hdiutil detach -quiet "$mount_point"
+          trap - EXIT HUP INT TERM
+          size=$(stat -f '%z' "$dmg")
+          values=$(/usr/bin/ruby -rjson -rtime -e '
+            receipt, repository, tag, commit, digest, build, size = ARGV
+            value = JSON.parse(File.read(receipt))
+            abort "candidate repository mismatch" unless value["repository"] == repository
+            abort "candidate tag mismatch" unless value["tag"] == tag
+            abort "candidate commit mismatch" unless value["commit"] == commit
+            abort "candidate digest mismatch" unless value["sha256"] == digest
+            abort "candidate build mismatch" unless value["build"] == Integer(build)
+            abort "candidate sequence mismatch" unless value["sequence"] == Integer(build)
+            abort "candidate size mismatch" unless value["size"] == Integer(size)
+            published = Time.iso8601(value.fetch("publishedAt"))
+            expires = Time.iso8601(value.fetch("expiresAt"))
+            abort "candidate lifetime is invalid" unless published < expires && Time.now.utc < expires
+            puts value.fetch("sequence"), value.fetch("publishedAt"), value.fetch("expiresAt")
+          ' "$receipt" "$GITHUB_REPOSITORY" "$tag" "$commit" "$digest" "$build" "$size")
+          sequence=$(printf '%s\n' "$values" | sed -n '1p')
+
+          public_dir=.build/promotion/public
+          mkdir -p "$public_dir"
+          fetch_optional() {
+            url=$1
+            destination=$2
+            code=$(curl --silent --show-error --location \
+              --output "$destination.download" --write-out '%{http_code}' "$url")
+            case "$code" in
+              200) mv "$destination.download" "$destination" ;;
+              404) ;;
+              *) printf 'unexpected channel response: %s %s\n' "$code" "$url" >&2; return 1 ;;
+            esac
+          }
+          fetch_optional \
+            https://taobaorun.github.io/keep3/release-channel/current-release.json \
+            "$public_dir/current-release.json"
+          fetch_optional \
+            https://taobaorun.github.io/keep3/release-channel/release-status.json \
+            "$public_dir/release-status.json"
+
+          previous_sequence=0
+          if test -f "$public_dir/current-release.json"; then
+            scripts/release/sign-release-metadata.sh verify \
+              --input "$public_dir/current-release.json" \
+              --public-key distribution/release-metadata-public-key.pem \
+              --expected-key-id keep3-release-metadata-production
+            previous=$(/usr/bin/ruby -rjson -rtime -e '
+              signed = JSON.parse(File.read(ARGV.fetch(0))).fetch("signed")
+              abort "unexpected current repository" unless signed["repository"] == "taobaorun/keep3"
+              abort "unexpected current origin" unless signed["canonicalOrigin"] == "https://taobaorun.github.io"
+              abort "current metadata expired" unless Time.now.utc < Time.iso8601(signed.fetch("expiresAt"))
+              puts signed.fetch("build"), signed.fetch("sequence")
+            ' "$public_dir/current-release.json")
+            previous_build=$(printf '%s\n' "$previous" | sed -n '1p')
+            previous_sequence=$(printf '%s\n' "$previous" | sed -n '2p')
+            test "$build" -gt "$previous_build"
+            test "$sequence" -gt "$previous_sequence"
+          fi
+          if test -f "$public_dir/release-status.json"; then
+            scripts/release/sign-release-metadata.sh verify \
+              --input "$public_dir/release-status.json" \
+              --public-key distribution/release-metadata-public-key.pem \
+              --expected-key-id keep3-release-metadata-production
+            state=$(/usr/bin/ruby -rjson -rtime -e '
+              signed = JSON.parse(File.read(ARGV.fetch(0))).fetch("signed")
+              abort "unexpected status repository" unless signed["repository"] == "taobaorun/keep3"
+              abort "unexpected status origin" unless signed["canonicalOrigin"] == "https://taobaorun.github.io"
+              abort "status metadata expired" unless Time.now.utc < Time.iso8601(signed.fetch("expiresAt"))
+              puts signed.fetch("state")
+            ' "$public_dir/release-status.json")
+            test "$state" != Compromised
+          fi
+
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "sequence=$sequence" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "previous_sequence=$previous_sequence" >> "$GITHUB_OUTPUT"
+
+  promote:
+    needs: preflight
+    runs-on: macos-15
+    timeout-minutes: 45
+    environment: release-production
+    permissions:
+      actions: read
+      attestations: read
+      contents: write
+    steps:
+      - name: Check out trusted main tooling
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download the preflighted candidate again
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: keep3-candidate-${{ inputs.tag }}
+          path: .build/promotion/candidate
+          run-id: ${{ inputs.candidate_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Repeat immutable and incident preflight
+        run: |
+          git fetch origin main --tags
+          tag_commit=$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")
+          test "$tag_commit" = '${{ needs.preflight.outputs.commit }}'
+          git merge-base --is-ancestor "$tag_commit" origin/main
+          gh attestation verify .build/promotion/candidate/Keep3-*.dmg \
+            --repo "$GITHUB_REPOSITORY"
+          gh attestation verify .build/promotion/candidate/attestation.json \
+            --repo "$GITHUB_REPOSITORY"
+          version=$RELEASE_TAG
+          version=${version#v}
+          dmg=".build/promotion/candidate/Keep3-$version.dmg"
+          test "$(shasum -a 256 "$dmg" | awk '{print $1}')" = \
+            '${{ needs.preflight.outputs.digest }}'
+          public_dir=.build/promotion/public
+          mkdir -p "$public_dir"
+          fetch_optional() {
+            url=$1
+            destination=$2
+            code=$(curl --silent --show-error --location \
+              --output "$destination.download" --write-out '%{http_code}' "$url")
+            case "$code" in
+              200) mv "$destination.download" "$destination" ;;
+              404) ;;
+              *) printf 'unexpected channel response: %s %s\n' "$code" "$url" >&2; return 1 ;;
+            esac
+          }
+          fetch_optional \
+            https://taobaorun.github.io/keep3/release-channel/current-release.json \
+            "$public_dir/current-release.json"
+          fetch_optional \
+            https://taobaorun.github.io/keep3/release-channel/release-status.json \
+            "$public_dir/release-status.json"
+          for document in "$public_dir"/*.json; do
+            test -f "$document" || continue
+            scripts/release/sign-release-metadata.sh verify \
+              --input "$document" \
+              --public-key distribution/release-metadata-public-key.pem \
+              --expected-key-id keep3-release-metadata-production
+          done
+          if test -f "$public_dir/release-status.json"; then
+            test "$(/usr/bin/ruby -rjson -e \
+              'puts JSON.parse(File.read(ARGV[0])).dig("signed", "state")' \
+              "$public_dir/release-status.json")" != Compromised
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Resolve pinned Sparkle release tools
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project Keep3.xcodeproj \
+            -scheme Keep3 \
+            -derivedDataPath .build/promotion/DerivedData
+
+      - name: Check out protected channel branches
+        run: |
+          git clone --branch gh-pages \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            .build/promotion/pages
+          git clone --branch main \
+            "https://x-access-token:${TAP_TOKEN}@github.com/taobaorun/homebrew-keep3.git" \
+            .build/promotion/tap
+          for worktree in .build/promotion/pages .build/promotion/tap; do
+            git -C "$worktree" config user.name keep3-release-bot
+            git -C "$worktree" config user.email keep3-release-bot@users.noreply.github.com
+          done
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TAP_TOKEN: ${{ secrets.KEEP3_TAP_TOKEN }}
+
+      - name: Sign and validate the canonical candidate
+        id: signed
+        run: |
+          set -o pipefail
+          umask 077
+          candidate=.build/promotion/candidate
+          release=.build/promotion/release
+          public=.build/promotion/public
+          mkdir -p "$release"
+          tag=$RELEASE_TAG
+          version=${tag#v}
+          dmg="$candidate/Keep3-$version.dmg"
+          test -n "$SPARKLE_PRIVATE_KEY" && test -n "$METADATA_PRIVATE_KEY"
+          printf '%s\n' "$SPARKLE_PRIVATE_KEY" > .build/promotion/sparkle.key
+          printf '%s\n' "$METADATA_PRIVATE_KEY" > .build/promotion/metadata.pem
+          cp "$dmg" "$dmg.sha256" "$candidate/attestation.json" "$release/"
+          mount_point=$(mktemp -d /tmp/keep3-promotion-mount-XXXXXX)
+          hdiutil attach -quiet -readonly -nobrowse \
+            -mountpoint "$mount_point" "$dmg"
+          detach_candidate() { hdiutil detach -quiet "$mount_point" || :; }
+          trap detach_candidate EXIT HUP INT TERM
+          /usr/bin/ditto "$mount_point/Keep3.app" "$release/Keep3.app"
+          hdiutil detach -quiet "$mount_point"
+          trap - EXIT HUP INT TERM
+
+          sign_update=.build/promotion/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update
+          test -x "$sign_update"
+          sparkle_signature=$("$sign_update" \
+            --ed-key-file .build/promotion/sparkle.key -p "$dmg")
+          receipt_values=$(/usr/bin/ruby -rjson -e '
+            value = JSON.parse(File.read(ARGV.fetch(0)))
+            puts value.fetch("publishedAt"), value.fetch("expiresAt"),
+              value.fetch("xcodeVersion"), value.fetch("sdkVersion"),
+              value.fetch("macOSVersion")
+          ' "$candidate/attestation.json")
+          published_at=$(printf '%s\n' "$receipt_values" | sed -n '1p')
+          expires_at=$(printf '%s\n' "$receipt_values" | sed -n '2p')
+          xcode_version=$(printf '%s\n' "$receipt_values" | sed -n '3p')
+          sdk_version=$(printf '%s\n' "$receipt_values" | sed -n '4p')
+          macos_version=$(printf '%s\n' "$receipt_values" | sed -n '5p')
+
+          scripts/release/generate-channel-metadata.sh \
+            --dmg "$release/Keep3-$version.dmg" \
+            --version "$version" \
+            --build '${{ needs.preflight.outputs.build }}' \
+            --tag "$tag" \
+            --sequence '${{ needs.preflight.outputs.sequence }}' \
+            --commit '${{ needs.preflight.outputs.commit }}' \
+            --sparkle-signature "$sparkle_signature" \
+            --published-at "$published_at" \
+            --expires-at "$expires_at" \
+            --key-id keep3-release-metadata-production \
+            --output-dir "$release" \
+            --xcode-version "$xcode_version" \
+            --sdk-version "$sdk_version" \
+            --macos-version "$macos_version"
+          "$sign_update" --ed-key-file .build/promotion/sparkle.key \
+            "$release/appcast.xml" >/dev/null
+
+          previous=''
+          authoritative_current=.build/promotion/pages/release-channel/current-release.json
+          if test -f "$authoritative_current"; then
+            previous="$authoritative_current"
+          elif test -f "$public/current-release.json"; then
+            printf 'public current exists but is absent from the protected Pages branch\n' >&2
+            exit 1
+          fi
+          /usr/bin/ruby -rjson -e '
+            base_path, output, previous = ARGV
+            base = JSON.parse(File.read(base_path))
+            current_url = if previous.empty?
+              nil
+            else
+              JSON.parse(File.read(previous)).dig("signed", "manifestUrl")
+            end
+            {
+              "promoting" => ["Promoting", current_url, "Passive channels are converging."],
+              "degraded" => ["Degraded", current_url, "Promotion paused; the prior current release remains active."],
+              "converged" => ["Converged", base.dig("signed", "candidateManifestUrl"), "All release channels agree."]
+            }.each do |name, values|
+              document = Marshal.load(Marshal.dump(base))
+              document.fetch("signed")["state"] = values[0]
+              document.fetch("signed")["currentManifestUrl"] = values[1]
+              document.fetch("signed")["message"] = values[2]
+              File.write(File.join(output, "release-status-#{name}.unsigned.json"),
+                JSON.pretty_generate(document) + "\n")
+            end
+          ' "$release/release-status.unsigned.json" "$release" "$previous"
+
+          signer=scripts/release/sign-release-metadata.sh
+          for name in manifest current-release release-status; do
+            "$signer" sign \
+              --input "$release/$name.unsigned.json" \
+              --output "$release/$name.json" \
+              --private-key .build/promotion/metadata.pem \
+              --key-id keep3-release-metadata-production
+          done
+          for state in promoting degraded converged; do
+            "$signer" sign \
+              --input "$release/release-status-$state.unsigned.json" \
+              --output "$release/release-status-$state.json" \
+              --private-key .build/promotion/metadata.pem \
+              --key-id keep3-release-metadata-production
+          done
+
+          validation=(
+            scripts/release/validate-release.sh
+            --manifest "$release/manifest.json"
+            --dmg "$release/Keep3-$version.dmg"
+            --app "$release/Keep3.app"
+            --public-key distribution/release-metadata-public-key.pem
+            --expected-key-id keep3-release-metadata-production
+            --tag "$tag"
+            --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            --appcast "$release/appcast.xml"
+            --cask "$release/keep3.rb"
+            --status "$release/release-status.json"
+            --minimum-sequence '${{ needs.preflight.outputs.previous_sequence }}'
+            --expected-commit '${{ needs.preflight.outputs.commit }}'
+            --sparkle-sign-update "$sign_update"
+            --sparkle-private-key .build/promotion/sparkle.key
+          )
+          if test -n "$previous"; then
+            validation+=(--current "$previous")
+          fi
+          "${validation[@]}"
+          ruby -c "$release/keep3.rb"
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.KEEP3_SPARKLE_PRIVATE_KEY }}
+          METADATA_PRIVATE_KEY: ${{ secrets.KEEP3_RELEASE_METADATA_PRIVATE_KEY }}
+
+      - name: Promote passive channels before Sparkle and current discovery
+        run: |
+          arguments=(
+            --mode live
+            --repository-root "$GITHUB_WORKSPACE"
+            --source-repository "$GITHUB_WORKSPACE"
+            --protected-ref origin/main
+            --tag "$RELEASE_TAG"
+            --candidate-dir .build/promotion/release
+            --attestation .build/promotion/release/attestation.json
+            --metadata-public-key distribution/release-metadata-public-key.pem
+            --metadata-key-id keep3-release-metadata-production
+            --state-dir .build/promotion/state
+            --pages-worktree .build/promotion/pages
+            --tap-worktree .build/promotion/tap
+            --tap-cask-url https://raw.githubusercontent.com/taobaorun/homebrew-keep3/main/Casks/keep3.rb
+          )
+          if test -f .build/promotion/public/current-release.json; then
+            arguments+=(--previous-current .build/promotion/public/current-release.json)
+          fi
+          if test -f .build/promotion/public/release-status.json; then
+            arguments+=(--operational-status .build/promotion/public/release-status.json)
+          fi
+          scripts/release/publish-release-channel.sh "${arguments[@]}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAP_TOKEN: ${{ secrets.KEEP3_TAP_TOKEN }}

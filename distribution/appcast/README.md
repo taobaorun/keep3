@@ -10,8 +10,11 @@ The public feed is fixed at:
 
 Every enclosure must use the immutable tagged GitHub asset URL, the numeric
 build version, and the Sparkle EdDSA signature recorded in the corresponding
-manifest. Generated appcasts belong under `.build/release/` or the protected
-release-channel staging area; they are not committed here.
+manifest. Because Keep3 requires a signed feed, protected promotion also signs
+the completed appcast XML with the same permanent Sparkle key and verifies that
+signature before publication. Generated appcasts belong under
+`.build/release/` or the protected release-channel staging area; they are not
+committed here.
 
 The app currently embeds Sparkle's documented fixture key. Production
 validation intentionally rejects that key. Provision and back up the permanent

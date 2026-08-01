@@ -293,13 +293,20 @@ metadata_dir="$test_directory/metadata"
   --xcode-version 16.4 \
   --sdk-version macosx15.5 \
   --macos-version 15.7.7 >/dev/null
+"$sparkle_sign_update" --ed-key-file "$sparkle_private_key" \
+  "$metadata_dir/appcast.xml" >/dev/null
 
 xmllint --noout "$metadata_dir/appcast.xml" \
   || fail "generated appcast is not valid XML"
+"$sparkle_sign_update" --ed-key-file "$sparkle_private_key" \
+  --verify "$metadata_dir/appcast.xml" \
+  || fail "generated appcast is not signed"
 ruby -c "$metadata_dir/keep3.rb" >/dev/null \
   || fail "generated Homebrew cask is not valid Ruby"
 grep -q 'depends_on macos: ">= :sonoma"' "$metadata_dir/keep3.rb" \
   || fail "generated Homebrew cask does not require macOS 14"
+grep -q 'depends_on arch: :arm64' "$metadata_dir/keep3.rb" \
+  || fail "generated Homebrew cask does not declare its arm64 artifact"
 
 signed_manifest="$metadata_dir/manifest.json"
 signed_status="$metadata_dir/release-status.json"

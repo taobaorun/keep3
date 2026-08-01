@@ -227,6 +227,10 @@ sparkle_signature=$(/usr/bin/ruby -rjson -e '
   --ed-key-file "$sparkle_private_key" \
   --verify "$dmg" "$sparkle_signature" \
   || fail "Sparkle archive signature is invalid"
+"$sparkle_sign_update" \
+  --ed-key-file "$sparkle_private_key" \
+  --verify "$appcast" \
+  || fail "Sparkle appcast signature is invalid"
 
 derived_sparkle_public_key=$(xcrun swift - "$sparkle_private_key" <<'SWIFT'
 import CryptoKit
