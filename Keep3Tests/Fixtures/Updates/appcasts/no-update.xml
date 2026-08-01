@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss
+  version="2.0"
+  xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"
+>
+  <channel>
+    <title>Keep3 stable updates</title>
+    <item>
+      <title>Keep3 0.1.0</title>
+      <sparkle:version>1</sparkle:version>
+      <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <enclosure
+        url="https://github.com/taobaorun/keep3/releases/download/v0.1.0/Keep3-0.1.0.dmg"
+        length="1024"
+        type="application/octet-stream"
+        sparkle:edSignature="WVyVJpOx+a5+vNWJVY79TRjFKveNk+VhGJf2iti4CZtJsJewIUGvh/1AKKEAFbH1qUwx+vro1ECuzOsMmumoBA=="
+      />
+    </item>
+  </channel>
+</rss>

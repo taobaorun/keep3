@@ -89,6 +89,60 @@ final class Keep3UITests: XCTestCase {
     XCTAssertEqual(valueDescription(of: automaticRotationCheckbox()), "0")
   }
 
+  func testUpdateSettingsAndApplicationCommandUseOfflineFixture() throws {
+    try launchIsolatedApp(updateFixture: true)
+    defer { cleanUpIsolatedApp() }
+
+    openSettings()
+
+    let manualCheck = app.buttons["settings.updates.checkNow"]
+    let automaticChecks =
+      app.checkBoxes["settings.updates.automaticChecks"]
+    let automaticDownloads =
+      app.checkBoxes["settings.updates.automaticDownloads"]
+    XCTAssertTrue(manualCheck.waitForExistence(timeout: 2))
+    XCTAssertEqual(valueDescription(of: automaticChecks), "0")
+    XCTAssertEqual(valueDescription(of: automaticDownloads), "0")
+    XCTAssertFalse(automaticDownloads.isEnabled)
+
+    automaticChecks.click()
+    XCTAssertTrue(automaticDownloads.isEnabled)
+    automaticDownloads.click()
+    XCTAssertEqual(valueDescription(of: automaticChecks), "1")
+    XCTAssertEqual(valueDescription(of: automaticDownloads), "1")
+
+    automaticChecks.click()
+    XCTAssertEqual(valueDescription(of: automaticChecks), "0")
+    XCTAssertEqual(valueDescription(of: automaticDownloads), "0")
+    XCTAssertFalse(automaticDownloads.isEnabled)
+
+    app.menuBars.menuBarItems["Keep3"].click()
+    let updateCommand = app.menuItems["检查更新…"]
+    XCTAssertTrue(updateCommand.waitForExistence(timeout: 2))
+    XCTAssertTrue(updateCommand.isEnabled)
+    app.typeKey(.escape, modifierFlags: [])
+
+    automaticChecks.click()
+    automaticDownloads.click()
+    app.terminate()
+    app.launch()
+
+    XCTAssertTrue(app.windows["Keep3"].waitForExistence(timeout: 5))
+    openSettings()
+    XCTAssertEqual(
+      valueDescription(
+        of: app.checkBoxes["settings.updates.automaticChecks"]
+      ),
+      "1"
+    )
+    XCTAssertEqual(
+      valueDescription(
+        of: app.checkBoxes["settings.updates.automaticDownloads"]
+      ),
+      "1"
+    )
+  }
+
   func testOverlayBrowsingOpensTheMatchingEditorItem() throws {
     try launchIsolatedApp(expandedSurface: true)
     defer { cleanUpIsolatedApp() }
@@ -305,6 +359,7 @@ final class Keep3UITests: XCTestCase {
     mediaFixture: Bool = false,
     expandedSurface: Bool = false,
     calendarFixture: Bool = false,
+    updateFixture: Bool = false,
     surfaceLevel: String? = nil
   ) throws {
     continueAfterFailure = false
@@ -331,6 +386,8 @@ final class Keep3UITests: XCTestCase {
     }
     app.launchEnvironment["KEEP3_UI_TEST_CALENDAR_ENABLED"] =
       false.description
+    app.launchEnvironment["KEEP3_UI_TEST_UPDATE_FIXTURE"] =
+      updateFixture.description
     if calendarFixture {
       app.launchEnvironment["KEEP3_UI_TEST_CALENDAR_FIXTURE"] = "authorized"
     }

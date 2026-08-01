@@ -24,5 +24,21 @@
 	<string>Keep3 uses Automation only after you explicitly enable provider enhancements.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Keep3 shows your upcoming calendar events only after you enable Calendar in Settings.</string>
+	<key>SUAllowsAutomaticUpdates</key>
+	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
+	<key>SUEnableAutomaticChecks</key>
+	<false/>
+	<key>SUEnableSystemProfiling</key>
+	<false/>
+	<key>SUFeedURL</key>
+	<string>https://taobaorun.github.io/keep3/release-channel/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>$(KEEP3_SPARKLE_PUBLIC_ED_KEY)</string>
+	<key>SURequireSignedFeed</key>
+	<true/>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
 </dict>
 </plist>

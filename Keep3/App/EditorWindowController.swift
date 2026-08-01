@@ -18,7 +18,8 @@ final class EditorWindowController: NSWindowController {
       provider: EventKitCalendarAdapter()
     ),
     launchAtLoginController: LaunchAtLoginController =
-      LaunchAtLoginController.live()
+      LaunchAtLoginController.live(),
+    updateController: SparkleUpdateController = .inactive()
   ) {
     let destinationState = MainWindowDestinationState()
     self.destinationState = destinationState
@@ -41,6 +42,7 @@ final class EditorWindowController: NSWindowController {
         calendarPreferences: calendarPreferences,
         calendarCoordinator: calendarCoordinator,
         launchAtLoginController: launchAtLoginController,
+        updateController: updateController,
         destinationState: destinationState
       )
     )

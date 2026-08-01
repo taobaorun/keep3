@@ -70,6 +70,47 @@ final class ProjectSmokeTests: XCTestCase {
     XCTAssertTrue(gitIgnore.split(separator: "\n").contains("/website/"))
   }
 
+  func testDebugAdHocBuildDisablesLibraryValidationWithoutWeakeningRelease()
+    throws
+  {
+    let project = try source(at: "Keep3.xcodeproj/project.pbxproj")
+    let debugEntitlements = try propertyList(
+      at: "Keep3/Keep3Debug.entitlements"
+    )
+    let releaseEntitlements = try propertyList(
+      at: "Keep3/Keep3.entitlements"
+    )
+
+    XCTAssertTrue(
+      project.contains(
+        "CODE_SIGN_ENTITLEMENTS = Keep3/Keep3Debug.entitlements;"
+      )
+    )
+    XCTAssertEqual(
+      debugEntitlements["com.apple.security.cs.disable-library-validation"]
+        as? Bool,
+      true
+    )
+    XCTAssertNil(
+      releaseEntitlements[
+        "com.apple.security.cs.disable-library-validation"
+      ]
+    )
+  }
+
+  private func propertyList(at relativePath: String) throws -> [String: Any] {
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let data = try Data(
+      contentsOf: repositoryRoot.appendingPathComponent(relativePath)
+    )
+    return try XCTUnwrap(
+      PropertyListSerialization.propertyList(from: data, format: nil)
+        as? [String: Any]
+    )
+  }
+
   private func source(at relativePath: String) throws -> String {
     let repositoryRoot = URL(fileURLWithPath: #filePath)
       .deletingLastPathComponent()

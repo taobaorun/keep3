@@ -48,6 +48,23 @@ struct Keep3App: App {
     Settings {
       EmptyView()
     }
+    .commands {
+      UpdateCommands(updateController: appDelegate.updateController)
+    }
+  }
+}
+
+private struct UpdateCommands: Commands {
+  @ObservedObject var updateController: SparkleUpdateController
+
+  var body: some Commands {
+    CommandGroup(after: .appInfo) {
+      Button("检查更新…") {
+        updateController.checkForUpdates()
+      }
+      .disabled(!updateController.canCheckForUpdates)
+      .accessibilityLabel("检查 Keep3 更新")
+    }
   }
 }
 
@@ -62,6 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let mediaPlayerApplicationActivator =
     MediaPlayerApplicationActivator.live
   private let surfaceHapticFeedback = AppKitSurfaceHapticFeedback()
+  lazy var updateController = AppDelegate.makeUpdateController()
   private var state = Keep3State()
   private var isSurfaceAvailable = true
   private var activeMediaEpoch: UInt64?
@@ -83,7 +101,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     mediaPreferences: mediaPreferences,
     calendarPreferences: calendarPreferences,
     calendarCoordinator: calendarSessionCoordinator,
-    launchAtLoginController: launchAtLoginController
+    launchAtLoginController: launchAtLoginController,
+    updateController: updateController
   )
 
   private lazy var interactionModel = TopSurfaceInteractionModel(
@@ -201,6 +220,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     applyMediaPreferences()
     applyCalendarPreferences()
     applyUITestSurfaceLevel()
+    if ProcessInfo.processInfo.environment["KEEP3_UI_TEST_STATE_PATH"] != nil {
+      editorWindowController.showEditor(activate: false)
+    }
   }
 
   func applicationShouldTerminateAfterLastWindowClosed(
@@ -1052,6 +1074,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
     #endif
     return EventKitCalendarAdapter()
+  }
+
+  private static func makeUpdateController() -> SparkleUpdateController {
+    #if DEBUG
+      let environment = ProcessInfo.processInfo.environment
+      if environment["KEEP3_UI_TEST_UPDATE_FIXTURE"] == true.description,
+        let suiteName = environment["KEEP3_UI_TEST_DEFAULTS_SUITE"],
+        let defaults = UserDefaults(suiteName: suiteName)
+      {
+        return SparkleUpdateController(
+          checker: UpdateUITestFixtureChecker(defaults: defaults)
+        )
+      }
+    #endif
+    return .live()
   }
 
   private func applyUITestSurfaceLevel() {
