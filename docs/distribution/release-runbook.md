@@ -6,6 +6,8 @@ source commit, timestamps, and build toolchain, obtains GitHub attestations for
 both the DMG and receipt, and uploads that private candidate bundle. It must
 never rebuild a candidate for the same tag. Promotion reuses those attested
 values so a runner upgrade cannot change signed manifest bytes during a retry.
+The candidate is eligible for promotion for 30 days. That private limit is not
+copied into stable release discovery: only operational status expires.
 
 ## Preconditions
 
@@ -41,8 +43,8 @@ Public writes then occur exactly once in this order:
 2. merge the verified cask pull request in the maintainer-owned tap;
 3. publish the immutable manifest and activate the Sparkle appcast;
 4. run read-only cross-channel probes for asset SHA, manifest, cask, and feed;
-5. move signed `current-release.json` only after every probe agrees;
-6. replace operational status with signed `Converged`.
+5. publish signed `current-release.json` and signed `Converged` status in one
+   Pages commit only after every probe agrees.
 
 Immediately after step 1, publish signed `Promoting`. Any later failure publishes
 signed `Degraded`, retains the prior current document (or no current on the
@@ -61,10 +63,21 @@ The unsigned cask keeps quarantine enabled and gives truthful Control-click/Open
 guidance. It must never execute `xattr`, use `sha256 :no_check`, or claim Apple
 notarization. Developer ID/notarization remains the post-funding transition.
 
+## Refresh release status
+
+`.github/workflows/refresh-release-status.yml` runs monthly and may also be
+dispatched manually through the protected `release-production` environment. It
+verifies the signed `Converged` status and stable current document, advances the
+status sequence, and signs a new 90-day operational freshness window. It does
+not rewrite current discovery, an immutable manifest, the appcast, cask, or
+release asset. A non-Converged status must be investigated or recovered through
+the promotion/incident process, never hidden by freshness renewal.
+
 ## Commands
 
 - Local state-machine verification: `scripts/tests/channel-promotion-tests.sh`
 - Candidate contract: `scripts/tests/release-contract-tests.sh`
+- Status freshness: `scripts/release/refresh-release-status.sh --help`
 - Read-only convergence: `scripts/release/probe-channels.sh --help`
 - Resumable publication: `scripts/release/publish-release-channel.sh --help`
 
