@@ -1,8 +1,8 @@
 # Keep3 distribution readiness
 
 Date: 2026-08-01
-Implementation baseline: `feat/open-source-distribution`, revalidated after
-`origin/main` commit `f531674`
+Implementation baseline: Keep3 1.0.0 on `origin/main` commit `36ae914`, plus
+the reviewed production trust-root change
 Status: Native unsigned-distribution implementation present; public launch
 blocked by the pending gates below
 
@@ -26,11 +26,11 @@ does not authorize a return to unsigned artifacts.
 | Area | Status | Evidence |
 | --- | --- | --- |
 | Free source and identity | Implemented | GPL-3.0-only `LICENSE`, exact-tag guidance, third-party notices, project-owned app identity `dev.keep3.Keep3`, the documented MediaRemote helper compatibility identity, semantic marketing version, and numeric build |
-| Sparkle boundary | Implemented | Sparkle 2.9.4 is pinned; manual checks and opt-in automation use the canonical feed; system profiling is disabled; archive and signed-feed verification are enforced, with the production key still gated below |
+| Sparkle boundary | Implemented | Sparkle 2.9.4 is pinned; manual checks and opt-in automation use the canonical feed; system profiling is disabled; archive and signed-feed verification are enforced with the backed-up production public key |
 | Release contract | Implemented | Schemas and fixtures cover immutable manifest, signed current discovery, signed operational status, strict build order, artifact SHA-256, exact source, Sparkle signature, and Homebrew projection |
 | Release candidate | Implemented | One credential-free candidate is built and attested; promotion reuses the candidate digest rather than rebuilding tagged bytes |
 | Channel promotion | Implemented, production unproven | Protected promotion validates ancestry, attestations, monotonicity, credentials, and channel order; failure fixtures cover Promoting, Degraded, and Compromised states |
-| Website handoff | Implemented, independent app pending | `docs/distribution/website-handoff.md` defines pinned verification, privacy, click, donation, copy, and trust-transition requirements; the base-owned website application remains outside this native-distribution change |
+| Website handoff | Implemented, independent app deferred | `docs/distribution/website-handoff.md` defines pinned verification, privacy, click, donation, copy, and trust-transition requirements; the separately owned website application will launch later and does not block the first canonical GitHub release |
 | Website scope audit | Pass | The PR diff contains no path under `website/`; `scripts/tests/website-handoff-tests.sh` validates the handoff contract without coupling native release tests to website implementation files |
 
 ## Focused automated evidence
@@ -44,9 +44,12 @@ does not authorize a return to unsigned artifacts.
 | Native full suite, format, analysis, and Release build | Plan verification commands | Local pass on 2026-08-01; four keyboard-routing cases explicitly skipped because the locked desktop did not grant key-window ownership |
 
 The release scripts keep private keys and channel credentials outside the
-repository. The checked-in metadata key contains public material only. A final
-secret scan and protected-environment review remain required because fixture
-success does not prove production credential hygiene.
+repository. The checked-in metadata key contains public material only. The
+Sparkle private key is retained in the maintainer Keychain, the protected
+environment, and verified encrypted backups. The metadata private key is
+retained in the protected environment and verified encrypted backups. Pairwise
+sign/verify compatibility passed before the public roots were staged. A final
+secret scan remains required before every tag.
 
 ## Privacy and release assertions
 
@@ -60,9 +63,10 @@ success does not prove production credential hygiene.
 - The unsigned Homebrew cask keeps quarantine intact. Neither the app nor the
   cask automatically runs `xattr`; public copy must describe Control-click →
   Open and Privacy & Security approval truthfully.
-- GitHub, Homebrew, Sparkle, signed current discovery, and the future website
-  must converge on the same immutable DMG, checksum, version, build, source,
-  and trust state before current discovery moves.
+- GitHub, Homebrew, Sparkle, and signed current discovery must converge on the
+  same immutable DMG, checksum, version, build, source, and trust state before
+  current discovery moves. Before the later website becomes an advertised
+  download surface, it must verify and resolve that same signed current release.
 - A compromised Sparkle or metadata key blocks appcast, current, tap, and
   release publication. Recovery follows
   `docs/distribution/update-key-incident-runbook.md` with a higher-version
@@ -70,18 +74,20 @@ success does not prove production credential hygiene.
 
 ## Public-launch blockers
 
-All rows are mandatory. “Pending” is intentionally release-blocking.
+All rows except the explicitly deferred website row are mandatory for the first
+canonical GitHub, Pages, Sparkle, and Homebrew launch. “Pending” is
+intentionally release-blocking.
 
 | Blocker | Status | Required completion evidence |
 | --- | --- | --- |
 | GPL compatibility review | Pending | Human review confirms Sparkle 2.9.4 and every shipped component are GPL-3.0-compatible; `THIRD_PARTY_NOTICES.md`, dependency lock, tagged source, and release assets agree |
 | live media/provider checks | Pending | Complete the signed Release provider matrix in `keep3-media-compatibility.md`, including discovery, metadata, artwork, commands, interruption recovery, and supported OS/architecture rows |
-| permanent Sparkle key provisioning and backup | Pending | Replace the fixture `SUPublicEDKey` before the first tag; record offline encrypted backup, recovery access, public-key review, and old-to-new fixture update evidence |
-| permanent metadata key provisioning and backup | Pending | Replace the checked-in fixture public key; record key ID, fingerprint, offline encrypted backup, website pin, recovery access, and signed consumer fixtures |
-| tap ownership and token | Pending | Create and protect `taobaorun/homebrew-keep3`, verify `taobaorun/keep3` naming, configure a least-privilege token, and pass clean install/upgrade/uninstall on macOS 14+ |
+| permanent Sparkle key provisioning and backup | Complete | Production `SUPublicEDKey` is staged; the private key is in the dedicated `taobaorun.keep3.production` Keychain account and protected environment; the maintainer verified the encrypted primary and backup images; Sparkle sign/verify compatibility passed |
+| permanent metadata key provisioning and backup | Complete | Production Ed25519 public key is staged; the private key is in the protected environment; the maintainer verified the encrypted primary and backup images; project-native sign/verify compatibility passed with key ID `keep3-release-metadata-production` |
+| tap ownership and token | In progress | Public `taobaorun/homebrew-keep3` exists with `main`; a repository-scoped fine-grained token is stored in the protected environment. Branch protection and clean install/upgrade/uninstall on macOS 14+ remain pending |
 | gh-pages setup | Pending | Create and protect the release-channel Pages source, serve the canonical HTTPS endpoints, configure caching, and verify origin, expiry, immutable paths, and rollback rejection |
-| standalone website readiness | Pending | Separate application passes signed-metadata fixtures, direct-download failure tests, unsigned copy, privacy disclosure, unique-click methodology, 90-day reporting, and donation failure behavior |
-| channel credentials | Pending | Protected `release-production` environment contains least-privilege GitHub Pages, release, tap, Sparkle, and metadata credentials with reviewer approval and no tag-job access |
+| standalone website readiness | Deferred; non-blocking for first canonical release | Before the later website launch, its separate application must pass signed-metadata fixtures, direct-download failure tests, unsigned copy, privacy disclosure, unique-click methodology, 90-day reporting, and donation failure behavior |
+| channel credentials | Complete | Protected `release-production` contains the repository-scoped tap token and both production private keys, requires maintainer review, permits only `main`, and remains inaccessible to the tag job |
 | Protected publisher live exercise | Pending | Exercise the wired U4 generate, Sparkle-sign, metadata-sign, validate, tap-PR, publish, probe, and recovery path in the reviewed `release-production` environment; prove trusted-main preflight completes before protected credentials are read |
 | Unsigned installation proof | Pending | A clean supported Mac verifies SHA-256, downloads the canonical DMG, completes documented macOS approval without automatic quarantine removal, launches, upgrades, and uninstalls |
 | Cross-channel production dry run | Pending | Protected workflow re-verifies ancestry, attestation, signatures, exact bytes, monotonic build, appcast, tap, GitHub asset, current/status state, and forward recovery |
@@ -89,10 +95,11 @@ All rows are mandatory. “Pending” is intentionally release-blocking.
 
 ## Standalone website gate
 
-The website is a public-launch dependency but not a native build dependency.
-Its base-owned application is maintained independently from this distribution
-change; its host, analytics provider, donation provider, domain, DNS, and
-deployment remain launch-gated. Click measurement is
+The website is not a dependency for the first canonical GitHub, Pages, Sparkle,
+and Homebrew release. Its separately owned application will launch later and
+must pass its handoff contract before it becomes an advertised download
+surface. Its host, analytics provider, donation provider, domain, DNS, and
+deployment therefore remain website-launch gates. Click measurement is
 best-effort and never gates the download. The first target is 100 unique primary
 download-link activations in the first 90 days, reported only as download
 interest—not installation, active use, or retention.

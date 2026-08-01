@@ -31,9 +31,9 @@ must build, test, package, and validate without a `website/` directory.
 
 The website must embed the reviewed permanent Ed25519 metadata public key at
 build or deployment time. It must not fetch a replacement key from the same
-channel it is trying to authenticate. The checked-in key is a development
-fixture until the release-readiness ledger records permanent key provisioning,
-offline backup, key identifier, and fingerprint review.
+channel it is trying to authenticate. The checked-in key is the backed-up
+production root, and consumers must require the expected key identifier
+`keep3-release-metadata-production`.
 
 The Sparkle archive trust root is separate. Installed apps pin it through
 `SUPublicEDKey`; the website neither verifies Sparkle archives with the

@@ -135,7 +135,7 @@ final class SparkleUpdateControllerTests: XCTestCase {
     XCTAssertEqual(info["SURequireSignedFeed"] as? Bool, true)
     XCTAssertEqual(
       info["SUPublicEDKey"] as? String,
-      "eRFPLZuNM6m8bltmtpPX4fzKbufI1z6rKJHtgIIsllk="
+      "86W6DSPZqGKKrKTPSTfOylPp9F7N/e6UFN+g0htpdRA="
     )
   }
 

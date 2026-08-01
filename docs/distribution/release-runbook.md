@@ -18,12 +18,12 @@ copied into stable release discovery: only operational status expires.
    `taobaorun/homebrew-keep3` tap with a protected `main` branch.
 4. Configure the approved `release-production` environment with
    `KEEP3_SPARKLE_PRIVATE_KEY`, `KEEP3_RELEASE_METADATA_PRIVATE_KEY`, and a
-   least-privilege `KEEP3_TAP_TOKEN`. Replace the checked-in placeholder
-   metadata public key and Sparkle fixture public key with the backed-up
-   permanent public roots in a reviewed build before creating its tag.
+   least-privilege `KEEP3_TAP_TOKEN`. Confirm the checked-in metadata and
+   Sparkle public keys match the backed-up permanent private roots in a
+   reviewed build before creating its tag.
 5. Review native, release-contract, GPL/source, media-provider, Sparkle-key,
-   and website readiness gates. The website remains an independently owned
-   read-only gate.
+   and website-handoff contract gates. The separately owned website can launch
+   later and is not required to activate the canonical release channels.
 6. Confirm the signed operational status is not `Compromised`.
 7. Approve the `release-production` environment only after the credential-free
    preflight verifies reachability, digest, attestation, signature, sequence,

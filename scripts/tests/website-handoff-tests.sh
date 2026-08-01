@@ -22,6 +22,14 @@ require_text() {
     || fail "${file#$repository_root/} is missing: $text"
 }
 
+reject_text() {
+  file=$1
+  text=$2
+  if grep -Fq -- "$text" "$file"; then
+    fail "${file#$repository_root/} contains obsolete text: $text"
+  fi
+}
+
 require_file "$handoff"
 require_file "$distribution_verification"
 require_file "$repository_root/distribution/release-metadata-public-key.pem"
@@ -42,6 +50,8 @@ done
 require_text "$handoff" 'byte-identical cached envelope'
 require_text "$handoff" 'Only `release-status.json` carries `expiresAt`'
 require_text "$handoff" 'Refresh release status'
+require_text "$handoff" '`keep3-release-metadata-production`'
+reject_text "$handoff" 'checked-in key is a development fixture'
 if grep -Fq -- 'Connect the protected U4 workflow' "$distribution_verification"; then
   fail 'readiness ledger incorrectly reports the protected publisher as unwired'
 fi

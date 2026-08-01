@@ -16,6 +16,7 @@ signature before publication. Generated appcasts belong under
 `.build/release/` or the protected release-channel staging area; they are not
 committed here.
 
-The app currently embeds Sparkle's documented fixture key. Production
-validation intentionally rejects that key. Provision and back up the permanent
-Sparkle EdDSA key before any public appcast is promoted.
+The app embeds Keep3's permanent Sparkle EdDSA public key. Its private key is
+kept outside the repository in the protected release environment, the
+maintainer Keychain, and encrypted recovery backups. Production validation
+continues to reject Sparkle's documented fixture key.
