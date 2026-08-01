@@ -82,15 +82,31 @@ final class SparkleUpdateController: ObservableObject {
 
   private func synchronizeFromChecker() {
     let wasAvailable = canCheckForUpdates
-    canCheckForUpdates = checker.canCheckForUpdates
-    automaticallyChecksForUpdates = checker.automaticallyChecksForUpdates
-    automaticallyDownloadsUpdates = checker.automaticallyDownloadsUpdates
-
-    if checker.canCheckForUpdates {
-      status = .ready
+    let nextCanCheckForUpdates = checker.canCheckForUpdates
+    let nextAutomaticallyChecks = checker.automaticallyChecksForUpdates
+    let nextAutomaticallyDownloads = checker.automaticallyDownloadsUpdates
+    let nextStatus: UpdateCheckStatus
+    if nextCanCheckForUpdates {
+      nextStatus = .ready
     } else if wasAvailable {
-      status = .checking
+      nextStatus = .checking
+    } else {
+      nextStatus = status
     }
+
+    guard
+      nextCanCheckForUpdates != canCheckForUpdates
+        || nextAutomaticallyChecks != automaticallyChecksForUpdates
+        || nextAutomaticallyDownloads != automaticallyDownloadsUpdates
+        || nextStatus != status
+    else {
+      return
+    }
+
+    canCheckForUpdates = nextCanCheckForUpdates
+    automaticallyChecksForUpdates = nextAutomaticallyChecks
+    automaticallyDownloadsUpdates = nextAutomaticallyDownloads
+    status = nextStatus
   }
 }
 

@@ -1,3 +1,4 @@
+import Combine
 import Sparkle
 import XCTest
 
@@ -87,6 +88,20 @@ final class SparkleUpdateControllerTests: XCTestCase {
     _ = SparkleUpdateController(checker: checker)
 
     XCTAssertFalse(checker.sendsSystemProfile)
+  }
+
+  func testUnchangedCheckerStateDoesNotRepublishControllerState() {
+    let checker = FakeUpdateChecker()
+    let controller = SparkleUpdateController(checker: checker)
+    var notificationCount = 0
+    let observation = controller.objectWillChange.sink {
+      notificationCount += 1
+    }
+
+    checker.reportStateChange()
+
+    XCTAssertEqual(notificationCount, 0)
+    withExtendedLifetime(observation) {}
   }
 
   func testSparkleVersionComparatorOnlyAdvancesToHigherBuilds() {
@@ -214,6 +229,10 @@ private final class FakeUpdateChecker: UpdateChecking {
 
   func completeCheck() {
     canCheckForUpdates = true
+    stateDidChange?()
+  }
+
+  func reportStateChange() {
     stateDidChange?()
   }
 }

@@ -414,35 +414,21 @@ publish_current() {
 
 run_probe() {
   require_current=${1-false}
+  set -- "$repository_root/scripts/release/probe-channels.sh" \
+    --mode "$mode" --tag "$tag" --version "$version" --build "$build" \
+    --sha256 "$actual_digest" --dmg-name "$(basename -- "$dmg")" \
+    --manifest "$manifest" --appcast "$appcast" --cask "$cask"
   if test "$mode" = fixture; then
-    if test "$require_current" = true; then
-      "$repository_root/scripts/release/probe-channels.sh" \
-        --mode fixture --tag "$tag" --version "$version" --build "$build" \
-        --sha256 "$actual_digest" --dmg-name "$(basename -- "$dmg")" \
-        --manifest "$manifest" --appcast "$appcast" --cask "$cask" \
-        --channel-root "$channel_root" --require-current >/dev/null
-    else
-      "$repository_root/scripts/release/probe-channels.sh" \
-        --mode fixture --tag "$tag" --version "$version" --build "$build" \
-        --sha256 "$actual_digest" --dmg-name "$(basename -- "$dmg")" \
-        --manifest "$manifest" --appcast "$appcast" --cask "$cask" \
-        --channel-root "$channel_root" >/dev/null
-    fi
-  elif test "$require_current" = true; then
-    "$repository_root/scripts/release/probe-channels.sh" \
-      --mode live --tag "$tag" --version "$version" --build "$build" \
-      --sha256 "$actual_digest" --dmg-name "$(basename -- "$dmg")" \
-      --manifest "$manifest" --appcast "$appcast" --cask "$cask" \
-      --repository "$repository" --canonical-origin "$canonical_origin" \
-      --tap-cask-url "$tap_cask_url" --require-current >/dev/null
+    set -- "$@" --channel-root "$channel_root"
   else
-    "$repository_root/scripts/release/probe-channels.sh" \
-      --mode live --tag "$tag" --version "$version" --build "$build" \
-      --sha256 "$actual_digest" --dmg-name "$(basename -- "$dmg")" \
-      --manifest "$manifest" --appcast "$appcast" --cask "$cask" \
+    set -- "$@" \
       --repository "$repository" --canonical-origin "$canonical_origin" \
-      --tap-cask-url "$tap_cask_url" >/dev/null
+      --tap-cask-url "$tap_cask_url"
   fi
+  if test "$require_current" = true; then
+    set -- "$@" --require-current
+  fi
+  "$@" >/dev/null
 }
 
 if test -f "$state_dir/steps/converged"; then
