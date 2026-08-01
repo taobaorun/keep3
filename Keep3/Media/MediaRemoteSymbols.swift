@@ -140,20 +140,16 @@ struct MediaRemoteRunningApplication: Equatable, Sendable {
 }
 
 enum MediaRemoteDormantPlayerPolicy {
-  static let supportedBundleIdentifiers: Set<String> = [
-    "com.apple.Music",
-    "com.spotify.client",
-    "com.netease.163music",
-  ]
   static let upgradeRetryDelays: [TimeInterval] = [0.35, 1.2, 2.5]
 
   static func select(
     from applications: [MediaRemoteRunningApplication],
+    discoveredBundleIdentifiers: Set<String>,
     frontmostBundleIdentifier: String?,
     previouslySelectedBundleIdentifier: String?
   ) -> MediaRemoteRunningApplication? {
     let eligible = applications.filter {
-      supportedBundleIdentifiers.contains($0.bundleIdentifier)
+      discoveredBundleIdentifiers.contains($0.bundleIdentifier)
     }
     for bundleIdentifier in [
       frontmostBundleIdentifier,
@@ -186,9 +182,9 @@ struct MediaRemoteAvailabilityRecoveryPolicy {
   private var retryAttempt = 0
 
   mutating func nextRetryDelay(
-    hasSupportedRunningApplication: Bool
+    hasDiscoveredPlayerRunning: Bool
   ) -> TimeInterval? {
-    guard hasSupportedRunningApplication else {
+    guard hasDiscoveredPlayerRunning else {
       reset()
       return nil
     }
@@ -207,15 +203,5 @@ struct MediaRemoteAvailabilityRecoveryPolicy {
 enum MediaRemoteClientCommandStatus {
   static func isAccepted(_ status: UInt8) -> Bool {
     status == 0
-  }
-}
-
-enum MediaRemoteApplicationLifecyclePolicy {
-  static func requiresRefresh(
-    isApplicationRunning: Bool,
-    hasAnySession: Bool,
-    hasMatchingSession: Bool
-  ) -> Bool {
-    isApplicationRunning ? !hasAnySession : hasMatchingSession
   }
 }

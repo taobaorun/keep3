@@ -58,6 +58,10 @@ protocol MediaRemoteServiceProtocol: AnyObject {
     frontmostBundleIdentifier: String?,
     reply: @escaping @Sendable (Bool) -> Void
   )
+  func updateWorkspaceContext(
+    runningApplications: NSArray,
+    frontmostBundleIdentifier: String?
+  )
   func stopMonitoring()
   func sendCommand(
     _ action: String,

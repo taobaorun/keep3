@@ -109,25 +109,7 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
       return report
     }
 
-    let workspaceContext: ([MediaRemoteRunningApplication], String?) = await MainActor.run {
-      let applications = NSWorkspace.shared.runningApplications.compactMap {
-        application -> MediaRemoteRunningApplication? in
-        guard !application.isTerminated,
-          let bundleIdentifier = application.bundleIdentifier
-        else {
-          return nil
-        }
-        return MediaRemoteRunningApplication(
-          processIdentifier: application.processIdentifier,
-          bundleIdentifier: bundleIdentifier,
-          applicationName: application.localizedName
-        )
-      }
-      return (
-        applications,
-        NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-      )
-    }
+    let workspaceContext = await Self.workspaceContext()
     let monitoringRequest = OneShotRequest<Bool>()
     service.startMonitoring(
       runningApplications:
@@ -150,6 +132,20 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
     }
     connectionRecoveryPolicy.didRecover()
     return report
+  }
+
+  func refreshWorkspaceContext() async {
+    let workspaceContext = await Self.workspaceContext()
+    guard let connection,
+      let service = remoteService(from: connection)
+    else {
+      return
+    }
+    service.updateWorkspaceContext(
+      runningApplications:
+        workspaceContext.0.map(\.propertyList) as NSArray,
+      frontmostBundleIdentifier: workspaceContext.1
+    )
   }
 
   func stop() async {
@@ -201,6 +197,29 @@ actor MediaRemoteAdapter: MediaSessionAdapter {
     connection.remoteObjectProxyWithErrorHandler { _ in
       onError()
     } as? MediaRemoteServiceProtocol
+  }
+
+  @MainActor
+  private static func workspaceContext()
+    -> ([MediaRemoteRunningApplication], String?)
+  {
+    let applications = NSWorkspace.shared.runningApplications.compactMap {
+      application -> MediaRemoteRunningApplication? in
+      guard !application.isTerminated,
+        let bundleIdentifier = application.bundleIdentifier
+      else {
+        return nil
+      }
+      return MediaRemoteRunningApplication(
+        processIdentifier: application.processIdentifier,
+        bundleIdentifier: bundleIdentifier,
+        applicationName: application.localizedName
+      )
+    }
+    return (
+      applications,
+      NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+    )
   }
 
   private func receive(
