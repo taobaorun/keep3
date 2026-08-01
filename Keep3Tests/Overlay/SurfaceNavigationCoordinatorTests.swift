@@ -230,7 +230,7 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
     XCTAssertEqual(coordinator.state.level, .compact)
   }
 
-  func testPointerExitDoesNotCollapseAnotherExpandedComponent() {
+  func testPointerExitReturnsExpandedPrioritiesToCompact() {
     let coordinator = SurfaceNavigationCoordinator()
     coordinator.setAvailability(true, for: .priorities)
     coordinator.select(.priorities)
@@ -239,7 +239,7 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
     coordinator.setHovering(false)
 
     XCTAssertEqual(coordinator.state.selectedComponent, .priorities)
-    XCTAssertEqual(coordinator.state.level, .expanded)
+    XCTAssertEqual(coordinator.state.level, .compact)
   }
 
   func testExpandedMediaNextComponentBehaviorRemainsUnchanged() {
