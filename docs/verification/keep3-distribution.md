@@ -1,7 +1,8 @@
 # Keep3 distribution readiness
 
 Date: 2026-08-01
-Implementation baseline: `feat/open-source-distribution` through `9914418`
+Implementation baseline: `feat/open-source-distribution`, revalidated after
+`origin/main` commit `f531674`
 Status: Native unsigned-distribution implementation present; public launch
 blocked by the pending gates below
 
@@ -29,8 +30,8 @@ does not authorize a return to unsigned artifacts.
 | Release contract | Implemented | Schemas and fixtures cover immutable manifest, signed current discovery, signed operational status, strict build order, artifact SHA-256, exact source, Sparkle signature, and Homebrew projection |
 | Release candidate | Implemented | One credential-free candidate is built and attested; promotion reuses the candidate digest rather than rebuilding tagged bytes |
 | Channel promotion | Implemented, production unproven | Protected promotion validates ancestry, attestations, monotonicity, credentials, and channel order; failure fixtures cover Promoting, Degraded, and Compromised states |
-| Website handoff | Implemented, external app pending | `docs/distribution/website-handoff.md` defines pinned verification, privacy, click, donation, copy, and trust-transition requirements without website code |
-| Tracked website audit | Pass | `scripts/tests/website-handoff-tests.sh` rejects any repository-index path under `website/`; it does not inspect or mutate a local user-owned directory |
+| Website handoff | Implemented, independent app pending | `docs/distribution/website-handoff.md` defines pinned verification, privacy, click, donation, copy, and trust-transition requirements; the base-owned website application remains outside this native-distribution change |
+| Website scope audit | Pass | The PR diff contains no path under `website/`; `scripts/tests/website-handoff-tests.sh` validates the handoff contract without coupling native release tests to website implementation files |
 
 ## Focused automated evidence
 
@@ -89,8 +90,9 @@ All rows are mandatory. “Pending” is intentionally release-blocking.
 ## Standalone website gate
 
 The website is a public-launch dependency but not a native build dependency.
-Its implementation, host, analytics provider, donation provider, domain, DNS,
-and deployment remain external to this repository. Click measurement is
+Its base-owned application is maintained independently from this distribution
+change; its host, analytics provider, donation provider, domain, DNS, and
+deployment remain launch-gated. Click measurement is
 best-effort and never gates the download. The first target is 100 unique primary
 download-link activations in the first 90 days, reported only as download
 interest—not installation, active use, or retention.
