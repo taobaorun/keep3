@@ -257,8 +257,9 @@ final class SurfaceModeCoordinator {
       return
     }
 
-    guard mediaSnapshot.playbackState == .playing
-      || mediaSnapshot.playbackState == .paused
+    guard
+      mediaSnapshot.playbackState == .playing
+        || mediaSnapshot.playbackState == .paused
     else {
       updateMedia(nil)
       return

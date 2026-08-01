@@ -156,11 +156,10 @@ final class SurfaceGestureRecognizerTests: XCTestCase {
   }
 
   func testKeyboardStyleVerticalGesturesCommitExactlyOnce() {
-    let scenarios:
-      [(deltaY: CGFloat, expected: SurfaceGestureIntent)] = [
-        (-30, .retreatDepth),
-        (30, .advanceDepth),
-      ]
+    let scenarios: [(deltaY: CGFloat, expected: SurfaceGestureIntent)] = [
+      (-30, .retreatDepth),
+      (30, .advanceDepth),
+    ]
 
     for (index, scenario) in scenarios.enumerated() {
       var recognizer = SurfaceGestureRecognizer()
