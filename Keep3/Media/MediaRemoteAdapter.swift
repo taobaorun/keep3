@@ -18,7 +18,7 @@ actor UnavailableMediaRemoteAdapter: MediaSessionAdapter {
 }
 
 actor MediaRemoteAdapter: MediaSessionAdapter {
-  static let serviceName = "dev.keep3.Keep3MediaService"
+  static let serviceName = "com.apple.controlcenter.Keep3MediaService"
   private static let requestTimeout: TimeInterval = 2
 
   private let onSnapshot: MediaAdapterSnapshotDelivery

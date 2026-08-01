@@ -80,7 +80,7 @@ done
 
 for continuity_rule in \
   'dev.keep3.Keep3' \
-  'dev.keep3.Keep3MediaService' \
+  'com.apple.controlcenter.Keep3MediaService' \
   '~/Library/Application Support/Keep3/state.json' \
   'UserDefaults' \
   'SUPublicEDKey' \
