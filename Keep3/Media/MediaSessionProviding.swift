@@ -48,3 +48,34 @@ struct MediaAdapterConnectionGeneration {
     active == candidate
   }
 }
+
+struct MediaAdapterConnectionRecoveryPolicy {
+  private static let retryDelays: [TimeInterval] = [0.5, 2, 5, 15, 30]
+  private(set) var isMonitoring = false
+  private var retryAttempt = 0
+
+  mutating func beginMonitoring() {
+    isMonitoring = true
+    retryAttempt = 0
+  }
+
+  mutating func endMonitoring() {
+    isMonitoring = false
+    retryAttempt = 0
+  }
+
+  mutating func didRecover() {
+    retryAttempt = 0
+  }
+
+  mutating func nextRetryDelay() -> TimeInterval? {
+    guard isMonitoring else {
+      return nil
+    }
+    let delay = Self.retryDelays[
+      min(retryAttempt, Self.retryDelays.count - 1)
+    ]
+    retryAttempt = min(retryAttempt + 1, Self.retryDelays.count - 1)
+    return delay
+  }
+}
