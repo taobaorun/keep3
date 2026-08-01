@@ -18,14 +18,12 @@ to prove that tampering fails verification. Its key material is Sparkle's
 publicly documented TestApplication fixture key. It is not a secret and must
 never be used for a Keep3 release.
 
-Until the maintainer provisions Keep3's permanent production EdDSA key,
-`KEEP3_SPARKLE_PUBLIC_ED_KEY` deliberately contains the matching upstream
-fixture public key:
+The integration test alone uses the matching upstream fixture public key:
 
 ```text
 eRFPLZuNM6m8bltmtpPX4fzKbufI1z6rKJHtgIIsllk=
 ```
 
-Release validation must reject this exact value. Public distribution remains
-blocked until the build setting is replaced with Keep3's protected production
-public key; no production private key belongs in this repository.
+Release validation must reject this exact value in a built Keep3 app. The
+production `KEEP3_SPARKLE_PUBLIC_ED_KEY` is a separate permanent public root;
+no production private key belongs in this repository.

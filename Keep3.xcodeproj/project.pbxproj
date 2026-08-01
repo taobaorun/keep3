@@ -1025,7 +1025,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Keep3/Resources/Info.plist;
-				KEEP3_SPARKLE_PUBLIC_ED_KEY = "eRFPLZuNM6m8bltmtpPX4fzKbufI1z6rKJHtgIIsllk=";
+				KEEP3_SPARKLE_PUBLIC_ED_KEY = "86W6DSPZqGKKrKTPSTfOylPp9F7N/e6UFN+g0htpdRA=";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -1051,7 +1051,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Keep3/Resources/Info.plist;
-				KEEP3_SPARKLE_PUBLIC_ED_KEY = "eRFPLZuNM6m8bltmtpPX4fzKbufI1z6rKJHtgIIsllk=";
+				KEEP3_SPARKLE_PUBLIC_ED_KEY = "86W6DSPZqGKKrKTPSTfOylPp9F7N/e6UFN+g0htpdRA=";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
