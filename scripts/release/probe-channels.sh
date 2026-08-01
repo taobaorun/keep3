@@ -121,7 +121,8 @@ cmp -s "$cask" "$remote_cask" \
   cask = File.read(cask_path)
   abort "cask version mismatch" unless cask.include?("version \"#{version}\"")
   abort "cask checksum mismatch" unless cask.include?("sha256 \"#{sha}\"")
-  abort "cask URL mismatch" unless cask.include?("url \"#{expected_url}\"")
+  expected_cask_url = %q{url "https://github.com/taobaorun/keep3/releases/download/v#{version}/Keep3-#{version}.dmg"}
+  abort "cask URL mismatch" unless cask.include?(expected_cask_url)
   abort "cask weakens quarantine" if cask.match?(/xattr|sha256\s+:no_check|version\s+:latest/)
 ' "$remote_manifest" "$remote_appcast" "$remote_cask" \
   "$tag" "$version" "$build" "$sha256" \
