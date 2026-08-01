@@ -15,7 +15,7 @@ final class ProjectSmokeTests: XCTestCase {
     let mediaAdapter = try source(at: "Keep3/Media/MediaRemoteAdapter.swift")
 
     XCTAssertGreaterThanOrEqual(
-      project.components(separatedBy: "MARKETING_VERSION = 0.1.0;").count - 1,
+      project.components(separatedBy: "MARKETING_VERSION = 1.0.0;").count - 1,
       4
     )
     XCTAssertGreaterThanOrEqual(
