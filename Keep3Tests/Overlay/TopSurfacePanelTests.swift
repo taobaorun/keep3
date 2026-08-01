@@ -113,6 +113,10 @@ final class TopSurfacePanelTests: XCTestCase {
 
     panel.setKeyboardNavigationEnabled(true, activateApplication: false)
     panel.makeKeyAndOrderFront(nil)
+    try XCTSkipUnless(
+      panel.isKeyWindow,
+      "WindowServer did not grant key-window ownership"
+    )
     XCTAssertTrue(panel.makeFirstResponder(panel.contentView))
 
     panel.sendEvent(keyDownEvent(keyCode: 123, windowNumber: panel.windowNumber))
@@ -137,6 +141,10 @@ final class TopSurfacePanelTests: XCTestCase {
 
     panel.setKeyboardNavigationEnabled(true, activateApplication: false)
     panel.makeKeyAndOrderFront(nil)
+    try XCTSkipUnless(
+      panel.isKeyWindow,
+      "WindowServer did not grant key-window ownership"
+    )
     XCTAssertTrue(panel.makeFirstResponder(panel.contentView))
 
     panel.sendEvent(keyDownEvent(keyCode: 126, windowNumber: panel.windowNumber))
@@ -196,6 +204,10 @@ final class TopSurfacePanelTests: XCTestCase {
     }
     panel.setKeyboardNavigationEnabled(true, activateApplication: false)
     panel.makeKeyAndOrderFront(nil)
+    try XCTSkipUnless(
+      panel.isKeyWindow,
+      "WindowServer did not grant key-window ownership"
+    )
     XCTAssertTrue(panel.makeFirstResponder(panel.contentView))
 
     for modifier: NSEvent.ModifierFlags in [
@@ -227,6 +239,10 @@ final class TopSurfacePanelTests: XCTestCase {
 
     panel.setKeyboardNavigationEnabled(true, activateApplication: false)
     panel.makeKeyAndOrderFront(nil)
+    try XCTSkipUnless(
+      panel.isKeyWindow,
+      "WindowServer did not grant key-window ownership"
+    )
     XCTAssertTrue(panel.makeFirstResponder(nil))
 
     panel.sendEvent(keyDownEvent(keyCode: 124, windowNumber: panel.windowNumber))
