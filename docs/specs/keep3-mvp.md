@@ -2,6 +2,8 @@
 
 Status: MVP implemented; event-surface product iteration in progress under
 [`docs/plans/2026-07-26-001-feat-event-surface-interactions-plan.md`](../plans/2026-07-26-001-feat-event-surface-interactions-plan.md)
+and public direct-distribution work tracked under
+[`docs/plans/2026-08-01-001-feat-open-source-distribution-donations-plan.md`](../plans/2026-08-01-001-feat-open-source-distribution-donations-plan.md)
 Source idea: [`docs/ideas/keep3.md`](../ideas/keep3.md)
 
 ## Objective
@@ -58,6 +60,23 @@ measures.
 - iPhone, iPad, Apple Watch, ActivityKit, or Live Activities.
 - Independent overlays per display or freely draggable overlay placement.
 
+### Distribution and Updates
+
+- Keep3 is free GPL-3.0-only software. Every user receives the complete app;
+  trials, license keys, subscriptions, paid feature gates, and donor-only
+  functionality are excluded.
+- Public releases use direct distribution through GitHub Releases and a
+  maintainer-owned Homebrew tap. Website implementation belongs to a separate
+  application and is not part of this repository.
+- `MARKETING_VERSION` is the canonical semantic version and
+  `CURRENT_PROJECT_VERSION` is its strictly increasing numeric build. App and
+  helper metadata derive from those settings.
+- The application identifier is `dev.keep3.Keep3`; the embedded helper is
+  `dev.keep3.Keep3MediaService`. Both remain stable across the future signing
+  transition.
+- Sparkle 2.9.4 is the only approved third-party runtime dependency. Manual
+  update checks are available; automatic checks require explicit opt-in.
+
 ## Functional Requirements
 
 ### FR-1: Priority Items
@@ -90,7 +109,9 @@ measures.
 6. If persisted content is unreadable, Keep3 preserves the unreadable file for
    recovery, starts with an empty state, and presents a non-destructive error in
    the main window.
-7. Keep3 performs no network requests.
+7. Keep3 sends no user content over the network. Its only approved network
+   access is version and release metadata plus update archives fetched by the
+   Sparkle updater; automatic checks are opt-in.
 
 ### FR-3: Main Window
 
@@ -503,7 +524,8 @@ Before MVP completion:
 
 - Update this spec before changing agreed behavior or scope.
 - Use documented Apple APIs.
-- Keep content local and avoid network capabilities.
+- Keep content local and limit networking to the approved Sparkle update feed
+  and archives.
 - Preserve the zero-to-three and exactly-one-current-focus invariants.
 - Honor system accessibility preferences.
 - Run format, lint, unit/UI tests, static analysis, and a runtime smoke test
@@ -512,11 +534,13 @@ Before MVP completion:
 
 ### Ask First
 
-- Add any third-party dependency.
+- Add any third-party dependency other than the approved, version-pinned
+  Sparkle updater.
 - Add an entitlement or request a system permission.
 - Change the minimum macOS version.
 - Change persistence schema or storage location after the first release.
-- Add networking, cloud sync, telemetry, or an account.
+- Add networking beyond the approved update channel, cloud sync, telemetry, or
+  an account.
 - Add multi-display instances or arbitrary overlay positioning.
 - Change the three-item limit or introduce progress semantics.
 - Modify CI, signing, notarization, or distribution configuration.
@@ -539,8 +563,9 @@ Checked criteria below have direct evidence or an explicitly approved physical
 verification exception in
 [`docs/verification/keep3-mvp.md`](../verification/keep3-mvp.md).
 
-- [x] **SC-01:** The app builds for macOS 14+ with the documented build command
-      and no third-party dependencies.
+- [x] **SC-01:** The app builds for macOS 14+ with the documented build command;
+      the only approved third-party runtime dependency is version-pinned
+      Sparkle.
 - [x] **SC-02:** The user can maintain zero to three valid items and can never
       persist more than three.
 - [x] **SC-03:** Exactly one item is the designated current focus whenever
@@ -563,8 +588,8 @@ verification exception in
 - [x] **SC-12:** All automated tests, formatting, linting, and static analysis
       pass.
 - [x] **SC-13:** Release-build idle CPU and memory meet FR-10.
-- [x] **SC-14:** The app performs no network request and requests none of the
-      prohibited permissions.
+- [x] **SC-14:** The app sends no user content or telemetry, limits networking
+      to update delivery, and requests none of the prohibited permissions.
 - [x] **SC-15:** The full Not Doing list remains absent from the shipped MVP.
 
 ## Definition of Done
@@ -585,9 +610,11 @@ Every implementation task is complete only when:
 
 None block technical planning.
 
-- The final bundle identifier and signing team are deferred until distribution.
-- Direct distribution versus the Mac App Store is deferred until after the
-  personal MVP, but the MVP remains compatible with public-API and sandbox
-  constraints.
+- The application identifier is `dev.keep3.Keep3`; its embedded media service
+  uses the project-owned `dev.keep3.Keep3MediaService` identifier. The signing
+  team remains deferred until Developer ID enrollment.
+- Keep3 uses free direct distribution rather than the Mac App Store. Unsigned
+  releases may precede Developer ID signing and notarization, while release
+  identity and version ordering remain stable across that transition.
 - Final typography, iconography, and color tokens will be chosen during the
   functional UI prototype without changing the behaviors in this spec.
