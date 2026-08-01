@@ -16,6 +16,7 @@ struct MediaSurfacePresentation: Equatable, Sendable {
   let applicationName: String?
   let artworkData: Data?
   let artworkTransitionIdentity: MediaArtworkTransitionIdentity
+  let level: SurfaceLevel
   let isPlaying: Bool
   let isExpanded: Bool
   let isTemporaryExpansion: Bool
@@ -53,6 +54,7 @@ struct MediaSurfacePresentation: Equatable, Sendable {
       contentRevision: payload.contentRevision,
       artworkRevision: payload.artworkRevision
     )
+    level = payload.level
     isPlaying = payload.playbackState == .playing
     isExpanded = payload.isExpanded
     isTemporaryExpansion = payload.isTemporaryExpansion
@@ -127,6 +129,10 @@ struct MediaSurfacePresentation: Equatable, Sendable {
       date.timeIntervalSince(progressSampleDate)
     )
     return min(progress + elapsedSinceSample, duration)
+  }
+
+  var shouldShowNotchedArtworkOverlay: Bool {
+    !isExpanded && (level != .hardware || trackPeek != nil)
   }
 
   func resolvedProgressFraction(at date: Date) -> Double? {
@@ -227,12 +233,15 @@ struct MediaSurfaceView: View {
         .accessibilityFocused($isCompactMediaAccessibilityFocused)
       }
     }
+    .frame(width: surfaceSize.width, height: surfaceSize.height)
+    .overlay(alignment: .topLeading) {
+      notchedArtworkOverlay(artwork: artwork.image)
+    }
     .animation(
       artworkAnimation,
       value: presentation.artworkTransitionIdentity
     )
     .foregroundStyle(.white)
-    .frame(width: surfaceSize.width, height: surfaceSize.height)
     .background { mediaBackground(artwork: artwork.image) }
     .clipShape(surfaceShape)
     .animation(
@@ -323,7 +332,6 @@ struct MediaSurfaceView: View {
     case .notchAttached(let notchSize):
       notchedCompactContent(
         notchSize: notchSize,
-        artwork: artwork,
         waveformAccent: waveformAccent
       )
     }
@@ -331,7 +339,6 @@ struct MediaSurfaceView: View {
 
   private func notchedCompactContent(
     notchSize: CGSize,
-    artwork: CGImage?,
     waveformAccent: MediaArtworkAccent
   ) -> some View {
     let layout = DirectionalMediaNotchLayout(
@@ -343,8 +350,12 @@ struct MediaSurfaceView: View {
     return ZStack(alignment: .topLeading) {
       Button(action: onActivateSurface) {
         HStack(spacing: 0) {
-          artworkView(artwork: artwork, size: 20, cornerRadius: 6)
-            .frame(width: layout.leftWingFrame.width)
+          Color.clear
+            .frame(
+              width: layout.leftWingFrame.width,
+              height: layout.leftWingFrame.height
+            )
+            .accessibilityHidden(true)
           Color.clear
             .frame(width: layout.obstructionFrame.width)
             .accessibilityHidden(true)
@@ -386,7 +397,6 @@ struct MediaSurfaceView: View {
       notchedTrackPeekContent(
         peek,
         notchSize: notchSize,
-        artwork: artwork,
         waveformAccent: waveformAccent
       )
     }
@@ -417,7 +427,6 @@ struct MediaSurfaceView: View {
   private func notchedTrackPeekContent(
     _ peek: MediaTrackPeek,
     notchSize: CGSize,
-    artwork: CGImage?,
     waveformAccent: MediaArtworkAccent
   ) -> some View {
     let layout = MediaNotchQuickPeekLayout(
@@ -427,11 +436,12 @@ struct MediaSurfaceView: View {
 
     return Button(action: onActivateSurface) {
       ZStack(alignment: .topLeading) {
-        artworkView(artwork: artwork, size: 20, cornerRadius: 6)
+        Color.clear
           .frame(
             width: layout.leftWingFrame.width,
             height: layout.leftWingFrame.height
           )
+          .accessibilityHidden(true)
           .clipped()
           .position(
             x: layout.leftWingFrame.midX,
@@ -462,6 +472,27 @@ struct MediaSurfaceView: View {
     }
     .buttonStyle(.plain)
     .accessibilityIdentifier("media.track-peek")
+  }
+
+  @ViewBuilder
+  private func notchedArtworkOverlay(artwork: CGImage?) -> some View {
+    if case .notchAttached(let notchSize) = presentationStyle,
+      presentation.shouldShowNotchedArtworkOverlay
+    {
+      let layout = DirectionalMediaNotchLayout(
+        surfaceSize: surfaceSize,
+        obstructionSize: notchSize,
+        baseWingWidth: SurfaceMetrics.mediaNotchedWingWidth,
+        extensionDirection: presentation.trackChangeDirection
+      )
+      let frame = layout.artworkFrame
+      artworkView(artwork: artwork, size: 20, cornerRadius: 6)
+        .frame(width: frame.width, height: frame.height)
+        .clipped()
+        .position(x: frame.midX, y: frame.midY)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
   }
 
   private func trackPeekMetadata(
@@ -1064,6 +1095,16 @@ struct DirectionalMediaNotchLayout: Equatable {
       y: 0,
       width: rightWingWidth,
       height: topRowHeight
+    )
+  }
+
+  var artworkFrame: CGRect {
+    let width = min(resolvedBaseWingWidth, leftWingFrame.width)
+    return CGRect(
+      x: obstructionFrame.minX - width,
+      y: leftWingFrame.minY,
+      width: width,
+      height: leftWingFrame.height
     )
   }
 

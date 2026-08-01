@@ -57,6 +57,13 @@ final class MediaSurfacePresentationTests: XCTestCase {
     XCTAssertEqual(next.leftWingFrame.width, 44)
     XCTAssertEqual(next.rightWingFrame.width, 115)
     XCTAssertEqual(previous.rightWingFrame.size, next.leftWingFrame.size)
+    XCTAssertEqual(previous.artworkFrame.width, 44)
+    XCTAssertEqual(next.artworkFrame.width, 44)
+    XCTAssertEqual(
+      previous.artworkFrame.maxX,
+      previous.obstructionFrame.minX
+    )
+    XCTAssertEqual(next.artworkFrame.maxX, next.obstructionFrame.minX)
   }
 
   func testNotchedQuickPeekKeepsSymmetricWingsAndPlacesMetadataBelowNotch() {
@@ -97,6 +104,41 @@ final class MediaSurfacePresentationTests: XCTestCase {
     XCTAssertTrue(path.contains(CGPoint(x: layout.metadataFrame.midX, y: 48)))
     XCTAssertFalse(path.contains(CGPoint(x: 1, y: 48)))
     XCTAssertFalse(path.contains(CGPoint(x: 272, y: 48)))
+  }
+
+  func testNotchedArtworkOverlayPersistsAcrossCompactAndQuickPeek() {
+    let compact = MediaSurfacePresentation(payload: payload())
+    let quickPeek = MediaSurfacePresentation(
+      payload: payload(
+        trackPeek: MediaTrackPeek(
+          direction: .next,
+          title: "Next Track",
+          artist: "Artist"
+        )
+      )
+    )
+    let expanded = MediaSurfacePresentation(
+      payload: payload(isExpanded: true)
+    )
+    let hardware = MediaSurfacePresentation(
+      payload: payload(level: .hardware)
+    )
+    let hardwareQuickPeek = MediaSurfacePresentation(
+      payload: payload(
+        level: .hardware,
+        trackPeek: MediaTrackPeek(
+          direction: .next,
+          title: "Next Track",
+          artist: "Artist"
+        )
+      )
+    )
+
+    XCTAssertTrue(compact.shouldShowNotchedArtworkOverlay)
+    XCTAssertTrue(quickPeek.shouldShowNotchedArtworkOverlay)
+    XCTAssertFalse(expanded.shouldShowNotchedArtworkOverlay)
+    XCTAssertFalse(hardware.shouldShowNotchedArtworkOverlay)
+    XCTAssertTrue(hardwareQuickPeek.shouldShowNotchedArtworkOverlay)
   }
 
   func testOmitsUnsupportedControlsWithoutLeavingPlaceholderActions() {
@@ -448,6 +490,7 @@ final class MediaSurfacePresentationTests: XCTestCase {
     contentRevision: UInt64 = 1,
     artworkRevision: UInt64? = nil,
     isExpanded: Bool = false,
+    level: SurfaceLevel? = nil,
     expansionReason: SurfaceExpansionReason = .none,
     duration: TimeInterval? = nil,
     progress: TimeInterval? = nil,
@@ -459,7 +502,8 @@ final class MediaSurfacePresentationTests: XCTestCase {
     showsMediaTitleExtras: Bool = false,
     title: String? = "Track",
     artworkData: Data? = nil,
-    playbackState: MediaPlaybackState = .playing
+    playbackState: MediaPlaybackState = .playing,
+    trackPeek: MediaTrackPeek? = nil
   ) -> MediaSurfacePayload {
     let session = MediaSession.normalize(
       .init(
@@ -483,6 +527,7 @@ final class MediaSurfacePresentationTests: XCTestCase {
       contentRevision: contentRevision,
       artworkRevision: artworkRevision,
       isExpanded: isExpanded,
+      level: level,
       areControlsEnabled: true,
       session: session,
       playbackState: playbackState,
@@ -495,7 +540,8 @@ final class MediaSurfacePresentationTests: XCTestCase {
         showsMediaTitleExtras: showsMediaTitleExtras,
         secondaryAction: secondaryAction,
         backgroundOpacity: 0.94
-      )
+      ),
+      trackPeek: trackPeek
     )
   }
 }
