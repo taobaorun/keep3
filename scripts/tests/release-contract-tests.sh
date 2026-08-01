@@ -323,6 +323,9 @@ grep -q 'depends_on macos: :sonoma' "$metadata_dir/keep3.rb" \
 if grep -q 'depends_on macos: "' "$metadata_dir/keep3.rb"; then
   fail "generated Homebrew cask must not use deprecated string comparison syntax"
 fi
+grep -Fq 'url "https://github.com/taobaorun/keep3/releases/download/v#{version}/Keep3-#{version}.dmg"' \
+  "$metadata_dir/keep3.rb" \
+  || fail "generated Homebrew cask must expose a version-interpolated URL"
 grep -q 'depends_on arch: :arm64' "$metadata_dir/keep3.rb" \
   || fail "generated Homebrew cask does not declare its arm64 artifact"
 
