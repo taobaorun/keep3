@@ -1,0 +1,93 @@
+name: Build release candidate
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: candidate-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Check out immutable tag
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Build unsigned application from the clean tag
+        run: |
+          scripts/release/build-app.sh \
+            --tag "${GITHUB_REF_NAME}" \
+            --output-dir .build/release/candidate \
+            --derived-data .build/release/DerivedData
+
+      - name: Package canonical candidate once
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          scripts/release/package-dmg.sh \
+            --app .build/release/candidate/Keep3.app \
+            --version "$version" \
+            --output-dir .build/release/candidate
+
+      - name: Record credential-free candidate provenance
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          dmg=".build/release/candidate/Keep3-$version.dmg"
+          digest=$(shasum -a 256 "$dmg" | awk '{print $1}')
+          size=$(stat -f '%z' "$dmg")
+          build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' \
+            .build/release/candidate/Keep3.app/Contents/Info.plist)
+          published_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          expires_at=$(date -u -v+30d +%Y-%m-%dT%H:%M:%SZ)
+          xcode_version=$(xcodebuild -version | tr '\n' ' ')
+          sdk_version=$(xcrun --sdk macosx --show-sdk-version)
+          macos_version=$(sw_vers -productVersion)
+          /usr/bin/ruby -rjson -e '
+            document = {
+              "repository" => ENV.fetch("GITHUB_REPOSITORY"),
+              "tag" => ENV.fetch("GITHUB_REF_NAME"),
+              "commit" => ENV.fetch("GITHUB_SHA"),
+              "build" => Integer(ARGV.fetch(0)),
+              "sequence" => Integer(ARGV.fetch(0)),
+              "sha256" => ARGV.fetch(1),
+              "size" => Integer(ARGV.fetch(2)),
+              "publishedAt" => ARGV.fetch(3),
+              "expiresAt" => ARGV.fetch(4),
+              "xcodeVersion" => ARGV.fetch(5),
+              "sdkVersion" => ARGV.fetch(6),
+              "macOSVersion" => ARGV.fetch(7)
+            }
+            File.write(ARGV.fetch(8), JSON.pretty_generate(document) + "\n")
+          ' "$build" "$digest" "$size" "$published_at" "$expires_at" \
+            "$xcode_version" "$sdk_version" "$macos_version" \
+            .build/release/candidate/attestation.json
+
+      - name: Attest canonical candidate inputs
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be
+        with:
+          subject-path: |
+            .build/release/candidate/Keep3-*.dmg
+            .build/release/candidate/attestation.json
+
+      - name: Upload immutable candidate bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: keep3-candidate-${{ github.ref_name }}
+          path: |
+            .build/release/candidate/Keep3-*.dmg
+            .build/release/candidate/Keep3-*.dmg.sha256
+            .build/release/candidate/attestation.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
