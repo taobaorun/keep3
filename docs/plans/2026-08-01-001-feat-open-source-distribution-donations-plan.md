@@ -246,7 +246,7 @@ Product Contract preservation note: this enrichment preserves R1–R19, A1–A4,
 - KTD5. **Launch Homebrew through a maintainer-owned tap.** The cask pins the immutable DMG and SHA-256, declares macOS 14+, and shows truthful unsigned guidance without automatically clearing quarantine. Central `homebrew/cask` submission is a later signed-distribution opportunity rather than a launch dependency. Implements R9, R11, R17.
 - KTD6. **Use one staged unsigned-release workflow with fail-closed pre-public gates and explicit recovery.** A tag-triggered job builds an unprivileged candidate without release secrets. A protected promotion job runs trusted default-branch tooling, proves the tag is reachable from the protected branch, verifies the candidate digest and attestation, then receives signing and channel credentials. Once promotion starts, it records Promoting or Degraded state and converges forward without pretending that a partial public write never happened. Implements R11, R17.
 - KTD7. **Publish complete corresponding source for every binary tag.** GPL-3.0 text, copyright, third-party notices, dependency locks, packaging scripts, and exact-tag source links are release inputs. Missing or incompatible material blocks publication. Implements R3–R5.
-- KTD8. **Preserve installed identity across the trust transition.** The app bundle identifier, persistence paths, defaults keys, Sparkle feed/key, and version ordering stay stable. The embedded helper moves to a project-owned identifier before the first public release, and the transition test detects TCC or launch-at-login reauthorization. Implements R12, R13, R18.
+- KTD8. **Preserve installed identity across the trust transition.** The app bundle identifier, persistence paths, defaults keys, Sparkle feed/key, and version ordering stay stable. The embedded MediaRemote helper retains its compatibility identifier because project-owned helper identity suppresses session discovery; the transition test revalidates that boundary plus TCC and launch-at-login behavior. Implements R12, R13, R18.
 - KTD9. **Defer Apple signing automation until the funding trigger.** The current execution preserves every identity and trust invariant needed by R18–R19, but Developer ID scripts, credentials, notarization, and live transition tests are a separate post-R17 implementation. The unsigned launch does not wait for work that cannot be exercised before enrollment. Implements the current-repository boundary for R17–R19.
 
 ### Assumptions
@@ -256,7 +256,7 @@ Product Contract preservation note: this enrichment preserves R1–R19, A1–A4,
 - Sparkle's production EdDSA key will be generated once, backed up offline, and injected through protected release secrets; repository tests use fixtures rather than the production private key.
 - Release operations can use a macOS GitHub runner, GitHub Pages, protected environments, and default-branch reachability checks; future Apple credentials are outside the current execution.
 - The existing generated `website/` material is not required to build, test, package, or release the native application.
-- The project-owned helper identifier can replace the current Apple-looking identifier without changing the private service protocol or user media behavior.
+- The helper identifier is part of the private MediaRemote compatibility boundary: replacing the Control Center-style identifier with a project-owned value leaves XPC healthy but causes MediaRemote to return no sessions.
 
 ### High-Level Technical Design
 
@@ -425,7 +425,7 @@ flowchart TB
 
 ### U1. Establish public-source, version, and identity foundations
 
-- **Goal:** Make every future binary traceable to GPL-3.0 source, a canonical marketing/build version, and project-owned bundle identities.
+- **Goal:** Make every future binary traceable to GPL-3.0 source, a canonical marketing/build version, and a project-owned public application identity while documenting the MediaRemote helper compatibility exception.
 - **Requirements:** R3–R5, R11, R13, R17; AE1, AE2; KTD2, KTD7, KTD8.
 - **Dependencies:** None.
 - **Files:**
@@ -444,7 +444,7 @@ flowchart TB
 - **Execution note:** Preserve current media behavior while changing only public distribution identity and metadata.
 - **Test scenarios:**
   1. A clean Release build reports the declared marketing version and numeric build version in the app bundle and embedded helper.
-  2. The app and helper use project-owned identifiers while the media bridge still connects through the unchanged protocol contract.
+  2. The app uses its project-owned identifier while the embedded media helper retains the verified compatibility identifier and unchanged protocol contract.
   3. Donor and non-donor builds have no license, trial, payment, entitlement, or feature-gate configuration.
   4. A release-source audit finds GPL-3.0 text, copyright, dependency notices, and the build metadata required to reproduce the tagged source.
   5. The `website/` tree remains byte-for-byte unchanged and absent from this branch's diff against `main`.
@@ -620,7 +620,7 @@ Developer ID and notarization automation are deliberately outside the active imp
 
 ### Global completion
 
-- The repository carries GPL-3.0 licensing, corresponding-source guidance, third-party notices, canonical versions, and project-owned public bundle identities.
+- The repository carries GPL-3.0 licensing, corresponding-source guidance, third-party notices, canonical versions, a project-owned public app identity, and a documented MediaRemote helper compatibility exception.
 - Keep3 exposes manual and opt-in automatic Sparkle updates through the existing application/settings architecture, with EdDSA verification and no content or usage telemetry.
 - One canonical built-once DMG, signed release metadata, appcast projection, and Homebrew projection agree on version, bytes, checksum, source, and trust state; retries reuse the candidate digest.
 - CI can validate ordinary changes, build a credential-free candidate, and run protected default-branch promotion without unpinned third-party actions, excessive permissions, untrusted-tag access to secrets, mutable tagged assets, or committed credentials.
@@ -631,7 +631,7 @@ Developer ID and notarization automation are deliberately outside the active imp
 
 ### Unit completion
 
-- U1 is done when legal/source materials, version metadata, project-owned identities, living spec changes, and project tests agree.
+- U1 is done when legal/source materials, version metadata, public app identity, the helper compatibility exception, living spec changes, and project tests agree.
 - U2 is done when updater UI, preference ownership, privacy defaults, failure handling, signature rejection, and fixture upgrade tests pass.
 - U3 is done when clean-tag packaging emits one canonical candidate, signed schema-valid immutable/current/status metadata, and channel projections with tamper, replay, expiry, and monotonicity tests.
 - U4 is done when candidate construction is credential-free, promotion runs trusted protected-branch code, the GitHub/tap/appcast/Pages path is resumable, every public partial-failure or compromised-key state is honest, the final current document moves only after convergence, and unsigned install checks pass.

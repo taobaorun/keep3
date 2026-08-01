@@ -25,7 +25,7 @@ does not authorize a return to unsigned artifacts.
 
 | Area | Status | Evidence |
 | --- | --- | --- |
-| Free source and identity | Implemented | GPL-3.0-only `LICENSE`, exact-tag guidance, third-party notices, `dev.keep3.Keep3`, project-owned helper, semantic marketing version, and numeric build |
+| Free source and identity | Implemented | GPL-3.0-only `LICENSE`, exact-tag guidance, third-party notices, project-owned app identity `dev.keep3.Keep3`, the documented MediaRemote helper compatibility identity, semantic marketing version, and numeric build |
 | Sparkle boundary | Implemented | Sparkle 2.9.4 is pinned; manual checks and opt-in automation use the canonical feed; system profiling is disabled; archive and signed-feed verification are enforced, with the production key still gated below |
 | Release contract | Implemented | Schemas and fixtures cover immutable manifest, signed current discovery, signed operational status, strict build order, artifact SHA-256, exact source, Sparkle signature, and Homebrew projection |
 | Release candidate | Implemented | One credential-free candidate is built and attested; promotion reuses the candidate digest rather than rebuilding tagged bytes |
@@ -101,7 +101,9 @@ interest—not installation, active use, or retention.
 
 The future signing work must preserve:
 
-- app `dev.keep3.Keep3` and helper/XPC `dev.keep3.Keep3MediaService`;
+- app `dev.keep3.Keep3`; the embedded MediaRemote helper/XPC retains
+  `com.apple.controlcenter.Keep3MediaService` as a private-API compatibility
+  requirement and must be revalidated rather than renamed during signing work;
 - `~/Library/Application Support/Keep3/state.json`, the standard `UserDefaults`
   domain `dev.keep3.Keep3`, and existing preference keys;
 - the Sparkle feed and permanent `SUPublicEDKey`;

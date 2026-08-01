@@ -163,7 +163,9 @@ credential or renewal failure freezes new releases instead.
 The signing transition and every website revision must preserve:
 
 - app bundle identifier `dev.keep3.Keep3`;
-- helper identifier and XPC service name `dev.keep3.Keep3MediaService`;
+- embedded MediaRemote helper identifier and XPC service name
+  `com.apple.controlcenter.Keep3MediaService`; this is a private-API
+  compatibility detail, not the website or public application identity;
 - local state path `~/Library/Application Support/Keep3/state.json`;
 - the standard `UserDefaults` application domain `dev.keep3.Keep3` and existing
   preference keys;

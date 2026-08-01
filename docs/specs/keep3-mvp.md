@@ -71,9 +71,11 @@ measures.
 - `MARKETING_VERSION` is the canonical semantic version and
   `CURRENT_PROJECT_VERSION` is its strictly increasing numeric build. App and
   helper metadata derive from those settings.
-- The application identifier is `dev.keep3.Keep3`; the embedded helper is
-  `dev.keep3.Keep3MediaService`. Both remain stable across the future signing
-  transition.
+- The application identifier is `dev.keep3.Keep3`. The embedded MediaRemote
+  helper retains the compatibility identifier
+  `com.apple.controlcenter.Keep3MediaService`; it is an internal private-API
+  boundary rather than the public application identity. Both identities must
+  be revalidated across the future signing transition.
 - Sparkle 2.9.4 is the only approved third-party runtime dependency. Manual
   update checks are available; automatic checks require explicit opt-in.
 
@@ -611,8 +613,9 @@ Every implementation task is complete only when:
 None block technical planning.
 
 - The application identifier is `dev.keep3.Keep3`; its embedded media service
-  uses the project-owned `dev.keep3.Keep3MediaService` identifier. The signing
-  team remains deferred until Developer ID enrollment.
+  retains `com.apple.controlcenter.Keep3MediaService` because MediaRemote
+  session discovery returns no clients under the project-owned helper
+  identifier. The signing team remains deferred until Developer ID enrollment.
 - Keep3 uses free direct distribution rather than the Mac App Store. Unsigned
   releases may precede Developer ID signing and notarization, while release
   identity and version ordering remain stable across that transition.

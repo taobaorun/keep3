@@ -20,9 +20,11 @@ turn a debug or ad-hoc media result into signed-release provider evidence.
 | Verified implementation commit | `0e74be0` |
 
 The verified implementation commit is a historical probe baseline. Public
-distribution preserves the current app identifier `dev.keep3.Keep3` and helper
-identifier/XPC service name `dev.keep3.Keep3MediaService`; final live checks
-must run against the exact candidate commit and embedded helper.
+distribution preserves the app identifier `dev.keep3.Keep3`. The embedded
+MediaRemote helper retains the compatibility identifier/XPC service name
+`com.apple.controlcenter.Keep3MediaService`; it is an internal private-API
+boundary rather than the public application identity. Final live checks must
+run against the exact candidate commit and embedded helper.
 
 ## Runtime symbol probe
 

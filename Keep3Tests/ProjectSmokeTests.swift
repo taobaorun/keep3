@@ -6,7 +6,9 @@ final class ProjectSmokeTests: XCTestCase {
     XCTAssertTrue(true)
   }
 
-  func testDistributionMetadataUsesCanonicalVersionsAndProjectOwnedIdentifiers() throws {
+  func testDistributionMetadataPreservesAppAndMediaCompatibilityIdentities()
+    throws
+  {
     let project = try source(at: "Keep3.xcodeproj/project.pbxproj")
     let appInfo = try source(at: "Keep3/Resources/Info.plist")
     let helperInfo = try source(at: "Keep3MediaService/Info.plist")
@@ -21,12 +23,16 @@ final class ProjectSmokeTests: XCTestCase {
       4
     )
     XCTAssertTrue(project.contains("PRODUCT_BUNDLE_IDENTIFIER = dev.keep3.Keep3;"))
-    XCTAssertTrue(
-      project.contains(
-        "PRODUCT_BUNDLE_IDENTIFIER = dev.keep3.Keep3MediaService;"
-      )
+    XCTAssertGreaterThanOrEqual(
+      project.components(
+        separatedBy:
+          "PRODUCT_BUNDLE_IDENTIFIER = com.apple.controlcenter.Keep3MediaService;"
+      ).count - 1,
+      2
     )
-    XCTAssertFalse(project.contains("com.apple.controlcenter.Keep3MediaService"))
+    XCTAssertFalse(
+      project.contains("PRODUCT_BUNDLE_IDENTIFIER = dev.keep3.Keep3MediaService;")
+    )
 
     for info in [appInfo, helperInfo] {
       XCTAssertTrue(info.contains("<string>$(MARKETING_VERSION)</string>"))
@@ -34,7 +40,7 @@ final class ProjectSmokeTests: XCTestCase {
     }
     XCTAssertTrue(
       mediaAdapter.contains(
-        "static let serviceName = \"dev.keep3.Keep3MediaService\""
+        "static let serviceName = \"com.apple.controlcenter.Keep3MediaService\""
       )
     )
   }
