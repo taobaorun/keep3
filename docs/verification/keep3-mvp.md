@@ -3,13 +3,16 @@
 Date: 2026-07-25
 Environment: MacBook Pro (Mac14,10), Apple M2 Pro, 32 GB RAM, macOS 15.7.7,
 Xcode 16.4, Swift 6, arm64
-Status: Implementation complete; distribution remains out of scope
+Status: Historical personal-MVP baseline; current distribution readiness is
+tracked separately
 
 > Historical baseline: this report predates Visual System 2.0 and the
 > user-approved personal-build MediaRemote exception. Its “no private
 > framework” findings apply to the original focus-only MVP. See
 > [`keep3-visual-media.md`](keep3-visual-media.md) for the current architecture
-> and verification.
+> and verification. Sparkle and direct-distribution work now supersede this
+> report's “no dependency” and “no network” release assertions; see
+> [`keep3-distribution.md`](keep3-distribution.md).
 
 ## Result
 
@@ -25,6 +28,9 @@ turn an unperformed physical check into a pass: the matrix below distinguishes
 direct evidence from approved exceptions.
 
 ## Automated gates
+
+These results describe the 2026-07-25 MVP baseline. They are not evidence that
+the current distribution branch has passed its final branch-wide gate.
 
 | Gate | Result | Evidence |
 |---|---|---|
@@ -62,7 +68,7 @@ expectations.
 
 | Criterion | Status | Evidence or exception |
 |---|---|---|
-| SC-01 | Pass | macOS 14 deployment target, Swift 6, Release build; no package or third-party dependency |
+| SC-01 | Historical pass | macOS 14 deployment target, Swift 6, and Release build passed before the approved Sparkle dependency; current dependency evidence is in `keep3-distribution.md` |
 | SC-02 | Pass | Domain and UI tests enforce zero to three items and reject a fourth without mutation |
 | SC-03 | Pass | Domain and UI tests enforce exactly one current focus whenever content exists |
 | SC-04 | Pass | Atomic versioned JSON round trip, live relaunch, and non-destructive corrupt-file recovery |
@@ -75,10 +81,10 @@ expectations.
 | SC-11 | Approved physical exception | Accessibility tree, explicit keyboard navigation, semantic colors/fonts, and Reduce Motion/Transparency resolution pass; VoiceOver and every system appearance toggle were not physically switched |
 | SC-12 | Pass | Format, lint, 83-test full suite, analysis, and Release build pass |
 | SC-13 | Approved session-state exception | Numerical Release measurements meet the limits; sampling occurred while the workstation was at the login window, so the exact unlocked visible-capsule state still needs one physical rerun before distribution |
-| SC-14 | Pass | No network socket, network/private framework, prohibited usage string, extra entitlement, telemetry, or third-party SDK |
+| SC-14 | Historical pass | The focus-only baseline had no network socket; the current app permits only Sparkle update traffic and still excludes content transfer, telemetry, and accounts |
 | SC-15 | Pass | Source and UI review find no completion, progress, history, dates, reminders, analytics, cloud, accounts, or general notch utilities |
 
-## Resource and privacy evidence
+## Historical resource and privacy evidence
 
 The Release resource test used
 `KEEP3_UI_TEST_STATE_PATH=/tmp/keep3-resource-gate-state-20260725.json` and an
@@ -190,9 +196,13 @@ remain accessible after the visual reflow.
 
 ## Distribution boundary
 
-This report approves the personal MVP implementation, not shipping. Before
-notarization, public distribution, or a merge policy decision, rerun the three
-physical exceptions on an unlocked session:
+This report approves the personal MVP implementation, not shipping. The active
+unsigned-release evidence, external website handoff, and explicit launch
+blockers are in [`keep3-distribution.md`](keep3-distribution.md). Its pending
+rows are authoritative for public release.
+
+The following historical physical exceptions remain part of the final native
+regression gate and must be rerun on an unlocked session:
 
 1. Make a non-notched external display primary and inspect compact/expanded
    placement.
