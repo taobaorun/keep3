@@ -141,7 +141,8 @@ test "$app_bundle_id" = "dev.keep3.Keep3" \
     fail!("appcast projection mismatch") unless appcast.include?(needle)
   end
   cask = File.read(cask_path)
-  ["version \"#{version}\"", "sha256 \"#{actual_sha}\"", "url \"#{expected_url}\""].each do |needle|
+  expected_cask_url = %q{url "https://github.com/taobaorun/keep3/releases/download/v#{version}/Keep3-#{version}.dmg"}
+  ["version \"#{version}\"", "sha256 \"#{actual_sha}\"", expected_cask_url].each do |needle|
     fail!("Homebrew projection mismatch") unless cask.include?(needle)
   end
   fail!("cask weakens quarantine") if cask.match?(/xattr|no_check|version\s+:latest/)
