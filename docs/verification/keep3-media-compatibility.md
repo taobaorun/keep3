@@ -5,6 +5,10 @@ compatibility boundary. It does not claim end-to-end player parity by itself.
 Player-specific session discovery, metadata, and commands remain gated by the
 integration matrix below.
 
+Release status: the pending provider rows remain public-launch blockers in
+[`keep3-distribution.md`](keep3-distribution.md). Distribution work does not
+turn a debug or ad-hoc media result into signed-release provider evidence.
+
 ## Verified host
 
 | Item | Value |
@@ -14,6 +18,11 @@ integration matrix below.
 | Xcode | 16.4 (16F6) |
 | SDK | macOS 15.5 |
 | Verified implementation commit | `0e74be0` |
+
+The verified implementation commit is a historical probe baseline. Public
+distribution preserves the current app identifier `dev.keep3.Keep3` and helper
+identifier/XPC service name `dev.keep3.Keep3MediaService`; final live checks
+must run against the exact candidate commit and embedded helper.
 
 ## Runtime symbol probe
 
@@ -128,6 +137,10 @@ capability, not that Keep3 should render an empty control.
 | Chrome media | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Not verified |
 
 ## Remaining release gates
+
+Every item in this section is still pending and release-blocking. Completion
+must be copied into `keep3-distribution.md` with the candidate version, build,
+commit, signing state, host, and player versions.
 
 - Prove stable normalized snapshots and increasing revisions from live
   MediaRemote callbacks.

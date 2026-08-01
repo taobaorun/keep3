@@ -36,6 +36,19 @@ Release artifacts, checksums, update metadata, and custom Homebrew tap details
 will be documented with each release. The initial direct-distribution builds
 may be unsigned until the documented Apple Developer funding gate is met.
 
+Repository readiness and remaining public-launch blockers are recorded in
+[docs/verification/keep3-distribution.md](docs/verification/keep3-distribution.md).
+The separately owned website application consumes the signed, read-only
+[docs/distribution/website-handoff.md](docs/distribution/website-handoff.md)
+contract. Website source, analytics, donations, hosting, and deployment are not
+part of this native repository.
+
+Unsigned releases use explicit macOS approval guidance and retain quarantine.
+After the donation-funded Developer ID transition begins, identity, persistence,
+Sparkle and metadata trust roots, and version ordering remain stable. Once a
+Developer ID-signed and notarized stable release is public, official channels
+do not return to unsigned artifacts.
+
 ## License
 
 Copyright © 2026 taobaorun.
