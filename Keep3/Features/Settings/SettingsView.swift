@@ -6,6 +6,7 @@ struct SettingsView: View {
   @ObservedObject var calendarPreferences: CalendarPreferences
   @ObservedObject var calendarCoordinator: CalendarSessionCoordinator
   @ObservedObject var launchAtLoginController: LaunchAtLoginController
+  @ObservedObject var updateController: SparkleUpdateController
   @State private var selection: SettingsCategory = .general
 
   var body: some View {
@@ -50,24 +51,28 @@ struct SettingsView: View {
   }
 
   private var generalSettings: some View {
-    GroupBox("启动") {
-      VStack(alignment: .leading, spacing: 8) {
-        Toggle(
-          "登录时启动 Keep3",
-          isOn: Binding(
-            get: { launchAtLoginController.isOn },
-            set: { launchAtLoginController.setEnabled($0) }
+    VStack(alignment: .leading, spacing: 20) {
+      GroupBox("启动") {
+        VStack(alignment: .leading, spacing: 8) {
+          Toggle(
+            "登录时启动 Keep3",
+            isOn: Binding(
+              get: { launchAtLoginController.isOn },
+              set: { launchAtLoginController.setEnabled($0) }
+            )
           )
-        )
-        .accessibilityIdentifier("settings.launchAtLogin")
+          .accessibilityIdentifier("settings.launchAtLogin")
 
-        if let message = launchAtLoginController.message {
-          Label(message, systemImage: "info.circle")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .accessibilityLabel("登录时启动提示：\(message)")
+          if let message = launchAtLoginController.message {
+            Label(message, systemImage: "info.circle")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .accessibilityLabel("登录时启动提示：\(message)")
+          }
         }
       }
+
+      UpdateSettingsView(updateController: updateController)
     }
   }
 

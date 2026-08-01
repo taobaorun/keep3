@@ -17,6 +17,7 @@ struct RootView: View {
   @ObservedObject var calendarPreferences: CalendarPreferences
   @ObservedObject var calendarCoordinator: CalendarSessionCoordinator
   @ObservedObject var launchAtLoginController: LaunchAtLoginController
+  @ObservedObject var updateController: SparkleUpdateController
   @ObservedObject var destinationState: MainWindowDestinationState
 
   var body: some View {
@@ -32,7 +33,8 @@ struct RootView: View {
         mediaPreferences: mediaPreferences,
         calendarPreferences: calendarPreferences,
         calendarCoordinator: calendarCoordinator,
-        launchAtLoginController: launchAtLoginController
+        launchAtLoginController: launchAtLoginController,
+        updateController: updateController
       )
       .tabItem {
         Image(systemName: "gearshape")
