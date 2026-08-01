@@ -348,6 +348,32 @@ signed_status="$metadata_dir/release-status.json"
   --private-key "$private_key" \
   --key-id keep3-release-metadata-test
 
+reused_manifest="$metadata_dir/manifest.reused.json"
+"$signer" reuse \
+  --existing "$signed_manifest" \
+  --input "$metadata_dir/manifest.unsigned.json" \
+  --output "$reused_manifest" \
+  --public-key "$public_key" \
+  --expected-key-id keep3-release-metadata-test
+cmp -s "$signed_manifest" "$reused_manifest" \
+  || fail "metadata retry did not preserve the existing signed bytes"
+
+mismatched_manifest="$metadata_dir/manifest.mismatched.unsigned.json"
+/usr/bin/ruby -rjson -e '
+  document = JSON.parse(File.read(ARGV.fetch(0)))
+  document.fetch("signed")["build"] += 1
+  File.write(ARGV.fetch(1), JSON.pretty_generate(document) + "\n")
+' "$metadata_dir/manifest.unsigned.json" "$mismatched_manifest"
+if "$signer" reuse \
+  --existing "$signed_manifest" \
+  --input "$mismatched_manifest" \
+  --output "$metadata_dir/manifest.invalid-reuse.json" \
+  --public-key "$public_key" \
+  --expected-key-id keep3-release-metadata-test >/dev/null 2>&1
+then
+  fail "metadata retry accepted a changed unsigned projection"
+fi
+
 stable_current_unsigned="$metadata_dir/stable-current.unsigned.json"
 stable_current="$metadata_dir/stable-current.json"
 /usr/bin/ruby -rjson -e '
