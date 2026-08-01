@@ -148,7 +148,8 @@ jobs:
           fetch_optional() {
             url=$1
             destination=$2
-            code=$(curl --silent --show-error --location \
+            code=$(curl --connect-timeout 10 --max-time 60 \
+              --silent --show-error --location \
               --output "$destination.download" --write-out '%{http_code}' "$url")
             case "$code" in
               200) mv "$destination.download" "$destination" ;;
@@ -277,7 +278,8 @@ jobs:
           fetch_optional() {
             url=$1
             destination=$2
-            code=$(curl --silent --show-error --location \
+            code=$(curl --connect-timeout 10 --max-time 60 \
+              --silent --show-error --location \
               --output "$destination.download" --write-out '%{http_code}' "$url")
             case "$code" in
               200) mv "$destination.download" "$destination" ;;

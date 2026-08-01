@@ -80,14 +80,18 @@ else
   remote_cask="$temporary_directory/keep3.rb"
   remote_current="$temporary_directory/current-release.json"
   test -n "$tap_cask_url" || fail "--tap-cask-url is required for live probes"
-  curl --fail --silent --show-error --location \
+  curl --connect-timeout 10 --max-time 60 \
+    --fail --silent --show-error --location \
     "$canonical_origin/releases/$tag/manifest.json" -o "$remote_manifest"
-  curl --fail --silent --show-error --location \
+  curl --connect-timeout 10 --max-time 60 \
+    --fail --silent --show-error --location \
     "$canonical_origin/appcast.xml" -o "$remote_appcast"
-  curl --fail --silent --show-error --location \
+  curl --connect-timeout 10 --max-time 60 \
+    --fail --silent --show-error --location \
     "$tap_cask_url" -o "$remote_cask"
   if $require_current; then
-    curl --fail --silent --show-error --location \
+    curl --connect-timeout 10 --max-time 60 \
+      --fail --silent --show-error --location \
       "$canonical_origin/current-release.json" -o "$remote_current"
   fi
 fi

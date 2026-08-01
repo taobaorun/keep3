@@ -409,8 +409,9 @@ publish_github() {
 
 publish_tap() {
   if test "$mode" = fixture; then
-    copy_immutable "$channel_root/tap/candidates/$tag/keep3.rb" \
-      "$channel_root/tap/Casks/keep3.rb"
+    destination="$channel_root/tap/Casks/keep3.rb"
+    mkdir -p "$(dirname -- "$destination")"
+    cp "$channel_root/tap/candidates/$tag/keep3.rb" "$destination"
   else
     if test ! -f "$state_dir/tap-already-current"; then
       test -f "$state_dir/tap-pr-number" \
@@ -459,7 +460,7 @@ publish_appcast() {
   if test "$mode" = fixture; then
     copy_immutable "$manifest" \
       "$channel_root/pages/release-channel/releases/$tag/manifest.json"
-    copy_immutable "$appcast" "$channel_root/pages/release-channel/appcast.xml"
+    cp "$appcast" "$channel_root/pages/release-channel/appcast.xml"
   else
     manifest_destination="$pages_worktree/release-channel/releases/$tag/manifest.json"
     appcast_destination="$pages_worktree/release-channel/appcast.xml"
