@@ -36,74 +36,81 @@ for release_script in publish-release-channel.sh probe-channels.sh; do
     || fail "$release_script has invalid shell syntax"
 done
 
-if rg -n --pcre2 'uses:\s*[^\s]+@(?![0-9a-f]{40}(?:\s|$))' \
-  "$workflows_dir" >/dev/null
-then
-  fail "every GitHub action must be pinned to a full commit SHA"
-fi
+/usr/bin/ruby -e '
+  Dir.glob(File.join(ARGV.fetch(0), "**", "*.{yml,yaml}")).each do |path|
+    File.foreach(path).with_index(1) do |line, number|
+      match = line.match(/^\s*uses:\s*(\S+)/)
+      next unless match
+      next if match[1].match?(/@[0-9a-f]{40}\z/)
+      warn "#{path}:#{number}: action is not pinned to a full commit SHA"
+      exit 1
+    end
+  end
+' "$workflows_dir" \
+  || fail "every GitHub action must be pinned to a full commit SHA"
 
 ci_workflow="$workflows_dir/ci.yml"
 candidate_workflow="$workflows_dir/release-candidate.yml"
 promotion_workflow="$workflows_dir/promote-release.yml"
 refresh_workflow="$workflows_dir/refresh-release-status.yml"
 
-rg -q '^permissions:$' "$ci_workflow" \
+grep -Eq '^permissions:$' "$ci_workflow" \
   || fail "CI must declare workflow permissions"
-rg -q '^  contents: read$' "$ci_workflow" \
+grep -Eq '^  contents: read$' "$ci_workflow" \
   || fail "CI must be contents-read-only"
-if rg -n 'secrets\.|gh release|git push|pages|homebrew' "$ci_workflow" >/dev/null; then
+if grep -En 'secrets\.|gh release|git push|pages|homebrew' "$ci_workflow" >/dev/null; then
   fail "ordinary CI contains a publication capability"
 fi
-rg -q 'website-handoff-tests.sh' "$ci_workflow" \
+grep -Eq 'website-handoff-tests.sh' "$ci_workflow" \
   || fail "ordinary CI skips the website handoff contract"
 
-rg -q 'tags:' "$candidate_workflow" \
+grep -Eq 'tags:' "$candidate_workflow" \
   || fail "candidate workflow is not tag-triggered"
-rg -q 'attest-build-provenance' "$candidate_workflow" \
+grep -Eq 'attest-build-provenance' "$candidate_workflow" \
   || fail "candidate workflow does not attest canonical bytes"
-rg -q 'attestation.json' "$candidate_workflow" \
+grep -Eq 'attestation.json' "$candidate_workflow" \
   || fail "candidate workflow does not attest its provenance receipt"
-rg -q 'upload-artifact' "$candidate_workflow" \
+grep -Eq 'upload-artifact' "$candidate_workflow" \
   || fail "candidate workflow does not preserve the candidate"
-if rg -n 'secrets\.|gh release|git push|release-production' \
+if grep -En 'secrets\.|gh release|git push|release-production' \
   "$candidate_workflow" >/dev/null
 then
   fail "tag candidate workflow can access publication capabilities"
 fi
-if rg -n 'sparkle-signature|KEEP3_.*PRIVATE|generate-channel-metadata' \
+if grep -En 'sparkle-signature|KEEP3_.*PRIVATE|generate-channel-metadata' \
   "$candidate_workflow" >/dev/null
 then
   fail "credential-free candidate workflow attempts to sign release metadata"
 fi
 
-rg -q 'schedule:' "$refresh_workflow" \
+grep -Eq 'schedule:' "$refresh_workflow" \
   || fail "release status freshness is not refreshed on a schedule"
-rg -q '^  group: promote-release-channel$' "$refresh_workflow" \
+grep -Eq '^  group: promote-release-channel$' "$refresh_workflow" \
   || fail "status refresh does not share the promotion lock"
-rg -q 'environment: release-production' "$refresh_workflow" \
+grep -Eq 'environment: release-production' "$refresh_workflow" \
   || fail "status refresh is not protected by the release environment"
-rg -q 'refresh-release-status.sh' "$refresh_workflow" \
+grep -Eq 'refresh-release-status.sh' "$refresh_workflow" \
   || fail "status refresh workflow does not use the trusted refresher"
-rg -Fq -- '-v+90d' "$refresh_workflow" \
+grep -Fq -- '-v+90d' "$refresh_workflow" \
   || fail "status refresh does not renew the 90-day freshness window"
 
-rg -q 'workflow_dispatch:' "$promotion_workflow" \
+grep -Eq 'workflow_dispatch:' "$promotion_workflow" \
   || fail "promotion must require explicit dispatch"
-rg -q '^  group: promote-release-channel$' "$promotion_workflow" \
+grep -Eq '^  group: promote-release-channel$' "$promotion_workflow" \
   || fail "all tags must share one release-channel promotion lock"
-rg -q '^  preflight:$' "$promotion_workflow" \
+grep -Eq '^  preflight:$' "$promotion_workflow" \
   || fail "promotion lacks a credential-free preflight job"
-rg -q '^  promote:$' "$promotion_workflow" \
+grep -Eq '^  promote:$' "$promotion_workflow" \
   || fail "promotion lacks a protected promotion job"
-rg -q 'needs: preflight' "$promotion_workflow" \
+grep -Eq 'needs: preflight' "$promotion_workflow" \
   || fail "protected promotion does not depend on preflight"
-rg -q 'environment: release-production' "$promotion_workflow" \
+grep -Eq 'environment: release-production' "$promotion_workflow" \
   || fail "promotion is not protected by the release environment"
-rg -q 'ref: main' "$promotion_workflow" \
+grep -Eq 'ref: main' "$promotion_workflow" \
   || fail "promotion does not run trusted main tooling"
-rg -q 'merge-base --is-ancestor' "$promotion_workflow" \
+grep -Eq 'merge-base --is-ancestor' "$promotion_workflow" \
   || fail "promotion does not prove tag reachability from main"
-rg -q 'gh attestation verify' "$promotion_workflow" \
+grep -Eq 'gh attestation verify' "$promotion_workflow" \
   || fail "promotion does not verify candidate provenance"
 for provenance_policy in \
   '--source-digest "$tag_commit"' \
@@ -112,28 +119,28 @@ for provenance_policy in \
   '--signer-digest "$tag_commit"' \
   '--deny-self-hosted-runners'
 do
-  rg -Fq -- "$provenance_policy" "$promotion_workflow" \
+  grep -Fq -- "$provenance_policy" "$promotion_workflow" \
     || fail "promotion does not bind attestation policy: $provenance_policy"
 done
-rg -q 'gh run view.*candidate_run_id' "$promotion_workflow" \
+grep -Eq 'gh run view.*candidate_run_id' "$promotion_workflow" \
   || fail "promotion does not verify the selected candidate workflow run"
-rg -q 'run_head_sha=' "$promotion_workflow" && rg -q 'headSha' "$promotion_workflow" \
+grep -Eq 'run_head_sha=' "$promotion_workflow" && grep -Eq 'headSha' "$promotion_workflow" \
   || fail "promotion does not read the selected run head SHA"
-rg -q 'test.*run_head_sha.*tag_commit' "$promotion_workflow" \
+grep -Eq 'test.*run_head_sha.*tag_commit' "$promotion_workflow" \
   || fail "promotion does not bind the selected run to the tag commit"
-rg -q 'strict-monotonic' "$promotion_workflow" \
+grep -Eq 'strict-monotonic' "$promotion_workflow" \
   || fail "promotion does not enforce strict build monotonicity"
-rg -q '90 \* 24 \* 60 \* 60' "$promotion_workflow" \
+grep -Eq '90 \* 24 \* 60 \* 60' "$promotion_workflow" \
   || fail "promotion reuses the 30-day candidate expiry as public freshness"
-rg -q 'hdiutil attach' "$promotion_workflow" \
+grep -Eq 'hdiutil attach' "$promotion_workflow" \
   || fail "promotion does not validate the app inside the attested DMG"
-rg -q 'appcast.xml.*>/dev/null' "$promotion_workflow" \
+grep -Eq 'appcast.xml.*>/dev/null' "$promotion_workflow" \
   || fail "promotion does not sign the required Sparkle feed"
-rg -q 'unexpected channel response' "$promotion_workflow" \
+grep -Eq 'unexpected channel response' "$promotion_workflow" \
   || fail "promotion does not fail closed on channel read errors"
-rg -Fq -- '--connect-timeout 10 --max-time 60' "$promotion_workflow" \
+grep -Fq -- '--connect-timeout 10 --max-time 60' "$promotion_workflow" \
   || fail "promotion channel reads have no bounded timeout"
-rg -Fq -- '--connect-timeout 10 --max-time 60' \
+grep -Fq -- '--connect-timeout 10 --max-time 60' \
   "$release_scripts_dir/probe-channels.sh" \
   || fail "live channel probes have no bounded timeout"
 for required_command in \
@@ -142,25 +149,25 @@ for required_command in \
   validate-release.sh \
   publish-release-channel.sh
 do
-  rg -q "$required_command" "$promotion_workflow" \
+  grep -Eq "$required_command" "$promotion_workflow" \
     || fail "protected promotion does not invoke $required_command"
 done
-rg -q '" gh-pages' "$release_scripts_dir/publish-release-channel.sh" \
+grep -Eq '" gh-pages' "$release_scripts_dir/publish-release-channel.sh" \
   || fail "release channel publication does not target the Pages branch"
-rg -q 'gh pr create' "$release_scripts_dir/publish-release-channel.sh" \
+grep -Eq 'gh pr create' "$release_scripts_dir/publish-release-channel.sh" \
   || fail "Homebrew promotion does not stage a candidate PR"
-rg -q 'gh pr merge' "$release_scripts_dir/publish-release-channel.sh" \
+grep -Eq 'gh pr merge' "$release_scripts_dir/publish-release-channel.sh" \
   || fail "Homebrew promotion does not merge the verified candidate PR"
-rg -q -- '--force-with-lease' "$release_scripts_dir/publish-release-channel.sh" \
+grep -Eq -- '--force-with-lease' "$release_scripts_dir/publish-release-channel.sh" \
   || fail "Homebrew candidate branch updates are not race-safe"
-rg -q -- '--match-head-commit' "$release_scripts_dir/publish-release-channel.sh" \
+grep -Eq -- '--match-head-commit' "$release_scripts_dir/publish-release-channel.sh" \
   || fail "Homebrew merge is not pinned to the verified PR head"
-rg -q 'headRefOid' "$release_scripts_dir/publish-release-channel.sh" \
+grep -Eq 'headRefOid' "$release_scripts_dir/publish-release-channel.sh" \
   || fail "Homebrew promotion does not inspect the remote PR head"
-rg -Fq 'paths == ["Casks/keep3.rb"]' \
+grep -Fq 'paths == ["Casks/keep3.rb"]' \
   "$release_scripts_dir/publish-release-channel.sh" \
   || fail "Homebrew promotion does not constrain the candidate file set"
-if rg -n 'publish-release-channel\.sh --help|release-runbook\.md >/dev/null' \
+if grep -En 'publish-release-channel\.sh --help|release-runbook\.md >/dev/null' \
   "$promotion_workflow" >/dev/null
 then
   fail "protected promotion still contains non-executable scaffolding"

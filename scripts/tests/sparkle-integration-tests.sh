@@ -79,7 +79,7 @@ then
   fail "Sparkle accepted a modified signed appcast"
 fi
 
-if rg -n 'feedParameters|httpHeaders|URLRequest|URLSession|analytics|donor' \
+if grep -ERn 'feedParameters|httpHeaders|URLRequest|URLSession|analytics|donor' \
   "$repository_root/Keep3/Updates" >/dev/null
 then
   fail "Keep3's update boundary adds non-release request payloads"
