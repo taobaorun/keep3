@@ -11,6 +11,8 @@ usage() {
 Usage:
   sign-release-metadata.sh generate-fixture-key --private-key PATH --public-key PATH
   sign-release-metadata.sh sign --input JSON --output JSON --private-key PATH|- --key-id ID
+  sign-release-metadata.sh reuse --existing JSON --input JSON --output JSON
+    --public-key PATH --expected-key-id ID
   sign-release-metadata.sh verify --input JSON --public-key PATH --expected-key-id ID
 
 Fixture-key generation is for local tests only. Production private keys must be
@@ -226,6 +228,48 @@ case "$mode" in
       File.write(ARGV.fetch(2), JSON.pretty_generate(document) + "\n")
     ' "$input" "$signature_file" "$output" "$key_id" \
       || fail "could not create signed metadata envelope"
+    ;;
+
+  reuse)
+    existing=''
+    input=''
+    output=''
+    public_key=''
+    expected_key_id=''
+    while test "$#" -gt 0; do
+      case "$1" in
+        --existing) existing=${2-}; shift 2 ;;
+        --input) input=${2-}; shift 2 ;;
+        --output) output=${2-}; shift 2 ;;
+        --public-key) public_key=${2-}; shift 2 ;;
+        --expected-key-id) expected_key_id=${2-}; shift 2 ;;
+        *) usage ;;
+      esac
+    done
+    test -f "$existing" || fail "--existing must name signed JSON"
+    test -f "$input" || fail "--input must name unsigned JSON"
+    test -n "$output" || fail "--output is required"
+    test -f "$public_key" || fail "--public-key must name an existing PEM file"
+    test -n "$expected_key_id" || fail "--expected-key-id is required"
+
+    "$0" verify \
+      --input "$existing" \
+      --public-key "$public_key" \
+      --expected-key-id "$expected_key_id"
+
+    temporary_directory=$(mktemp -d /tmp/keep3-metadata-reuse-XXXXXX)
+    trap 'rm -rf "$temporary_directory"' EXIT HUP INT TERM
+    existing_canonical="$temporary_directory/existing.json"
+    input_canonical="$temporary_directory/input.json"
+    canonicalize_without_signature "$existing" "$existing_canonical"
+    canonicalize_without_signature "$input" "$input_canonical"
+    cmp -s "$existing_canonical" "$input_canonical" \
+      || fail "existing signed metadata does not match the unsigned projection"
+    cp "$existing" "$output"
+    "$0" verify \
+      --input "$output" \
+      --public-key "$public_key" \
+      --expected-key-id "$expected_key_id"
     ;;
 
   verify)

@@ -358,8 +358,28 @@ jobs:
 
           sign_update=.build/promotion/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update
           test -x "$sign_update"
-          sparkle_signature=$("$sign_update" \
-            --ed-key-file .build/promotion/sparkle.key -p "$dmg")
+          signer=scripts/release/sign-release-metadata.sh
+          existing_manifest=''
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            existing_dir=.build/promotion/existing-release
+            mkdir -p "$existing_dir"
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" \
+              --pattern manifest.json --dir "$existing_dir"
+            existing_manifest="$existing_dir/manifest.json"
+            "$signer" verify \
+              --input "$existing_manifest" \
+              --public-key distribution/release-metadata-public-key.pem \
+              --expected-key-id keep3-release-metadata-production
+            sparkle_signature=$(/usr/bin/ruby -rjson -e '
+              puts JSON.parse(File.read(ARGV.fetch(0)))
+                .dig("signed", "artifact", "sparkleEdSignature")
+            ' "$existing_manifest")
+            "$sign_update" --ed-key-file .build/promotion/sparkle.key \
+              --verify "$dmg" "$sparkle_signature"
+          else
+            sparkle_signature=$("$sign_update" \
+              --ed-key-file .build/promotion/sparkle.key -p "$dmg")
+          fi
           receipt_values=$(/usr/bin/ruby -rjson -rtime -e '
             value = JSON.parse(File.read(ARGV.fetch(0)))
             published_at = value.fetch("publishedAt")
@@ -425,8 +445,21 @@ jobs:
           ' "$release/release-status.unsigned.json" "$release" "$previous" \
             '${{ needs.preflight.outputs.previous_status_sequence }}'
 
-          signer=scripts/release/sign-release-metadata.sh
-          for name in manifest current-release release-status; do
+          if test -n "$existing_manifest"; then
+            "$signer" reuse \
+              --existing "$existing_manifest" \
+              --input "$release/manifest.unsigned.json" \
+              --output "$release/manifest.json" \
+              --public-key distribution/release-metadata-public-key.pem \
+              --expected-key-id keep3-release-metadata-production
+          else
+            "$signer" sign \
+              --input "$release/manifest.unsigned.json" \
+              --output "$release/manifest.json" \
+              --private-key .build/promotion/metadata.pem \
+              --key-id keep3-release-metadata-production
+          fi
+          for name in current-release release-status; do
             "$signer" sign \
               --input "$release/$name.unsigned.json" \
               --output "$release/$name.json" \
@@ -466,6 +499,7 @@ jobs:
           "${validation[@]}"
           ruby -c "$release/keep3.rb"
         env:
+          GH_TOKEN: ${{ github.token }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.KEEP3_SPARKLE_PRIVATE_KEY }}
           METADATA_PRIVATE_KEY: ${{ secrets.KEEP3_RELEASE_METADATA_PRIVATE_KEY }}
 
