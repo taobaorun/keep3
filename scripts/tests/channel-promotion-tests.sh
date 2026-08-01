@@ -74,6 +74,8 @@ fi
 
 rg -q 'workflow_dispatch:' "$promotion_workflow" \
   || fail "promotion must require explicit dispatch"
+rg -q '^  group: promote-release-channel$' "$promotion_workflow" \
+  || fail "all tags must share one release-channel promotion lock"
 rg -q '^  preflight:$' "$promotion_workflow" \
   || fail "promotion lacks a credential-free preflight job"
 rg -q '^  promote:$' "$promotion_workflow" \
@@ -227,9 +229,13 @@ signer="$release_scripts_dir/sign-release-metadata.sh"
     )
   }
   %w[Promoting Degraded Converged].each do |state|
+    status_sequence = {
+      "Promoting" => 2, "Degraded" => 3, "Converged" => 4
+    }.fetch(state)
     status = {
       "schemaVersion" => 1,
       "signed" => common.merge(
+        "sequence" => status_sequence,
         "state" => state, "candidateManifestUrl" => manifest_url,
         "currentManifestUrl" => state == "Converged" ? manifest_url : nil,
         "message" => "fixture #{state}",
@@ -273,6 +279,17 @@ do
     --output "$candidate/$name.json" \
     --private-key "$private_key" --key-id "$key_id"
 done
+/usr/bin/ruby -rjson -e '
+  paths = ARGV
+  sequences = paths.map do |path|
+    JSON.parse(File.read(path)).fetch("signed").fetch("sequence")
+  end
+  abort "operational status sequences are not strictly increasing" unless
+    sequences.each_cons(2).all? { |left, right| left < right }
+' "$candidate/release-status-promoting.json" \
+  "$candidate/release-status-degraded.json" \
+  "$candidate/release-status-converged.json" \
+  || fail "operational status transitions reuse a replay sequence"
 for name in previous-current stale-current compromised; do
   "$signer" sign \
     --input "$candidate/$name.unsigned.json" \
@@ -369,6 +386,39 @@ test "$(/usr/bin/ruby -rjson -e \
   "$remote/pages/release-channel/release-status.json")" = Degraded \
   || fail "partial public failure was not recorded as Degraded"
 
+/usr/bin/ruby -rjson -e '
+  start = Integer(ARGV.shift)
+  ARGV.each_with_index do |path, index|
+    value = JSON.parse(File.read(path))
+    value.fetch("signed")["sequence"] = start + index
+    File.write(path, JSON.pretty_generate(value) + "\n")
+  end
+' 4 "$candidate/release-status-promoting.unsigned.json" \
+  "$candidate/release-status-degraded.unsigned.json" \
+  "$candidate/release-status-converged.unsigned.json"
+for state in promoting degraded converged; do
+  "$signer" sign \
+    --input "$candidate/release-status-$state.unsigned.json" \
+    --output "$candidate/release-status-$state.json" \
+    --private-key "$private_key" --key-id "$key_id"
+done
+
+atomic_remote="$test_directory/atomic-remote"
+atomic_state="$test_directory/atomic-state"
+expect_rejected "injected failure before atomic convergence" run_publisher \
+  "$candidate" "$atomic_remote" "$atomic_state" v1.0.0 \
+  "$test_directory/previous-current.json" '' --fail-after current
+test -f "$atomic_remote/github/releases/v1.0.0/stable" \
+  || fail "atomic convergence test did not reach public promotion"
+test -f "$atomic_remote/pages/release-channel/appcast.xml" \
+  || fail "atomic convergence test did not reach the active appcast"
+test ! -f "$atomic_remote/pages/release-channel/current-release.json" \
+  || fail "current moved without its Converged status"
+test "$(/usr/bin/ruby -rjson -e \
+  'puts JSON.parse(File.read(ARGV[0])).dig("signed", "state")' \
+  "$atomic_remote/pages/release-channel/release-status.json")" = Degraded \
+  || fail "atomic convergence failure was not recorded as Degraded"
+
 run_publisher "$candidate" "$remote" "$promotion_state" v1.0.0 \
   "$test_directory/previous-current.json" '' >/dev/null
 "$release_scripts_dir/probe-channels.sh" \
@@ -377,6 +427,14 @@ run_publisher "$candidate" "$remote" "$promotion_state" v1.0.0 \
   --manifest "$candidate/manifest.json" --appcast "$candidate/appcast.xml" \
   --cask "$candidate/keep3.rb" --channel-root "$remote" \
   --require-current >/dev/null
+
+fresh_retry_state="$test_directory/fresh-retry-state"
+run_publisher "$candidate" "$remote" "$fresh_retry_state" v1.0.0 \
+  "$remote/pages/release-channel/current-release.json" \
+  "$remote/pages/release-channel/release-status.json" >/dev/null \
+  || fail "a converged candidate could not resume on a fresh runner"
+test ! -e "$fresh_retry_state/events.log" \
+  || fail "an already-converged retry repeated publication events"
 
 /usr/bin/ruby -e '
   events = File.readlines(ARGV.fetch(0), chomp: true)

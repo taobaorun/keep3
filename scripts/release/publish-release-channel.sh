@@ -14,7 +14,7 @@ Usage: publish-release-channel.sh --mode fixture|live --repository-root DIR
   --metadata-public-key PEM --metadata-key-id ID --state-dir DIR
   [--previous-current JSON] [--operational-status JSON]
   [--channel-root DIR] [--pages-worktree DIR] [--tap-worktree DIR]
-  [--tap-cask-url URL] [--fail-after github|tap|appcast|probe]
+  [--tap-cask-url URL] [--fail-after github|tap|appcast|probe|current]
   [--preflight-only]
 
 The candidate directory must contain one Keep3-X.Y.Z.dmg and its .sha256
@@ -68,7 +68,7 @@ test -f "$attestation" || fail "candidate attestation is missing"
 test -f "$metadata_public_key" || fail "metadata public key is missing"
 test -n "$metadata_key_id" || fail "metadata key identifier is required"
 test -n "$state_dir" || fail "state directory is required"
-case "$fail_after" in ''|github|tap|appcast|probe) ;; *) usage ;; esac
+case "$fail_after" in ''|github|tap|appcast|probe|current) ;; *) usage ;; esac
 if test "$mode" = fixture; then
   test -n "$channel_root" || fail "fixture mode requires --channel-root"
 else
@@ -162,19 +162,38 @@ metadata_values=$(/usr/bin/ruby -rjson -e '
   current_release = JSON.parse(File.read(current)).fetch("signed")
   abort "current moved before convergence" unless current_release["state"] == "Converged"
   abort "current candidate mismatch" unless current_release["tag"] == expected_tag && current_release["build"] == build
+  already_current = false
+  status_sequences = []
   {
     promoting => "Promoting", degraded => "Degraded", converged => "Converged"
   }.each do |path, state|
     status = JSON.parse(File.read(path)).fetch("signed")
     abort "status state mismatch" unless status["state"] == state
     abort "status candidate mismatch" unless status["tag"] == expected_tag && status["build"] == build
+    status_sequence = status.fetch("sequence")
+    abort "status sequence must be positive" unless
+      status_sequence.is_a?(Integer) && status_sequence.positive?
+    status_sequences << status_sequence
   end
+  abort "status sequences are not strict-monotonic" unless
+    status_sequences.each_cons(2).all? { |left, right| left < right }
   unless previous.empty?
     old = JSON.parse(File.read(previous)).fetch("signed")
-    abort "candidate build is not strict-monotonic" unless build > old.fetch("build")
-    abort "candidate sequence is not strict-monotonic" unless sequence > old.fetch("sequence")
+    if build > old.fetch("build")
+      abort "candidate sequence is not strict-monotonic" unless sequence > old.fetch("sequence")
+    elsif build == old.fetch("build")
+      expected_manifest = release.dig("channels", "manifestUrl")
+      expected_artifact = artifact.fetch("url")
+      abort "equal build identifies a different release" unless
+        old["state"] == "Converged" && old["tag"] == expected_tag &&
+          old["version"] == version && old["manifestUrl"] == expected_manifest &&
+          old["artifactUrl"] == expected_artifact
+      already_current = true
+    else
+      abort "candidate build is not strict-monotonic"
+    end
   end
-  puts version, build, sequence
+  puts version, build, sequence, status_sequences.fetch(0), already_current
 ' "$manifest" "$current" "$promoting_status" "$degraded_status" \
   "$converged_status" "$attestation" "$tag" "$tag_commit" \
   "$actual_digest" "$previous_current") \
@@ -182,8 +201,19 @@ metadata_values=$(/usr/bin/ruby -rjson -e '
 version=$(printf '%s\n' "$metadata_values" | sed -n '1p')
 build=$(printf '%s\n' "$metadata_values" | sed -n '2p')
 sequence=$(printf '%s\n' "$metadata_values" | sed -n '3p')
+promoting_status_sequence=$(printf '%s\n' "$metadata_values" | sed -n '4p')
+already_current=$(printf '%s\n' "$metadata_values" | sed -n '5p')
 test "$(basename -- "$dmg")" = "Keep3-$version.dmg" \
   || fail "candidate filename and version disagree"
+
+journal_converged=false
+if test -f "$state_dir/steps/converged"; then
+  test -f "$state_dir/candidate.sha256" \
+    || fail "converged promotion journal is missing its candidate digest"
+  test "$(tr -d '[:space:]' < "$state_dir/candidate.sha256")" = "$actual_digest" \
+    || fail "converged promotion journal belongs to different candidate bytes"
+  journal_converged=true
+fi
 
 if test -z "$operational_status"; then
   if test "$mode" = fixture; then
@@ -198,11 +228,21 @@ if test -n "$operational_status" && test -f "$operational_status"; then
     --public-key "$metadata_public_key" \
     --expected-key-id "$metadata_key_id" >/dev/null \
     || fail "operational status signature is invalid"
-  operational_state=$(/usr/bin/ruby -rjson -e '
-    puts JSON.parse(File.read(ARGV.fetch(0))).fetch("signed").fetch("state")
+  operational_values=$(/usr/bin/ruby -rjson -rtime -e '
+    signed = JSON.parse(File.read(ARGV.fetch(0))).fetch("signed")
+    abort "unexpected status repository" unless signed["repository"] == "taobaorun/keep3"
+    abort "unexpected status origin" unless signed["canonicalOrigin"] == "https://taobaorun.github.io"
+    abort "operational status expired" unless Time.now.utc < Time.iso8601(signed.fetch("expiresAt"))
+    puts signed.fetch("state"), signed.fetch("sequence")
   ' "$operational_status")
+  operational_state=$(printf '%s\n' "$operational_values" | sed -n '1p')
+  operational_sequence=$(printf '%s\n' "$operational_values" | sed -n '2p')
   test "$operational_state" != 'Compromised' \
     || fail "Compromised state freezes every publication channel"
+  if test "$already_current" != true && test "$journal_converged" != true; then
+    test "$promoting_status_sequence" -gt "$operational_sequence" \
+      || fail "operational status sequence is not strict-monotonic"
+  fi
 fi
 
 if $preflight_only; then
@@ -432,18 +472,24 @@ publish_appcast() {
   record_step appcast
 }
 
-publish_current() {
+publish_convergence() {
+  test "$fail_after" != current \
+    || fail "injected failure before atomic convergence publication"
   if test "$mode" = fixture; then
-    destination="$channel_root/pages/release-channel/current-release.json"
-    mkdir -p "$(dirname -- "$destination")"
-    cp "$current" "$destination"
+    release_channel="$channel_root/pages/release-channel"
+    mkdir -p "$release_channel"
+    cp "$current" "$release_channel/current-release.json"
+    cp "$converged_status" "$release_channel/release-status.json"
   else
-    destination="$pages_worktree/release-channel/current-release.json"
-    cp "$current" "$destination"
-    git_publish_path "$pages_worktree" release-channel/current-release.json \
-      "Move Keep3 current release to $version" gh-pages
+    release_channel="$pages_worktree/release-channel"
+    mkdir -p "$release_channel"
+    cp "$current" "$release_channel/current-release.json"
+    cp "$converged_status" "$release_channel/release-status.json"
+    git_publish_path "$pages_worktree" release-channel \
+      "Converge Keep3 $version release discovery" gh-pages
   fi
   record_step current
+  printf 'status:Converged\n' >> "$event_log"
 }
 
 run_probe() {
@@ -465,6 +511,13 @@ run_probe() {
   "$@" >/dev/null
 }
 
+if test "$already_current" = true; then
+  run_probe true
+  printf 'publish-release-channel: already converged %s build %s\n' \
+    "$version" "$build"
+  exit 0
+fi
+
 if test -f "$state_dir/steps/converged"; then
   run_probe true
   printf 'publish-release-channel: already converged %s build %s\n' \
@@ -474,11 +527,31 @@ fi
 
 public_started=false
 completed=false
+recover_public_failure() {
+  if test "$mode" = fixture; then
+    publish_status "$degraded_status" Degraded >/dev/null 2>&1 || :
+    return
+  fi
+
+  git -C "$pages_worktree" fetch origin gh-pages >/dev/null 2>&1 || return
+  git -C "$pages_worktree" reset --hard origin/gh-pages >/dev/null 2>&1 || return
+  remote_current="$pages_worktree/release-channel/current-release.json"
+  remote_status="$pages_worktree/release-channel/release-status.json"
+  if test -f "$remote_current" && test -f "$remote_status" \
+    && cmp -s "$current" "$remote_current" \
+    && cmp -s "$converged_status" "$remote_status"
+  then
+    completed=true
+    return
+  fi
+  publish_status "$degraded_status" Degraded >/dev/null 2>&1 || :
+}
+
 on_exit() {
   result=$?
   trap - EXIT
   if test "$result" -ne 0 && $public_started && ! $completed; then
-    publish_status "$degraded_status" Degraded >/dev/null 2>&1 || :
+    recover_public_failure
   fi
   exit "$result"
 }
@@ -488,8 +561,8 @@ stage_draft
 stage_tap_candidate
 record_step draft
 if test -f "$state_dir/steps/github"; then public_started=true; fi
-publish_github
 public_started=true
+publish_github
 publish_status "$promoting_status" Promoting
 test "$fail_after" != github || fail "injected failure after GitHub publication"
 
@@ -503,8 +576,7 @@ run_probe false
 record_step probe
 test "$fail_after" != probe || fail "injected failure after convergence probe"
 
-publish_current
-publish_status "$converged_status" Converged
+publish_convergence
 record_step converged
 completed=true
 
