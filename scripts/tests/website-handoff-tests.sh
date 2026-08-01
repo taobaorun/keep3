@@ -40,6 +40,8 @@ do
 done
 
 require_text "$handoff" 'byte-identical cached envelope'
+require_text "$handoff" 'Only `release-status.json` carries `expiresAt`'
+require_text "$handoff" 'Refresh release status'
 if grep -Fq -- 'Connect the protected U4 workflow' "$distribution_verification"; then
   fail 'readiness ledger incorrectly reports the protected publisher as unwired'
 fi

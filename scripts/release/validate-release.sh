@@ -112,10 +112,8 @@ test "$app_bundle_id" = "dev.keep3.Keep3" \
   fail!("unknown trust state") unless %w[unsigned developer-id].include?(signed["trustState"])
   now = Time.iso8601(now_value)
   published = Time.iso8601(signed.fetch("publishedAt"))
-  expires = Time.iso8601(signed.fetch("expiresAt"))
-  fail!("invalid metadata lifetime") unless published < expires
   fail!("metadata publication is in the future") unless published <= now
-  fail!("metadata expired") unless now < expires
+  fail!("immutable manifest must not expire") if signed.key?("expiresAt")
   artifact = signed.fetch("artifact")
   expected_name = "Keep3-#{version}.dmg"
   expected_url = "https://github.com/taobaorun/keep3/releases/download/#{tag}/#{expected_name}"
@@ -161,9 +159,8 @@ test "$app_bundle_id" = "dev.keep3.Keep3" \
     fail!("current tag/version mismatch") unless current_tag == "v#{current_version}"
     fail!("unknown current trust state") unless %w[unsigned developer-id].include?(current["trustState"])
     current_published = Time.iso8601(current.fetch("publishedAt"))
-    current_expires = Time.iso8601(current.fetch("expiresAt"))
-    fail!("invalid current lifetime") unless current_published < current_expires && current_published <= now
-    fail!("current document is expired") unless now < current_expires
+    fail!("current publication is in the future") unless current_published <= now
+    fail!("current discovery must not expire") if current.key?("expiresAt")
     current_manifest_url = "https://taobaorun.github.io/keep3/release-channel/releases/#{current_tag}/manifest.json"
     current_artifact_url = "https://github.com/taobaorun/keep3/releases/download/#{current_tag}/Keep3-#{current_version}.dmg"
     fail!("unexpected current manifest URL") unless current["manifestUrl"] == current_manifest_url

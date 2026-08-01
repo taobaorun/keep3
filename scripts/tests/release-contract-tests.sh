@@ -40,6 +40,7 @@ for release_script in \
   build-app.sh \
   package-dmg.sh \
   generate-channel-metadata.sh \
+  refresh-release-status.sh \
   sign-release-metadata.sh \
   render-homebrew-cask.sh \
   validate-release.sh
@@ -287,12 +288,26 @@ metadata_dir="$test_directory/metadata"
   --commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
   --sparkle-signature "$sparkle_signature" \
   --published-at 2030-01-01T00:00:00Z \
-  --expires-at 2030-02-01T00:00:00Z \
+  --expires-at 2030-04-01T00:00:00Z \
   --key-id keep3-release-metadata-test \
   --output-dir "$metadata_dir" \
   --xcode-version 16.4 \
   --sdk-version macosx15.5 \
   --macos-version 15.7.7 >/dev/null
+
+/usr/bin/ruby -rjson -rtime -e '
+  manifest, current, status = ARGV.map do |path|
+    JSON.parse(File.read(path)).fetch("signed")
+  end
+  abort "immutable manifest inherited candidate expiry" if manifest.key?("expiresAt")
+  abort "stable current inherited candidate expiry" if current.key?("expiresAt")
+  abort "operational status has no freshness boundary" unless status.key?("expiresAt")
+  abort "operational status lifetime is not 90 days" unless
+    Time.iso8601(status.fetch("expiresAt")) - Time.iso8601(status.fetch("publishedAt")) == 90 * 24 * 60 * 60
+' "$metadata_dir/manifest.unsigned.json" \
+  "$metadata_dir/current-release.unsigned.json" \
+  "$metadata_dir/release-status.unsigned.json" \
+  || fail "candidate retention leaked into stable release metadata"
 "$sparkle_sign_update" --ed-key-file "$sparkle_private_key" \
   "$metadata_dir/appcast.xml" >/dev/null
 
@@ -309,10 +324,16 @@ grep -q 'depends_on arch: :arm64' "$metadata_dir/keep3.rb" \
   || fail "generated Homebrew cask does not declare its arm64 artifact"
 
 signed_manifest="$metadata_dir/manifest.json"
+signed_current="$metadata_dir/current-release.json"
 signed_status="$metadata_dir/release-status.json"
 "$signer" sign \
   --input "$metadata_dir/manifest.unsigned.json" \
   --output "$signed_manifest" \
+  --private-key "$private_key" \
+  --key-id keep3-release-metadata-test
+"$signer" sign \
+  --input "$metadata_dir/current-release.unsigned.json" \
+  --output "$signed_current" \
   --private-key "$private_key" \
   --key-id keep3-release-metadata-test
 "$signer" sign \
@@ -409,6 +430,59 @@ resign_variant() {
     --key-id keep3-release-metadata-test
 }
 
+converged_status="$metadata_dir/converged-status.json"
+resign_variant "$metadata_dir/release-status.unsigned.json" "$converged_status" '
+  document = JSON.parse(File.read(ARGV.fetch(0)))
+  signed = document.fetch("signed")
+  signed["state"] = "Converged"
+  signed["currentManifestUrl"] = signed.fetch("candidateManifestUrl")
+  signed["message"] = "All release channels agree."
+  File.write(ARGV.fetch(1), JSON.pretty_generate(document) + "\n")
+'
+refreshed_status="$metadata_dir/refreshed-status.json"
+"$release_scripts_dir/refresh-release-status.sh" \
+  --current "$signed_current" \
+  --status "$converged_status" \
+  --public-key "$public_key" \
+  --expected-key-id keep3-release-metadata-test \
+  --private-key "$private_key" \
+  --published-at 2030-02-01T00:00:00Z \
+  --expires-at 2030-05-02T00:00:00Z \
+  --output "$refreshed_status" >/dev/null
+"$signer" verify --input "$refreshed_status" --public-key "$public_key" \
+  --expected-key-id keep3-release-metadata-test >/dev/null \
+  || fail "refreshed operational status has an invalid signature"
+/usr/bin/ruby -rjson -e '
+  previous, refreshed = ARGV.map { |path| JSON.parse(File.read(path)).fetch("signed") }
+  abort "status refresh did not advance its sequence" unless
+    refreshed["sequence"] == previous.fetch("sequence") + 1
+  abort "status refresh changed the release identity" unless
+    %w[version build tag trustState candidateManifestUrl currentManifestUrl].all? do |field|
+      refreshed[field] == previous[field]
+    end
+  abort "status refresh has unexpected timestamps" unless
+    refreshed["publishedAt"] == "2030-02-01T00:00:00Z" &&
+      refreshed["expiresAt"] == "2030-05-02T00:00:00Z"
+' "$converged_status" "$refreshed_status" \
+  || fail "release status refresh changed stable discovery"
+
+refresh_compromised="$metadata_dir/refresh-compromised.json"
+resign_variant "$metadata_dir/release-status.unsigned.json" "$refresh_compromised" '
+  document = JSON.parse(File.read(ARGV.fetch(0)))
+  document.fetch("signed")["state"] = "Compromised"
+  File.write(ARGV.fetch(1), JSON.pretty_generate(document) + "\n")
+'
+expect_rejected "Compromised status refresh" \
+  "$release_scripts_dir/refresh-release-status.sh" \
+  --current "$signed_current" \
+  --status "$refresh_compromised" \
+  --public-key "$public_key" \
+  --expected-key-id keep3-release-metadata-test \
+  --private-key "$private_key" \
+  --published-at 2030-02-01T00:00:00Z \
+  --expires-at 2030-05-02T00:00:00Z \
+  --output "$metadata_dir/forbidden-refresh.json"
+
 wrong_checksum="$metadata_dir/wrong-checksum.json"
 resign_variant "$metadata_dir/manifest.unsigned.json" "$wrong_checksum" '
   document = JSON.parse(File.read(ARGV.fetch(0)))
@@ -419,14 +493,25 @@ resign_variant "$metadata_dir/manifest.unsigned.json" "$wrong_checksum" '
 expect_rejected "wrong checksum" \
   validate_common "$wrong_checksum" "$dmg" "$fake_app"
 
-expired_manifest="$metadata_dir/expired.json"
-resign_variant "$metadata_dir/manifest.unsigned.json" "$expired_manifest" '
+expiring_manifest="$metadata_dir/expiring-manifest.json"
+resign_variant "$metadata_dir/manifest.unsigned.json" "$expiring_manifest" '
   document = JSON.parse(File.read(ARGV.fetch(0)))
   document.fetch("signed")["expiresAt"] = "2030-01-10T00:00:00Z"
   File.write(ARGV.fetch(1), JSON.pretty_generate(document) + "\n")
 '
-expect_rejected "expired metadata" \
-  validate_common "$expired_manifest" "$dmg" "$fake_app"
+expect_rejected "expiring immutable manifest" \
+  validate_common "$expiring_manifest" "$dmg" "$fake_app"
+
+expired_status="$metadata_dir/expired-status.json"
+resign_variant "$metadata_dir/release-status.unsigned.json" "$expired_status" '
+  document = JSON.parse(File.read(ARGV.fetch(0)))
+  document.fetch("signed")["expiresAt"] = "2030-01-10T00:00:00Z"
+  File.write(ARGV.fetch(1), JSON.pretty_generate(document) + "\n")
+'
+expect_rejected "expired operational status" \
+  validate_common "$signed_manifest" "$dmg" "$fake_app" v0.1.0 \
+  "$metadata_dir/appcast.xml" "$metadata_dir/keep3.rb" \
+  "$stable_current" "$expired_status"
 
 mutable_url_manifest="$metadata_dir/mutable-url.json"
 resign_variant "$metadata_dir/manifest.unsigned.json" "$mutable_url_manifest" '

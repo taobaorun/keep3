@@ -19,7 +19,6 @@
         "tag",
         "trustState",
         "publishedAt",
-        "expiresAt",
         "keyId",
         "artifact",
         "source",
@@ -35,7 +34,6 @@
         "tag": { "$ref": "#/$defs/tag" },
         "trustState": { "$ref": "#/$defs/trustState" },
         "publishedAt": { "type": "string", "format": "date-time" },
-        "expiresAt": { "type": "string", "format": "date-time" },
         "keyId": { "$ref": "#/$defs/keyId" },
         "artifact": {
           "type": "object",

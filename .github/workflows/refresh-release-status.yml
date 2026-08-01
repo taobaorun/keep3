@@ -1,0 +1,68 @@
+name: Refresh release status
+
+on:
+  schedule:
+    - cron: '17 3 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: promote-release-channel
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: macos-15
+    timeout-minutes: 15
+    environment: release-production
+    steps:
+      - name: Check out trusted main tooling
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Check out protected release discovery
+        run: |
+          mkdir -p .build/status-refresh
+          git clone --branch gh-pages \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            .build/status-refresh/pages
+          git -C .build/status-refresh/pages config user.name keep3-release-bot
+          git -C .build/status-refresh/pages config user.email \
+            keep3-release-bot@users.noreply.github.com
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Refresh signed operational freshness
+        run: |
+          set -eu
+          umask 077
+          pages=.build/status-refresh/pages
+          channel="$pages/release-channel"
+          current="$channel/current-release.json"
+          status="$channel/release-status.json"
+          test -f "$current" && test -f "$status"
+          private_key=.build/status-refresh/metadata.pem
+          printf '%s\n' "$METADATA_PRIVATE_KEY" > "$private_key"
+          cleanup_key() { rm -f "$private_key"; }
+          trap cleanup_key EXIT HUP INT TERM
+          published_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          expires_at=$(date -u -v+90d +%Y-%m-%dT%H:%M:%SZ)
+          scripts/release/refresh-release-status.sh \
+            --current "$current" \
+            --status "$status" \
+            --public-key distribution/release-metadata-public-key.pem \
+            --expected-key-id keep3-release-metadata-production \
+            --private-key "$private_key" \
+            --published-at "$published_at" \
+            --expires-at "$expires_at" \
+            --output "$status"
+          git -C "$pages" add -- release-channel/release-status.json
+          git -C "$pages" diff --cached --quiet \
+            || git -C "$pages" commit -m "Refresh Keep3 release status"
+          git -C "$pages" push origin HEAD:gh-pages
+        env:
+          METADATA_PRIVATE_KEY: ${{ secrets.KEEP3_RELEASE_METADATA_PRIVATE_KEY }}

@@ -56,22 +56,25 @@ Reject by default. Do not turn an invalid response into a download link.
    UTF-8 JSON. This matches `scripts/release/sign-release-metadata.sh`.
 4. Require `signed.repository` to equal `taobaorun/keep3` and
    `signed.canonicalOrigin` to equal `https://taobaorun.github.io`. Require
-   `publishedAt` not to be unreasonably in the future and require the current
-   time to be before `expiresAt`.
-5. Persist the greatest accepted `sequence` per document type, a digest of the
-   accepted envelope, and the greatest accepted stable numeric `build`. A
-   byte-identical cached envelope may be reused while unexpired. A different
-   envelope with an equal or lower sequence, or a lower build, is a replay or
-   rollback and is rejected. `CURRENT_PROJECT_VERSION` is strictly increasing
-   even when the marketing version changes.
+   `publishedAt` not to be unreasonably in the future. Only `release-status.json` carries `expiresAt`. Require the current time to be before that
+   freshness boundary. Immutable manifests and stable current
+   discovery do not inherit the private candidate's 30-day eligibility limit.
+5. Persist the greatest accepted `sequence` and envelope digest for operational
+   status, plus the greatest accepted stable numeric `build` and release
+   sequence. A byte-identical cached envelope may be reused while its covering
+   status remains unexpired. A different status envelope with an equal or lower
+   sequence, or a lower stable build/release sequence, is a replay or rollback
+   and is rejected. `CURRENT_PROJECT_VERSION` is strictly increasing even when
+   the marketing version changes.
 6. Verify `release-status.json` first. `NoRelease` and `Candidate` expose no
    public candidate. `Promoting` and `Degraded` retain the last verified stable
    current release and may show the signed status message. `Compromised`
    suppresses automatic discovery and directs users to the project security
    advisory. Only `Converged` permits a new current release.
-7. Fetch `current-release.json`. It must be signed, unexpired, and
-   `state: Converged`. Fetch its `manifestUrl`; never construct a mutable
-   artifact URL or use a GitHub “latest” redirect.
+7. Fetch `current-release.json`. It must be signed and `state: Converged`, and
+   its `manifestUrl` must equal the valid status `currentManifestUrl`. Fetch
+   that immutable URL; never construct a mutable artifact URL or use a GitHub
+   “latest” redirect.
 8. Validate and verify the immutable manifest with the same metadata key.
    Require current and manifest `sequence`, `version`, `build`, `tag`,
    `trustState`, `manifestUrl`, and `artifact.url` to agree. The tag must equal
@@ -84,12 +87,21 @@ Reject by default. Do not turn an invalid response into a download link.
     verified Sparkle feed above. All surfaces must describe the same version and
     build before the site reports channel consistency.
 
-HTTP cache data may be reused only while the signed `expiresAt` remains valid
-and it does not roll back the stored sequence or build. Network, parse, schema,
-signature, expiry, or consistency failure keeps the last still-valid verified
-release; otherwise the site shows release discovery as temporarily unavailable
-and links to the generic project Releases page without claiming a current
-artifact.
+HTTP cache data may be reused only while the covering signed operational status
+remains unexpired and it does not roll back the stored sequence or build.
+Network, parse, schema, signature, expiry, or consistency failure keeps the
+last release covered by a still-valid verified status; otherwise the site shows
+release discovery as temporarily unavailable and links to the generic project
+Releases page without claiming a current artifact.
+
+## Refresh release status
+
+The protected monthly workflow renews only `release-status.json`, advances its
+status sequence, and signs a new 90-day freshness window. It refuses to refresh
+`Promoting`, `Degraded`, or `Compromised`. It never rewrites the stable
+`current-release.json`, a versioned manifest, the appcast, Homebrew cask, or DMG.
+Candidate retention and candidate eligibility remain 30 days and cannot be
+extended by a status refresh.
 
 ## Website measurement and donations
 

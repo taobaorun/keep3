@@ -136,7 +136,9 @@ jobs:
             abort "candidate size mismatch" unless value["size"] == Integer(size)
             published = Time.iso8601(value.fetch("publishedAt"))
             expires = Time.iso8601(value.fetch("expiresAt"))
-            abort "candidate lifetime is invalid" unless published < expires && Time.now.utc < expires
+            abort "candidate lifetime is not 30 days" unless
+              expires - published == 30 * 24 * 60 * 60
+            abort "candidate expired" unless Time.now.utc < expires
             puts value.fetch("sequence"), value.fetch("publishedAt"), value.fetch("expiresAt")
           ' "$receipt" "$GITHUB_REPOSITORY" "$tag" "$commit" "$digest" "$build" "$size")
           sequence=$(printf '%s\n' "$values" | sed -n '1p')
@@ -174,7 +176,7 @@ jobs:
               version, tag, build, sequence = ARGV.drop(1)
               abort "unexpected current repository" unless signed["repository"] == "taobaorun/keep3"
               abort "unexpected current origin" unless signed["canonicalOrigin"] == "https://taobaorun.github.io"
-              abort "current metadata expired" unless Time.now.utc < Time.iso8601(signed.fetch("expiresAt"))
+              abort "current discovery must not expire" if signed.key?("expiresAt")
               expected_manifest = "https://taobaorun.github.io/keep3/release-channel/releases/#{tag}/manifest.json"
               expected_artifact = "https://github.com/taobaorun/keep3/releases/download/#{tag}/Keep3-#{version}.dmg"
               old_build = signed.fetch("build")
@@ -356,14 +358,16 @@ jobs:
           test -x "$sign_update"
           sparkle_signature=$("$sign_update" \
             --ed-key-file .build/promotion/sparkle.key -p "$dmg")
-          receipt_values=$(/usr/bin/ruby -rjson -e '
+          receipt_values=$(/usr/bin/ruby -rjson -rtime -e '
             value = JSON.parse(File.read(ARGV.fetch(0)))
-            puts value.fetch("publishedAt"), value.fetch("expiresAt"),
+            published_at = value.fetch("publishedAt")
+            discovery_expires_at = (Time.iso8601(published_at) + 90 * 24 * 60 * 60).utc.iso8601
+            puts published_at, discovery_expires_at,
               value.fetch("xcodeVersion"), value.fetch("sdkVersion"),
               value.fetch("macOSVersion")
           ' "$candidate/attestation.json")
           published_at=$(printf '%s\n' "$receipt_values" | sed -n '1p')
-          expires_at=$(printf '%s\n' "$receipt_values" | sed -n '2p')
+          discovery_expires_at=$(printf '%s\n' "$receipt_values" | sed -n '2p')
           xcode_version=$(printf '%s\n' "$receipt_values" | sed -n '3p')
           sdk_version=$(printf '%s\n' "$receipt_values" | sed -n '4p')
           macos_version=$(printf '%s\n' "$receipt_values" | sed -n '5p')
@@ -377,7 +381,7 @@ jobs:
             --commit '${{ needs.preflight.outputs.commit }}' \
             --sparkle-signature "$sparkle_signature" \
             --published-at "$published_at" \
-            --expires-at "$expires_at" \
+            --expires-at "$discovery_expires_at" \
             --key-id keep3-release-metadata-production \
             --output-dir "$release" \
             --xcode-version "$xcode_version" \

@@ -79,19 +79,23 @@ status="$output_dir/release-status.unsigned.json"
 appcast="$output_dir/appcast.xml"
 cask="$output_dir/keep3.rb"
 
-/usr/bin/ruby -rjson -e '
+/usr/bin/ruby -rjson -rtime -e '
   version, build, tag, sequence, commit, signature, published_at,
     expires_at, key_id, trust_state, file_name, sha256, size,
     xcode_version, sdk_version, macos_version, manifest_path,
     current_path, status_path = ARGV
   build = Integer(build); sequence = Integer(sequence); size = Integer(size)
+  published_time = Time.iso8601(published_at)
+  expires_time = Time.iso8601(expires_at)
+  abort "operational status lifetime must be exactly 90 days" unless
+    expires_time - published_time == 90 * 24 * 60 * 60
   artifact_url = "https://github.com/taobaorun/keep3/releases/download/#{tag}/#{file_name}"
   manifest_url = "https://taobaorun.github.io/keep3/release-channel/releases/#{tag}/manifest.json"
   common = {
     "repository" => "taobaorun/keep3", "canonicalOrigin" => "https://taobaorun.github.io",
     "sequence" => sequence, "version" => version, "build" => build,
     "tag" => tag, "trustState" => trust_state, "publishedAt" => published_at,
-    "expiresAt" => expires_at, "keyId" => key_id
+    "keyId" => key_id
   }
   manifest = {
     "schemaVersion" => 1,
@@ -128,6 +132,7 @@ cask="$output_dir/keep3.rb"
   status = {
     "schemaVersion" => 1,
     "signed" => common.merge(
+      "expiresAt" => expires_at,
       "state" => "Candidate", "candidateManifestUrl" => manifest_url,
       "currentManifestUrl" => nil,
       "message" => "Candidate is private and has not moved current release discovery.",

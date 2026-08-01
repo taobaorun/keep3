@@ -22,6 +22,7 @@ for required_file in \
   "$workflows_dir/ci.yml" \
   "$workflows_dir/release-candidate.yml" \
   "$workflows_dir/promote-release.yml" \
+  "$workflows_dir/refresh-release-status.yml" \
   "$docs_dir/release-runbook.md" \
   "$docs_dir/update-key-incident-runbook.md"
 do
@@ -44,6 +45,7 @@ fi
 ci_workflow="$workflows_dir/ci.yml"
 candidate_workflow="$workflows_dir/release-candidate.yml"
 promotion_workflow="$workflows_dir/promote-release.yml"
+refresh_workflow="$workflows_dir/refresh-release-status.yml"
 
 rg -q '^permissions:$' "$ci_workflow" \
   || fail "CI must declare workflow permissions"
@@ -71,6 +73,17 @@ if rg -n 'sparkle-signature|KEEP3_.*PRIVATE|generate-channel-metadata' \
 then
   fail "credential-free candidate workflow attempts to sign release metadata"
 fi
+
+rg -q 'schedule:' "$refresh_workflow" \
+  || fail "release status freshness is not refreshed on a schedule"
+rg -q '^  group: promote-release-channel$' "$refresh_workflow" \
+  || fail "status refresh does not share the promotion lock"
+rg -q 'environment: release-production' "$refresh_workflow" \
+  || fail "status refresh is not protected by the release environment"
+rg -q 'refresh-release-status.sh' "$refresh_workflow" \
+  || fail "status refresh workflow does not use the trusted refresher"
+rg -Fq -- '-v+90d' "$refresh_workflow" \
+  || fail "status refresh does not renew the 90-day freshness window"
 
 rg -q 'workflow_dispatch:' "$promotion_workflow" \
   || fail "promotion must require explicit dispatch"
@@ -108,6 +121,8 @@ rg -q 'test.*run_head_sha.*tag_commit' "$promotion_workflow" \
   || fail "promotion does not bind the selected run to the tag commit"
 rg -q 'strict-monotonic' "$promotion_workflow" \
   || fail "promotion does not enforce strict build monotonicity"
+rg -q '90 \* 24 \* 60 \* 60' "$promotion_workflow" \
+  || fail "promotion reuses the 30-day candidate expiry as public freshness"
 rg -q 'hdiutil attach' "$promotion_workflow" \
   || fail "promotion does not validate the app inside the attested DMG"
 rg -q 'appcast.xml.*>/dev/null' "$promotion_workflow" \
@@ -195,9 +210,9 @@ signer="$release_scripts_dir/sign-release-metadata.sh"
     "tag" => "v1.0.0",
     "trustState" => "unsigned",
     "publishedAt" => "2030-01-01T00:00:00Z",
-    "expiresAt" => "2030-02-01T00:00:00Z",
     "keyId" => key_id
   }
+  status_common = common.merge("expiresAt" => "2030-04-01T00:00:00Z")
   manifest = {
     "schemaVersion" => 1,
     "signed" => common.merge(
@@ -234,7 +249,7 @@ signer="$release_scripts_dir/sign-release-metadata.sh"
     }.fetch(state)
     status = {
       "schemaVersion" => 1,
-      "signed" => common.merge(
+      "signed" => status_common.merge(
         "sequence" => status_sequence,
         "state" => state, "candidateManifestUrl" => manifest_url,
         "currentManifestUrl" => state == "Converged" ? manifest_url : nil,
@@ -258,7 +273,7 @@ signer="$release_scripts_dir/sign-release-metadata.sh"
   }
   compromised = {
     "schemaVersion" => 1,
-    "signed" => common.merge("sequence" => 3, "state" => "Compromised")
+    "signed" => status_common.merge("sequence" => 3, "state" => "Compromised")
   }
   {
     "manifest.unsigned.json" => manifest,

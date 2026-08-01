@@ -10,7 +10,6 @@
     "tag": "v0.1.0",
     "trustState": "unsigned",
     "publishedAt": "2026-08-01T00:00:00Z",
-    "expiresAt": "2099-08-01T00:00:00Z",
     "keyId": "keep3-release-metadata-fixture-2026",
     "manifestUrl": "https://taobaorun.github.io/keep3/release-channel/releases/v0.1.0/manifest.json",
     "artifactUrl": "https://github.com/taobaorun/keep3/releases/download/v0.1.0/Keep3-0.1.0.dmg",
