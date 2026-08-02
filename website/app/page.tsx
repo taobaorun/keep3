@@ -1,5 +1,8 @@
 /* eslint-disable @next/next/no-img-element -- vinext serves these local assets directly. */
 import { ProductDemo } from "./components/ProductDemo";
+import { ProductDownload } from "./components/ProductDownload";
+
+const assetBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 export default function Home() {
   return (
@@ -8,7 +11,7 @@ export default function Home() {
         <a className="brand" href="#top" aria-label="Keep3 首页">
           <img
             className="brand-icon"
-            src="/keep3-app-icon.png"
+            src={`${assetBasePath}/keep3-app-icon.png`}
             width={40}
             height={40}
             alt=""
@@ -18,8 +21,9 @@ export default function Home() {
         <nav className="nav-links" aria-label="主导航">
           <a href="#capabilities">核心能力</a>
           <a href="#quiet">设计原则</a>
-          <a className="nav-cta" href="#about">
-            关于 Keep3
+          <a href="#about">关于 Keep3</a>
+          <a className="nav-cta" href="#download">
+            下载
           </a>
         </nav>
       </header>
@@ -38,10 +42,13 @@ export default function Home() {
               只在注意力被拉走之后，帮你看一眼就找回原本要做的事。
             </p>
             <div className="hero-actions">
-              <a className="primary-button" href="#capabilities">
-                看看它如何工作 <span aria-hidden="true">↓</span>
+              <a className="primary-button" href="#download">
+                下载 Keep3 <span aria-hidden="true">↓</span>
               </a>
-              <span className="platform-note">原生 macOS · 本地优先</span>
+              <a className="text-link" href="#capabilities">
+                看看它如何工作
+              </a>
+              <span className="platform-note">免费 · 开源 · 本地优先</span>
             </div>
           </div>
 
@@ -49,7 +56,7 @@ export default function Home() {
             <div className="app-icon-halo">
               <img
                 className="hero-icon"
-                src="/keep3-app-icon.png"
+                src={`${assetBasePath}/keep3-app-icon.png`}
                 width={320}
                 height={320}
                 alt="Keep3 应用图标"
@@ -181,9 +188,11 @@ export default function Home() {
           </div>
         </section>
 
+        <ProductDownload />
+
         <section className="closing" id="about">
           <img
-            src="/keep3-app-icon.png"
+            src={`${assetBasePath}/keep3-app-icon.png`}
             width={88}
             height={88}
             alt=""
@@ -191,16 +200,23 @@ export default function Home() {
           <p className="eyebrow">KEEP3 FOR MAC</p>
           <h2>少一点管理，多一点看见。</h2>
           <p>
-            Keep3 目前是一款正在持续打磨的个人构建版 macOS 应用。
+            Keep3 是一款免费、开源的原生 macOS 应用。
             它的目标很简单：让你每天都愿意把真正重要的事留在屏幕顶部。
           </p>
-          <span className="status-pill">正在打磨 macOS 版本</span>
+          <a className="status-pill" href="#download">
+            获取 Keep3 for Mac
+          </a>
         </section>
       </main>
 
       <footer>
         <a className="brand footer-brand" href="#top">
-          <img src="/keep3-app-icon.png" width={32} height={32} alt="" />
+          <img
+            src={`${assetBasePath}/keep3-app-icon.png`}
+            width={32}
+            height={32}
+            alt=""
+          />
           <span>Keep3</span>
         </a>
         <p>Keep three things in sight.</p>
