@@ -89,8 +89,19 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 
 - `npm run dev`: start local development
 - `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
+- `npm test`: build the product site and run its rendered and release-channel tests
+- `npm run test:pages`: build and verify the static `/keep3` GitHub Pages export
 - `npm run db:generate`: generate Drizzle migrations after schema changes
+
+## GitHub Pages export
+
+`npm run build:pages` writes a static site to `out/` with `/keep3` baked into
+its application and asset paths. Deploy those generated files to the root of
+the `gh-pages` branch.
+
+The existing `gh-pages/release-channel/` directory is owned by the macOS
+release pipeline. Website deployment must preserve it byte-for-byte, retain
+the root `.nojekyll` file, and must never force-recreate the branch.
 
 ## Learn More
 

@@ -36,5 +36,13 @@ test("server-renders the Keep3 product site", async () => {
   assert.match(html, /媒体/);
   assert.match(html, /日历/);
   assert.match(html, /本地优先/);
+  assert.match(html, /href="#download"/);
+  assert.match(html, /直接下载 DMG/);
+  assert.match(html, /Homebrew 安装/);
+  assert.match(html, /brew install --cask taobaorun\/keep3\/keep3/);
+  assert.match(html, /https:\/\/github\.com\/taobaorun\/keep3\/releases/);
+  assert.match(html, /macOS 14 或更高版本/);
+  assert.match(html, /Apple silicon/);
+  assert.doesNotMatch(html, /xattr|--no-quarantine/i);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });
