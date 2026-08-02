@@ -227,7 +227,7 @@ a:focus-visible,
   position: absolute;
   top: 2rem;
   right: -8rem;
-  width: min(56rem, 65vw);
+  width: calc(100% + 8rem);
   height: 35rem;
   overflow: hidden;
   border: 0.5rem solid #17141d;
@@ -1263,6 +1263,99 @@ a:focus-visible,
   font-size: 0.8rem;
 }
 
+.support-section {
+  display: grid;
+  padding: 8rem max(1.5rem, calc((100vw - var(--max-width)) / 2));
+  grid-template-columns: minmax(0, 1.05fr) minmax(28rem, 0.95fr);
+  gap: 7rem;
+  align-items: center;
+  color: var(--ink);
+  background: var(--orange);
+}
+
+.support-copy .eyebrow {
+  color: rgb(12 11 16 / 0.82);
+}
+
+.support-copy h2 {
+  max-width: 46rem;
+  margin: 0;
+  font-size: clamp(3rem, 5vw, 5.75rem);
+  font-weight: 550;
+  letter-spacing: -0.07em;
+  line-height: 0.98;
+}
+
+.support-copy h2 span {
+  display: block;
+  color: var(--white);
+}
+
+.support-copy > p:last-child {
+  max-width: 40rem;
+  margin: 2rem 0 0;
+  color: rgb(12 11 16 / 0.82);
+  font-size: 1rem;
+  line-height: 1.8;
+}
+
+.support-card {
+  display: flex;
+  min-height: 30rem;
+  padding: 2.5rem;
+  flex-direction: column;
+  border: 1px solid rgb(12 11 16 / 0.18);
+  border-radius: 1.5rem;
+  background: var(--paper);
+  box-shadow: 0 2rem 5rem rgb(64 19 14 / 0.18);
+}
+
+.support-card-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+}
+
+.support-statement {
+  max-width: 32rem;
+  margin: 4rem 0 2rem;
+  font-size: clamp(1.55rem, 2.1vw, 2.25rem);
+  font-weight: 540;
+  letter-spacing: -0.045em;
+  line-height: 1.2;
+}
+
+.support-button {
+  display: flex;
+  width: 100%;
+  min-height: 3.75rem;
+  margin-top: auto;
+  padding: 1rem 1.25rem;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 0.75rem;
+  color: var(--white);
+  background: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 650;
+  transition:
+    color 160ms ease,
+    background 160ms ease;
+}
+
+.support-button:hover {
+  color: var(--ink);
+  background: var(--orange);
+}
+
+.support-button:focus-visible {
+  outline-color: var(--ink);
+}
+
 .closing {
   display: flex;
   min-height: 46rem;
@@ -1369,6 +1462,11 @@ footer p:last-child {
     grid-template-columns: 1fr;
     gap: 2rem;
   }
+
+  .support-section {
+    grid-template-columns: 1fr;
+    gap: 4rem;
+  }
 }
 
 @media (max-width: 44rem) {
@@ -1437,7 +1535,8 @@ footer p:last-child {
   .capabilities,
   .quiet-section,
   .depth-section,
-  .download-section {
+  .download-section,
+  .support-section {
     padding: 6rem 1rem;
   }
 
@@ -1584,6 +1683,16 @@ footer p:last-child {
 
   .download-details > div:last-child {
     border-bottom: 0;
+  }
+
+  .support-card {
+    min-height: 29rem;
+    padding: 1.5rem;
+    border-radius: 1.25rem;
+  }
+
+  .support-statement {
+    margin-top: 3rem;
   }
 
   .closing {

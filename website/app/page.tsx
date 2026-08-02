@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- vinext serves these local assets directly. */
 import { ProductDemo } from "./components/ProductDemo";
 import { ProductDownload } from "./components/ProductDownload";
+import { ProjectSupport } from "./components/ProjectSupport";
 
 const assetBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
@@ -21,6 +22,7 @@ export default function Home() {
         <nav className="nav-links" aria-label="主导航">
           <a href="#capabilities">核心能力</a>
           <a href="#quiet">设计原则</a>
+          <a href="#support">支持</a>
           <a href="#about">关于 Keep3</a>
           <a className="nav-cta" href="#download">
             下载
@@ -189,6 +191,8 @@ export default function Home() {
         </section>
 
         <ProductDownload />
+
+        <ProjectSupport />
 
         <section className="closing" id="about">
           <img
