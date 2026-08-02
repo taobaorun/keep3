@@ -37,12 +37,25 @@ test("server-renders the Keep3 product site", async () => {
   assert.match(html, /日历/);
   assert.match(html, /本地优先/);
   assert.match(html, /href="#download"/);
+  assert.match(html, /href="#support"/);
   assert.match(html, /直接下载 DMG/);
   assert.match(html, /Homebrew 安装/);
   assert.match(html, /brew install --cask taobaorun\/keep3\/keep3/);
   assert.match(html, /https:\/\/github\.com\/taobaorun\/keep3\/releases/);
   assert.match(html, /macOS 14 或更高版本/);
   assert.match(html, /Apple silicon/);
+  assert.match(html, /支持它持续开发/);
+  assert.match(html, /在爱发电支持 Keep3/);
+  assert.doesNotMatch(html, /请我吃个披萨/);
+  assert.doesNotMatch(html, /付款方式|支付与隐私|微信支付|支付宝/);
+  assert.match(html, /支持完全自愿/);
+  assert.match(html, /不会改变 Keep3 的下载、更新或任何功能/);
+  assert.match(
+    html,
+    /<a[^>]+href="https:\/\/afdian\.com\/a\/taobaorun\/plan"[^>]+target="_blank"[^>]+rel="noreferrer"/,
+  );
+  assert.doesNotMatch(html, /href="https:\/\/afdian\.com\/a\/taobaorun"/);
+  assert.doesNotMatch(html, /weixin:\/\/|alipays:\/\/|<iframe\b/i);
   assert.doesNotMatch(html, /xattr|--no-quarantine/i);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });

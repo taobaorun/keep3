@@ -103,6 +103,14 @@ The existing `gh-pages/release-channel/` directory is owned by the macOS
 release pipeline. Website deployment must preserve it byte-for-byte, retain
 the root `.nojekyll` file, and must never force-recreate the branch.
 
+## Voluntary support
+
+The product page links directly to the Keep3 plan selector at
+`https://afdian.com/a/taobaorun/plan`. Afdian handles payment, receipts, and
+payment data; the Keep3 site does not embed a payment SDK, QR code, form, or
+provider script. Supporting the project is optional and never changes
+downloads, updates, or product functionality.
+
 ## Learn More
 
 - [vinext Documentation](https://github.com/cloudflare/vinext)
