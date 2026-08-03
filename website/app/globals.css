@@ -1101,6 +1101,44 @@ a:focus-visible,
   color: rgb(255 255 255 / 0.54);
 }
 
+.install-notice {
+  display: grid;
+  margin-top: auto;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgb(23 20 28 / 0.14);
+  border-radius: 0.75rem;
+  gap: 0.25rem;
+  color: var(--ink);
+  background: rgb(255 255 255 / 0.42);
+}
+
+.install-notice span {
+  color: var(--orange-ink);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+}
+
+.install-notice strong {
+  font-size: 0.76rem;
+  font-weight: 630;
+}
+
+.install-notice-dark {
+  border-color: rgb(255 255 255 / 0.14);
+  color: rgb(255 255 255 / 0.82);
+  background: rgb(255 255 255 / 0.04);
+}
+
+.install-notice-dark span {
+  color: var(--orange-soft);
+}
+
+.install-notice + .download-button,
+.install-notice + .command-row {
+  margin-top: 1rem;
+}
+
 .download-button {
   display: flex;
   width: 100%;
@@ -1188,11 +1226,97 @@ a:focus-visible,
   color: rgb(255 255 255 / 0.72);
 }
 
+.first-launch-guide {
+  display: grid;
+  margin-top: 1rem;
+  padding: 2.5rem;
+  border: 1px solid rgb(255 255 255 / 0.15);
+  border-radius: 1.5rem;
+  grid-template-columns: minmax(16rem, 0.8fr) minmax(0, 1.2fr);
+  gap: 3rem;
+  background: rgb(255 255 255 / 0.035);
+  scroll-margin-top: 6rem;
+}
+
+.first-launch-guide-heading h3 {
+  max-width: 31rem;
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+  font-weight: 560;
+  letter-spacing: -0.045em;
+  line-height: 1.08;
+}
+
+.first-launch-guide-heading > p:last-child {
+  max-width: 34rem;
+  margin: 1.25rem 0 0;
+  color: rgb(255 255 255 / 0.58);
+  line-height: 1.75;
+}
+
+.first-launch-guide ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.first-launch-guide li {
+  display: grid;
+  padding: 1.25rem 0;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: 1rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.12);
+}
+
+.first-launch-guide li:first-child {
+  padding-top: 0;
+}
+
+.first-launch-guide li > span {
+  padding-top: 0.15rem;
+  color: var(--orange-soft);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.65rem;
+}
+
+.first-launch-guide li strong {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 620;
+}
+
+.first-launch-guide li p {
+  margin: 0.4rem 0 0;
+  color: rgb(255 255 255 / 0.54);
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+
+.first-launch-guide-footer {
+  display: flex;
+  padding-top: 1.5rem;
+  grid-column: 1 / -1;
+  justify-content: space-between;
+  gap: 2rem;
+  border-top: 1px solid rgb(255 255 255 / 0.15);
+  color: rgb(255 255 255 / 0.55);
+  font-size: 0.78rem;
+}
+
+.first-launch-guide-footer p {
+  margin: 0;
+}
+
+.first-launch-guide-footer a {
+  flex: 0 0 auto;
+  color: rgb(255 255 255 / 0.78);
+}
+
 .download-details {
   display: grid;
   margin-top: 5rem;
   border-top: 1px solid rgb(255 255 255 / 0.15);
-  grid-template-columns: 0.8fr 1.2fr 1fr;
+  grid-template-columns: 0.8fr 1.2fr;
 }
 
 .download-details > div {
@@ -1235,32 +1359,10 @@ a:focus-visible,
   content: "·";
 }
 
-.first-launch > p:last-child,
-.release-integrity > a,
-.release-integrity details {
+.first-launch > p:last-child {
   margin: 0;
   color: rgb(255 255 255 / 0.58);
   line-height: 1.75;
-}
-
-.release-integrity summary {
-  color: rgb(255 255 255 / 0.74);
-  cursor: pointer;
-}
-
-.release-integrity details code {
-  display: block;
-  margin: 1rem 0;
-  overflow-wrap: anywhere;
-  color: var(--orange-soft);
-  font-family: var(--font-geist-mono), monospace;
-  font-size: 0.68rem;
-  line-height: 1.6;
-}
-
-.release-integrity details a {
-  color: rgb(255 255 255 / 0.74);
-  font-size: 0.8rem;
 }
 
 .support-section {
@@ -1649,6 +1751,19 @@ footer p:last-child {
   .download-options,
   .download-details {
     grid-template-columns: 1fr;
+  }
+
+  .first-launch-guide {
+    padding: 1.5rem;
+    border-radius: 1.25rem;
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+
+  .first-launch-guide-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.75rem;
   }
 
   .download-card {

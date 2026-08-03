@@ -12,7 +12,9 @@ copied into stable release discovery: only operational status expires.
 ## Preconditions
 
 1. Create `vMAJOR.MINOR.PATCH` from protected `main`; the numeric app build must
-   be above the signed current document.
+   be above the signed current document. Commit the matching immutable release
+   notes at `distribution/release-notes/MAJOR.MINOR.PATCH.md`; promotion reads
+   that exact file from the tag and refuses missing or unsafe first-launch copy.
 2. Wait for `Build release candidate` to finish and record its run ID.
 3. Create the `gh-pages` branch and configure it as the Pages source; create the
    `taobaorun/homebrew-keep3` tap with a protected `main` branch.

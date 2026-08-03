@@ -15,11 +15,11 @@ final class ProjectSmokeTests: XCTestCase {
     let mediaAdapter = try source(at: "Keep3/Media/MediaRemoteAdapter.swift")
 
     XCTAssertGreaterThanOrEqual(
-      project.components(separatedBy: "MARKETING_VERSION = 1.0.0;").count - 1,
+      project.components(separatedBy: "MARKETING_VERSION = 1.0.1;").count - 1,
       4
     )
     XCTAssertGreaterThanOrEqual(
-      project.components(separatedBy: "CURRENT_PROJECT_VERSION = 1;").count - 1,
+      project.components(separatedBy: "CURRENT_PROJECT_VERSION = 2;").count - 1,
       4
     )
     XCTAssertTrue(project.contains("PRODUCT_BUNDLE_IDENTIFIER = dev.keep3.Keep3;"))
