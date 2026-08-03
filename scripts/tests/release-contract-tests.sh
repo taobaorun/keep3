@@ -6,7 +6,14 @@ repository_root=$(CDPATH= cd -- "$script_dir/../.." && pwd)
 distribution_dir="$repository_root/distribution"
 release_scripts_dir="$repository_root/scripts/release"
 test_directory=$(mktemp -d /tmp/keep3-release-contract-tests-XXXXXX)
-trap 'rm -rf "$test_directory"' EXIT HUP INT TERM
+mounted_test_volume=''
+cleanup() {
+  if test -n "$mounted_test_volume"; then
+    hdiutil detach -quiet "$mounted_test_volume" >/dev/null 2>&1 || :
+  fi
+  rm -rf "$test_directory"
+}
+trap cleanup EXIT HUP INT TERM
 
 fail() {
   printf 'release-contract-tests: %s\n' "$1" >&2
@@ -272,9 +279,26 @@ test "$first_digest" = "$second_digest" \
 mount_point="$test_directory/mount"
 mkdir -p "$mount_point"
 hdiutil attach -quiet -readonly -nobrowse -mountpoint "$mount_point" "$dmg"
+mounted_test_volume=$mount_point
 test -d "$mount_point/Keep3.app" || fail "DMG does not contain Keep3.app"
 test -L "$mount_point/Applications" || fail "DMG does not contain Applications link"
+first_launch_guide="$mount_point/首次打开 Keep3.html"
+test -f "$first_launch_guide" || fail "DMG does not contain the first-launch guide"
+for required_guidance in \
+  '当前版本未经过 Apple Developer ID 公证' \
+  '按住 Control 点击 Keep3' \
+  '系统设置 → 隐私与安全性' \
+  '仍要打开' \
+  'https://support.apple.com/102445'
+do
+  grep -Fq "$required_guidance" "$first_launch_guide" \
+    || fail "DMG first-launch guide is missing: $required_guidance"
+done
+if grep -Eiq 'xattr|--no-quarantine' "$first_launch_guide"; then
+  fail "DMG first-launch guide recommends bypassing quarantine"
+fi
 hdiutil detach -quiet "$mount_point"
+mounted_test_volume=''
 
 sparkle_signature=$("$sparkle_sign_update" \
   --ed-key-file "$sparkle_private_key" -p "$dmg")
@@ -328,6 +352,18 @@ grep -Fq 'url "https://github.com/taobaorun/keep3/releases/download/v#{version}/
   || fail "generated Homebrew cask must expose a version-interpolated URL"
 grep -q 'depends_on arch: :arm64' "$metadata_dir/keep3.rb" \
   || fail "generated Homebrew cask does not declare its arm64 artifact"
+for required_guidance in \
+  '当前版本未经过 Apple 公证' \
+  '按住 Control 点击 Keep3' \
+  '系统设置 > 隐私与安全性 > 仍要打开' \
+  'https://taobaorun.github.io/keep3/#first-launch-guide'
+do
+  grep -Fq "$required_guidance" "$metadata_dir/keep3.rb" \
+    || fail "generated Homebrew cask is missing first-launch guidance: $required_guidance"
+done
+if grep -Eiq 'xattr|--no-quarantine' "$metadata_dir/keep3.rb"; then
+  fail "generated Homebrew cask bypasses quarantine"
+fi
 
 signed_manifest="$metadata_dir/manifest.json"
 signed_current="$metadata_dir/current-release.json"

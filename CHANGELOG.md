@@ -2,6 +2,15 @@
 
 All notable user-facing changes to Keep3 are recorded here.
 
+## [1.0.1] - 2026-08-03
+
+### Fixed
+
+- Homebrew now prints exact first-launch steps for unsigned builds while keeping
+  macOS quarantine and Gatekeeper protections enabled.
+- The DMG now includes a standalone first-launch guide, and the product website
+  presents the same guidance before users attempt to open Keep3.
+
 ## [1.0.0] - 2026-08-01
 
 ### Added

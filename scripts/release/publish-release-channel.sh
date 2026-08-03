@@ -392,9 +392,21 @@ stage_draft() {
     copy_immutable "$digest_file" "$draft/$(basename -- "$digest_file")"
     return
   fi
+  release_notes="$state_dir/release-notes-$version.md"
+  if test ! -f "$release_notes"; then
+    git -C "$source_repository" show \
+      "refs/tags/$tag:distribution/release-notes/$version.md" \
+      > "$release_notes" \
+      || fail "release notes are missing from the immutable tag"
+  fi
+  grep -Fq "# Keep3 $version" "$release_notes" \
+    || fail "release notes do not identify Keep3 $version"
+  if grep -Eiq 'xattr|--no-quarantine' "$release_notes"; then
+    fail "release notes recommend bypassing quarantine"
+  fi
   if ! gh release view "$tag" --repo "$repository" >/dev/null 2>&1; then
     gh release create "$tag" --repo "$repository" --draft --verify-tag \
-      --title "Keep3 $version" --notes "Staged canonical Keep3 candidate."
+      --title "Keep3 $version" --notes-file "$release_notes"
   fi
   staging=$(mktemp -d /tmp/keep3-release-draft-XXXXXX)
   for asset in "$dmg" "$manifest" "$attestation" "$digest_file"; do

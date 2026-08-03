@@ -5,6 +5,10 @@ import {
   fetchVerifiedRelease,
   releaseChannel,
 } from "../lib/release-channel.mjs";
+import {
+  InstallNotice,
+  UnsignedFirstLaunchGuide,
+} from "./UnsignedFirstLaunchGuide";
 
 type ReleaseInfo = {
   version: string;
@@ -12,9 +16,7 @@ type ReleaseInfo = {
   trustState: "unsigned" | "developer-id";
   artifactUrl: string;
   fileName: string;
-  sha256: string;
   size: number;
-  tagUrl: string;
 };
 
 type DiscoveryState =
@@ -47,6 +49,18 @@ export function ProductDownload() {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    if (window.location.hash !== "#first-launch-guide") return;
+
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .getElementById("first-launch-guide")
+        ?.scrollIntoView({ block: "start" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
   async function copyHomebrewCommand() {
     try {
       await navigator.clipboard.writeText(releaseChannel.homebrewCommand);
@@ -59,6 +73,7 @@ export function ProductDownload() {
   const release = discovery.kind === "ready" ? discovery.release : null;
   const downloadUrl = release?.artifactUrl ?? releaseChannel.fallbackUrl;
   const downloadLabel = release ? "下载 Keep3 DMG" : "前往 GitHub Releases";
+  const showUnsignedGuide = release?.trustState !== "developer-id";
 
   return (
     <section className="download-section" id="download" aria-labelledby="download-title">
@@ -86,6 +101,7 @@ export function ProductDownload() {
           <p>
             下载磁盘映像，将 Keep3 拖入“应用程序”。适合第一次安装，过程最直观。
           </p>
+          {showUnsignedGuide && <InstallNotice method="dmg" />}
           <a className="download-button" href={downloadUrl}>
             {downloadLabel}
             <span aria-hidden="true">↓</span>
@@ -105,6 +121,7 @@ export function ProductDownload() {
           <p>
             已经使用 Homebrew？在终端运行官方 tap 命令，以后也可以通过 Homebrew 升级。
           </p>
+          {showUnsignedGuide && <InstallNotice method="homebrew" />}
           <div className="command-row">
             <code>{releaseChannel.homebrewCommand}</code>
             <button type="button" onClick={copyHomebrewCommand}>
@@ -126,6 +143,8 @@ export function ProductDownload() {
           </div>
         </article>
       </div>
+
+      {showUnsignedGuide && <UnsignedFirstLaunchGuide />}
 
       <div className="download-details">
         <div className="system-requirements">
@@ -149,31 +168,11 @@ export function ProductDownload() {
           ) : (
             <p>
               下载前会验证正式发布元数据。若自动校验不可用，请在 GitHub Releases
-              查看当前版本、校验值和首次打开说明。
+              查看当前版本和首次打开说明。
             </p>
           )}
         </div>
 
-        <div className="release-integrity">
-          <p className="detail-label">RELEASE INTEGRITY</p>
-          {release ? (
-            <details>
-              <summary>查看 SHA-256 与源码标签</summary>
-              <code>{release.sha256}</code>
-              <a href={release.tagUrl} target="_blank" rel="noreferrer">
-                查看 v{release.version} 源码 ↗
-              </a>
-            </details>
-          ) : (
-            <a
-              href={releaseChannel.fallbackUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              查看全部正式版本与校验信息 ↗
-            </a>
-          )}
-        </div>
       </div>
     </section>
   );
