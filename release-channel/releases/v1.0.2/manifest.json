@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "signed": {
+    "repository": "taobaorun/keep3",
+    "canonicalOrigin": "https://taobaorun.github.io",
+    "sequence": 3,
+    "version": "1.0.2",
+    "build": 3,
+    "tag": "v1.0.2",
+    "trustState": "unsigned",
+    "publishedAt": "2026-08-11T16:17:45Z",
+    "keyId": "keep3-release-metadata-production",
+    "artifact": {
+      "fileName": "Keep3-1.0.2.dmg",
+      "url": "https://github.com/taobaorun/keep3/releases/download/v1.0.2/Keep3-1.0.2.dmg",
+      "sha256": "c84868041cbad4b3e3f8c63ca91710b8b53a9498a111adadfa5ce949ac026749",
+      "size": 4989847,
+      "sparkleEdSignature": "DZ4W7kCPqpKdN8gQAswigjBFCoaM84WqECM0+wazTvLLEgYhlce546JJhiqpCFLK0kiipHyHXsU7zwNGHCXDDQ=="
+    },
+    "source": {
+      "tagUrl": "https://github.com/taobaorun/keep3/tree/v1.0.2",
+      "archiveUrl": "https://github.com/taobaorun/keep3/archive/refs/tags/v1.0.2.tar.gz",
+      "commit": "507f8c43ed1920ac65becc40344c9d18248d8dcb"
+    },
+    "channels": {
+      "manifestUrl": "https://taobaorun.github.io/keep3/release-channel/releases/v1.0.2/manifest.json",
+      "appcastUrl": "https://taobaorun.github.io/keep3/release-channel/appcast.xml",
+      "homebrewTap": "taobaorun/keep3",
+      "homebrewCaskPath": "Casks/keep3.rb"
+    },
+    "provenance": {
+      "builtAt": "2026-08-11T16:17:45Z",
+      "gitCommit": "507f8c43ed1920ac65becc40344c9d18248d8dcb",
+      "xcodeVersion": "Xcode 16.4 Build version 16F6 ",
+      "sdkVersion": "15.5",
+      "macOSVersion": "15.7.7",
+      "candidateDigest": "c84868041cbad4b3e3f8c63ca91710b8b53a9498a111adadfa5ce949ac026749"
+    }
+  },
+  "signature": {
+    "algorithm": "Ed25519",
+    "keyId": "keep3-release-metadata-production",
+    "value": "vzx/lpRy9mxZ/FZe16WPYF6W9bw/OwPkpciYBm/9rG/Tf0aG2PQzldOY/TZRyGve5/Lcn/79oiEoCD1+8vsMAw=="
+  }
+}
