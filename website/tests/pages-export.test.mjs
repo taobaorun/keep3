@@ -8,6 +8,10 @@ test("exports the product site for the /keep3 GitHub Pages path", async () => {
   assert.match(html, /href="\/keep3\/_next\//);
   assert.match(html, /src="\/keep3\/_next\//);
   assert.match(html, /src="\/keep3\/keep3-app-icon\.png"/);
+  assert.match(html, /src="\/keep3\/product-gallery\/priority-compact\.webp"/);
+  assert.match(html, /src="\/keep3\/product-gallery\/priority-expanded\.webp"/);
+  assert.match(html, /src="\/keep3\/product-gallery\/media-compact\.webp"/);
+  assert.match(html, /src="\/keep3\/product-gallery\/media-expanded\.webp"/);
   assert.match(html, /href="#download"/);
   assert.match(html, /href="#support"/);
   assert.match(html, /https:\/\/github\.com\/taobaorun\/keep3\/releases/);
