@@ -2,6 +2,18 @@
 
 All notable user-facing changes to Keep3 are recorded here.
 
+## [1.0.2] - 2026-08-12
+
+### Changed
+
+- Refined the Calendar surface with a clearer primary-event card, calmer
+  secondary-event timeline, and consistent hierarchy between compact and
+  expanded presentations.
+- Grouped upcoming events by today and tomorrow, and added more polished
+  loading, empty, permission, and refresh-failure states.
+- Kept event timing intentionally static so the surface stays readable without
+  introducing a distracting live countdown.
+
 ## [1.0.1] - 2026-08-03
 
 ### Fixed
