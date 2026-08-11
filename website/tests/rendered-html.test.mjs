@@ -35,6 +35,13 @@ test("server-renders the Keep3 product site", async () => {
   assert.match(html, /三件重点/);
   assert.match(html, /媒体/);
   assert.match(html, /日历/);
+  assert.match(html, /从一行提示，到完整控制。/);
+  assert.match(html, /src="\/product-gallery\/priority-compact\.webp"/);
+  assert.match(html, /src="\/product-gallery\/priority-expanded\.webp"/);
+  assert.match(html, /src="\/product-gallery\/media-compact\.webp"/);
+  assert.match(html, /src="\/product-gallery\/media-expanded\.webp"/);
+  assert.match(html, /alt="Keep3 紧凑重点界面，显示第一项重点 AD-Harness"/);
+  assert.match(html, /alt="Keep3 展开媒体界面，显示李健八月照相馆的封面、进度和播放控制"/);
   assert.match(html, /本地优先/);
   assert.match(html, /href="#download"/);
   assert.match(html, /href="#support"/);

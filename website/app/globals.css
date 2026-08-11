@@ -390,6 +390,7 @@ a:focus-visible,
 }
 
 .section-heading h2,
+.gallery-intro h2,
 .focus-system h2,
 .quiet-section h2,
 .depth-section h2,
@@ -759,6 +760,134 @@ a:focus-visible,
   margin: 0.35rem 0 0;
   color: rgb(255 255 255 / 0.48);
   font-size: 0.75rem;
+}
+
+.product-gallery {
+  margin-top: 8rem;
+  scroll-margin-top: 6rem;
+}
+
+.gallery-intro {
+  display: grid;
+  margin-bottom: 4rem;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 2rem;
+  align-items: end;
+}
+
+.gallery-intro .eyebrow {
+  align-self: start;
+}
+
+.gallery-intro > p:last-child {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.capture-groups {
+  display: grid;
+  border-top: 1px solid var(--line);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.capture-group {
+  min-width: 0;
+  padding-top: 2rem;
+}
+
+.capture-group + .capture-group {
+  padding-left: 2rem;
+  border-left: 1px solid var(--line);
+}
+
+.capture-group:first-child {
+  padding-right: 2rem;
+}
+
+.capture-group-heading {
+  display: grid;
+  min-height: 10rem;
+  margin-bottom: 2rem;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.capture-group-heading > span,
+.capture-group-heading div > p:first-child,
+.capture-frame figcaption span {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+}
+
+.capture-group-heading > span {
+  padding-top: 0.25rem;
+  color: var(--orange-ink);
+}
+
+.capture-group-heading div > p:first-child {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+}
+
+.capture-group-heading h3 {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 3.25rem);
+  font-weight: 560;
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+
+.capture-group-heading div > p:last-child {
+  max-width: 28rem;
+  margin: 1rem 0 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.capture-sequence {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.capture-frame {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 1.5rem;
+  background: var(--surface);
+  box-shadow: 0 1.5rem 3.5rem rgb(31 20 38 / 0.13);
+}
+
+.capture-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+}
+
+.capture-frame figcaption {
+  display: grid;
+  padding: 1.25rem;
+  border-top: 1px solid var(--line);
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+  background: var(--paper-deep);
+}
+
+.capture-frame figcaption span {
+  padding-top: 0.15rem;
+  color: var(--orange-ink);
+}
+
+.capture-frame figcaption p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.65;
 }
 
 .focus-system {
@@ -1537,7 +1666,12 @@ footer p:last-child {
     grid-template-columns: 0.7fr 1.6fr;
   }
 
-  .section-heading > p:last-child {
+  .gallery-intro {
+    grid-template-columns: 0.7fr 1.6fr;
+  }
+
+  .section-heading > p:last-child,
+  .gallery-intro > p:last-child {
     grid-column: 2;
   }
 
@@ -1647,11 +1781,13 @@ footer p:last-child {
   }
 
   .section-heading,
+  .gallery-intro,
   .focus-system-intro {
     grid-template-columns: 1fr;
   }
 
-  .section-heading > p:last-child {
+  .section-heading > p:last-child,
+  .gallery-intro > p:last-child {
     grid-column: auto;
   }
 
@@ -1698,6 +1834,38 @@ footer p:last-child {
 
   .album-art {
     width: 5.5rem;
+  }
+
+  .product-gallery {
+    margin-top: 6rem;
+  }
+
+  .capture-groups {
+    grid-template-columns: 1fr;
+  }
+
+  .capture-group:first-child {
+    padding-right: 0;
+  }
+
+  .capture-group + .capture-group {
+    margin-top: 5rem;
+    padding-left: 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .capture-group-heading {
+    min-height: auto;
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+  }
+
+  .capture-frame {
+    border-radius: 1.25rem;
+  }
+
+  .capture-frame figcaption {
+    grid-template-columns: 4.5rem minmax(0, 1fr);
   }
 
   .focus-system {

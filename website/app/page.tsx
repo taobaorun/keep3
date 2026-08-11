@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- vinext serves these local assets directly. */
 import { ProductDemo } from "./components/ProductDemo";
 import { ProductDownload } from "./components/ProductDownload";
+import { ProductGallery } from "./components/ProductGallery";
 import { ProjectSupport } from "./components/ProjectSupport";
 
 const assetBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -100,6 +101,7 @@ export default function Home() {
             </p>
           </div>
           <ProductDemo />
+          <ProductGallery />
         </section>
 
         <section className="focus-system" aria-labelledby="focus-system-title">
