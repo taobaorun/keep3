@@ -15,11 +15,11 @@ final class ProjectSmokeTests: XCTestCase {
     let mediaAdapter = try source(at: "Keep3/Media/MediaRemoteAdapter.swift")
 
     XCTAssertGreaterThanOrEqual(
-      project.components(separatedBy: "MARKETING_VERSION = 1.0.2;").count - 1,
+      project.components(separatedBy: "MARKETING_VERSION = 1.0.3;").count - 1,
       4
     )
     XCTAssertGreaterThanOrEqual(
-      project.components(separatedBy: "CURRENT_PROJECT_VERSION = 3;").count - 1,
+      project.components(separatedBy: "CURRENT_PROJECT_VERSION = 4;").count - 1,
       4
     )
     XCTAssertTrue(project.contains("PRODUCT_BUNDLE_IDENTIFIER = dev.keep3.Keep3;"))
@@ -102,6 +102,23 @@ final class ProjectSmokeTests: XCTestCase {
         "com.apple.security.cs.disable-library-validation"
       ]
     )
+  }
+
+  func testAppEntitlementsDeclareCalendarAccessAcrossBuildModes() throws {
+    for path in [
+      "Keep3/Keep3.entitlements",
+      "Keep3/Keep3Debug.entitlements",
+      "Keep3/Keep3AdHoc.entitlements",
+    ] {
+      let entitlements = try propertyList(at: path)
+
+      XCTAssertEqual(
+        entitlements["com.apple.security.personal-information.calendars"]
+          as? Bool,
+        true,
+        "\(path) must declare Calendar access for EventKit"
+      )
+    }
   }
 
   func testReleaseBuildUsesAdHocSigningForMediaCompatibility() throws {

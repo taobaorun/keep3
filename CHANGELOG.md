@@ -2,6 +2,13 @@
 
 All notable user-facing changes to Keep3 are recorded here.
 
+## [1.0.3] - 2026-08-12
+
+### Fixed
+
+- Restored Calendar authorization in hardened distribution builds so enabling
+  Calendar can show upcoming events after the user grants access.
+
 ## [1.0.2] - 2026-08-12
 
 ### Changed
