@@ -3,12 +3,19 @@ import SwiftUI
 struct CalendarEventRowPresentation: Equatable, Identifiable, Sendable {
   let id: String
   let timeLabel: String
+  let statusLabel: String
+  let dayLabel: String
+  let startsNewDayGroup: Bool
   let title: String
   let isOngoing: Bool
   let isAllDay: Bool
 
+  var compactMetadata: String {
+    "\(statusLabel) \(timeLabel)"
+  }
+
   var accessibilityLabel: String {
-    "\(timeLabel)，\(title)"
+    "\(statusLabel)，\(timeLabel)，\(title)"
   }
 }
 
@@ -30,10 +37,21 @@ struct CalendarSurfacePresentation: Equatable, Sendable {
     level = payload.level
 
     let events = Array(payload.state.events.prefix(5))
-    rows = events.map {
-      Self.row(for: $0, now: now, calendar: calendar, locale: locale)
+    var previousDay: Date?
+    rows = events.map { event in
+      let day = calendar.startOfDay(for: max(event.startDate, now))
+      let row = Self.row(
+        for: event,
+        day: day,
+        startsNewDayGroup: previousDay != day,
+        now: now,
+        calendar: calendar,
+        locale: locale
+      )
+      previousDay = day
+      return row
     }
-    compactTime = rows.first?.timeLabel
+    compactTime = rows.first?.compactMetadata
     compactTitle = rows.first?.title ?? Self.message(for: payload.state)
 
     switch payload.state {
@@ -52,6 +70,14 @@ struct CalendarSurfacePresentation: Equatable, Sendable {
     level == .expanded
   }
 
+  var primaryRow: CalendarEventRowPresentation? {
+    rows.first
+  }
+
+  var secondaryRows: [CalendarEventRowPresentation] {
+    Array(rows.dropFirst())
+  }
+
   var accessibilitySummary: String {
     if rows.isEmpty {
       return statusMessage ?? compactTitle
@@ -61,6 +87,8 @@ struct CalendarSurfacePresentation: Equatable, Sendable {
 
   private static func row(
     for event: CalendarEvent,
+    day: Date,
+    startsNewDayGroup: Bool,
     now: Date,
     calendar: Calendar,
     locale: Locale
@@ -70,30 +98,66 @@ struct CalendarSurfacePresentation: Equatable, Sendable {
       && event.startDate <= now
       && event.endDate > now
     let timeLabel: String
+    let dayLabel = formattedDay(
+      day,
+      now: now,
+      calendar: calendar,
+      locale: locale
+    )
+    let statusLabel: String
     if event.isAllDay {
       timeLabel = "全天"
+      statusLabel = dayLabel
     } else if isOngoing {
       timeLabel =
-        "进行中 · 到 "
+        "至 "
         + formattedTime(
           event.endDate,
           calendar: calendar,
           locale: locale
         )
+      statusLabel = "进行中"
     } else {
       timeLabel = formattedTime(
         event.startDate,
         calendar: calendar,
         locale: locale
       )
+      statusLabel = dayLabel
     }
     return CalendarEventRowPresentation(
       id: event.id,
       timeLabel: timeLabel,
+      statusLabel: statusLabel,
+      dayLabel: dayLabel,
+      startsNewDayGroup: startsNewDayGroup,
       title: event.title,
       isOngoing: isOngoing,
       isAllDay: event.isAllDay
     )
+  }
+
+  private static func formattedDay(
+    _ date: Date,
+    now: Date,
+    calendar: Calendar,
+    locale: Locale
+  ) -> String {
+    if calendar.isDate(date, inSameDayAs: now) {
+      return "今天"
+    }
+    if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now),
+      calendar.isDate(date, inSameDayAs: tomorrow)
+    {
+      return "明天"
+    }
+
+    var format = Date.FormatStyle()
+      .month(.abbreviated)
+      .day()
+      .locale(locale)
+    format.calendar = calendar
+    return date.formatted(format)
   }
 
   private static func formattedTime(
@@ -144,19 +208,17 @@ struct CalendarSurfaceView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-  private var presentation: CalendarSurfacePresentation {
-    CalendarSurfacePresentation(payload: payload)
-  }
-
   var body: some View {
+    let presentation = CalendarSurfacePresentation(payload: payload)
+
     Group {
       switch payload.level {
       case .hardware:
         Color.clear
       case .compact:
-        compactContent
+        compactContent(presentation)
       case .expanded:
-        expandedContent
+        expandedContent(presentation)
       }
     }
     .foregroundStyle(.white)
@@ -184,24 +246,34 @@ struct CalendarSurfaceView: View {
   }
 
   @ViewBuilder
-  private var compactContent: some View {
+  private func compactContent(
+    _ presentation: CalendarSurfacePresentation
+  ) -> some View {
     switch presentationStyle {
     case .floatingCapsule:
       compactButton {
-        HStack(spacing: 9) {
-          calendarSymbol
+        HStack(spacing: 8) {
+          calendarSymbolBadge(size: 22)
           if let time = presentation.compactTime {
             Text(time)
-              .font(.caption.monospacedDigit().weight(.semibold))
-              .foregroundStyle(.white.opacity(0.68))
+              .font(.system(size: 10.5, weight: .semibold))
+              .monospacedDigit()
+              .foregroundStyle(.white.opacity(0.72))
+              .lineLimit(1)
+              .minimumScaleFactor(0.78)
           }
+          Rectangle()
+            .fill(.white.opacity(0.14))
+            .frame(width: 0.5, height: 13)
+            .accessibilityHidden(true)
           Text(presentation.compactTitle)
-            .font(.caption.weight(.semibold))
+            .font(.system(size: 12, weight: .medium))
             .lineLimit(1)
+            .truncationMode(.tail)
           Spacer(minLength: 0)
-          refreshIndicator
+          refreshIndicator(isRefreshing: presentation.isRefreshing)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 11)
       }
     case .notchAttached(let notchSize):
       let layout = NotchCompactContentLayout(
@@ -210,15 +282,18 @@ struct CalendarSurfaceView: View {
       )
       compactButton {
         HStack(spacing: 0) {
-          HStack(spacing: 5) {
+          HStack(spacing: 4) {
             calendarSymbol
             if let time = presentation.compactTime {
               Text(time)
-                .font(.system(size: 9.5, weight: .semibold))
+                .font(.system(size: 9, weight: .semibold))
                 .monospacedDigit()
                 .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .foregroundStyle(.white.opacity(0.76))
             }
           }
+          .padding(.horizontal, 5)
           .frame(width: layout.leftWingFrame.width)
 
           Color.clear
@@ -226,9 +301,11 @@ struct CalendarSurfaceView: View {
             .accessibilityHidden(true)
 
           Text(presentation.compactTitle)
-            .font(.caption.weight(.medium))
+            .font(.system(size: 10.5, weight: .medium))
             .lineLimit(1)
+            .truncationMode(.tail)
             .minimumScaleFactor(0.7)
+            .padding(.horizontal, 6)
             .frame(width: layout.rightWingFrame.width)
         }
       }
@@ -247,65 +324,182 @@ struct CalendarSurfaceView: View {
     .accessibilityIdentifier("calendar.compact")
   }
 
-  private var expandedContent: some View {
+  private func expandedContent(
+    _ presentation: CalendarSurfacePresentation
+  ) -> some View {
     VStack(alignment: .leading, spacing: 0) {
-      HStack(spacing: 8) {
-        calendarSymbol
+      HStack(spacing: 7) {
+        calendarSymbolBadge(size: 20)
         Text("接下来")
-          .font(.caption.weight(.bold))
-          .foregroundStyle(.white.opacity(0.72))
+          .font(.system(size: 11, weight: .semibold))
+          .foregroundStyle(.white.opacity(0.76))
         Spacer()
-        refreshIndicator
+        if !presentation.rows.isEmpty {
+          Text("\(presentation.rows.count) 项")
+            .font(.system(size: 9.5, weight: .semibold))
+            .foregroundStyle(.white.opacity(0.42))
+        }
+        refreshIndicator(isRefreshing: presentation.isRefreshing)
       }
-      .padding(.bottom, 10)
+      .frame(height: 20)
+      .padding(.bottom, 5)
 
       if presentation.rows.isEmpty {
-        VStack(spacing: 8) {
-          Image(systemName: "calendar.badge.clock")
-            .font(.system(size: 24, weight: .medium))
-            .foregroundStyle(.white.opacity(0.38))
+        VStack(spacing: 7) {
+          ZStack {
+            Circle()
+              .fill(.white.opacity(0.065))
+              .frame(width: 38, height: 38)
+            if showsStateProgress {
+              ProgressView()
+                .controlSize(.small)
+                .tint(.white.opacity(0.62))
+            } else {
+              Image(systemName: emptyStateSymbolName)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(.white.opacity(0.48))
+            }
+          }
           Text(presentation.statusMessage ?? "未来 24 小时没有安排")
             .font(.subheadline.weight(.medium))
-            .foregroundStyle(.white.opacity(0.68))
+            .foregroundStyle(.white.opacity(0.72))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityIdentifier("calendar.empty")
-      } else {
-        VStack(spacing: 0) {
-          ForEach(presentation.rows) { row in
-            HStack(spacing: 10) {
-              Text(row.timeLabel)
-                .font(.caption.monospacedDigit().weight(.semibold))
-                .foregroundStyle(
-                  row.isOngoing
-                    ? Color.orange.opacity(0.9)
-                    : Color.white.opacity(0.5)
-                )
-                .frame(width: 82, alignment: .leading)
-              Text(row.title)
-                .font(.subheadline.weight(.medium))
-                .lineLimit(1)
-              Spacer(minLength: 0)
+        .background {
+          RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(.white.opacity(0.035))
+            .overlay {
+              RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(.white.opacity(0.06), lineWidth: 0.5)
             }
-            .frame(height: 27)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(row.accessibilityLabel)
+        }
+        .accessibilityIdentifier("calendar.empty")
+      } else if let primaryRow = presentation.primaryRow {
+        VStack(spacing: 0) {
+          primaryEventCard(primaryRow)
+
+          if !presentation.secondaryRows.isEmpty {
+            VStack(spacing: 0) {
+              ForEach(presentation.secondaryRows) { row in
+                secondaryEventRow(row)
+              }
+            }
+            .padding(.top, 4)
+            .accessibilityIdentifier("calendar.timeline")
           }
         }
         .accessibilityIdentifier("calendar.events")
       }
 
       if presentation.hasRefreshFailure {
-        Text("暂时无法刷新，显示上次读取结果")
-          .font(.caption2)
-          .foregroundStyle(.orange.opacity(0.72))
-          .padding(.top, 6)
+        Label("暂时无法刷新，显示上次读取结果", systemImage: "exclamationmark.circle.fill")
+          .font(.system(size: 9, weight: .medium))
+          .foregroundStyle(.orange.opacity(0.74))
+          .lineLimit(1)
+          .padding(.top, 3)
       }
     }
-    .padding(.horizontal, 18)
-    .padding(.top, expandedTopInset + 12)
-    .padding(.bottom, 14)
+    .padding(.horizontal, 16)
+    .padding(.top, expandedTopInset + 8)
+    .padding(.bottom, 8)
     .accessibilityIdentifier("calendar.expanded")
+  }
+
+  private func primaryEventCard(
+    _ row: CalendarEventRowPresentation
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 3) {
+      HStack(spacing: 6) {
+        Text(row.statusLabel)
+          .font(.system(size: 9, weight: .bold))
+          .foregroundStyle(row.isOngoing ? Color.orange : Color.white.opacity(0.74))
+          .padding(.horizontal, 6)
+          .frame(height: 17)
+          .background(
+            row.isOngoing
+              ? Color.orange.opacity(0.12)
+              : Color.white.opacity(0.07),
+            in: Capsule()
+          )
+        Text(row.timeLabel)
+          .font(.system(size: 10.5, weight: .semibold))
+          .monospacedDigit()
+          .foregroundStyle(.white.opacity(0.58))
+        Spacer(minLength: 0)
+      }
+
+      Text(row.title)
+        .font(.system(size: 15, weight: .semibold))
+        .lineLimit(1)
+        .truncationMode(.tail)
+        .minimumScaleFactor(0.82)
+    }
+    .padding(.horizontal, 10)
+    .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+    .background {
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .fill(.white.opacity(0.065))
+        .overlay {
+          RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .stroke(
+              row.isOngoing
+                ? Color.orange.opacity(0.22)
+                : Color.white.opacity(0.075),
+              lineWidth: 0.5
+            )
+        }
+    }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(row.accessibilityLabel)
+    .accessibilityIdentifier("calendar.primary")
+  }
+
+  private func secondaryEventRow(
+    _ row: CalendarEventRowPresentation
+  ) -> some View {
+    HStack(spacing: 6) {
+      Text(row.startsNewDayGroup ? row.dayLabel : "")
+        .font(.system(size: 8.5, weight: .semibold))
+        .foregroundStyle(.white.opacity(0.4))
+        .frame(width: 28, alignment: .leading)
+
+      ZStack {
+        Rectangle()
+          .fill(.white.opacity(0.11))
+          .frame(width: 0.5)
+        Circle()
+          .fill(
+            row.isOngoing
+              ? Color.orange.opacity(0.9)
+              : Color.white.opacity(0.32)
+          )
+          .frame(width: 4, height: 4)
+      }
+      .frame(width: 7, height: 18)
+      .accessibilityHidden(true)
+
+      Text(row.timeLabel)
+        .font(.system(size: 9.5, weight: .semibold))
+        .monospacedDigit()
+        .foregroundStyle(
+          row.isOngoing
+            ? Color.orange.opacity(0.86)
+            : Color.white.opacity(0.5)
+        )
+        .lineLimit(1)
+        .minimumScaleFactor(0.78)
+        .frame(width: 50, alignment: .leading)
+
+      Text(row.title)
+        .font(.system(size: 10.5, weight: .medium))
+        .foregroundStyle(.white.opacity(0.82))
+        .lineLimit(1)
+        .truncationMode(.tail)
+      Spacer(minLength: 0)
+    }
+    .frame(height: 18)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(row.accessibilityLabel)
   }
 
   private var calendarSymbol: some View {
@@ -314,9 +508,39 @@ struct CalendarSurfaceView: View {
       .foregroundStyle(.white.opacity(0.76))
   }
 
+  private func calendarSymbolBadge(size: CGFloat) -> some View {
+    ZStack {
+      RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
+        .fill(.white.opacity(0.075))
+      calendarSymbol
+    }
+    .frame(width: size, height: size)
+    .accessibilityHidden(true)
+  }
+
+  private var showsStateProgress: Bool {
+    switch payload.state {
+    case .requestingPermission, .loading:
+      true
+    default:
+      false
+    }
+  }
+
+  private var emptyStateSymbolName: String {
+    switch payload.state {
+    case .disabled:
+      "calendar.badge.minus"
+    case .needsPermission, .restricted, .denied, .failed:
+      "calendar.badge.exclamationmark"
+    default:
+      "calendar.badge.clock"
+    }
+  }
+
   @ViewBuilder
-  private var refreshIndicator: some View {
-    if presentation.isRefreshing {
+  private func refreshIndicator(isRefreshing: Bool) -> some View {
+    if isRefreshing {
       ProgressView()
         .controlSize(.mini)
         .tint(.white.opacity(0.62))
