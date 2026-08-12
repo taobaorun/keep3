@@ -14,6 +14,19 @@ struct CalendarEventRowPresentation: Equatable, Identifiable, Sendable {
     "\(statusLabel) \(timeLabel)"
   }
 
+  /// The physical-notch layout has only one narrow wing for metadata. Keep
+  /// day context when it changes, while avoiding a redundant "today" or
+  /// "ongoing" label that would crowd the icon and time.
+  var notchedCompactMetadata: String {
+    if isOngoing {
+      return timeLabel
+    }
+    if isAllDay || dayLabel != "今天" {
+      return "\(dayLabel) \(timeLabel)"
+    }
+    return timeLabel
+  }
+
   var accessibilityLabel: String {
     "\(statusLabel)，\(timeLabel)，\(title)"
   }
@@ -282,31 +295,42 @@ struct CalendarSurfaceView: View {
       )
       compactButton {
         HStack(spacing: 0) {
-          HStack(spacing: 4) {
-            calendarSymbol
-            if let time = presentation.compactTime {
-              Text(time)
-                .font(.system(size: 9, weight: .semibold))
+          HStack(spacing: 5) {
+            notchedCalendarSymbol(
+              isOngoing: presentation.primaryRow?.isOngoing == true
+            )
+            if let row = presentation.primaryRow {
+              Text(row.notchedCompactMetadata)
+                .font(.system(size: 10, weight: .semibold))
                 .monospacedDigit()
                 .lineLimit(1)
-                .minimumScaleFactor(0.72)
-                .foregroundStyle(.white.opacity(0.76))
+                .minimumScaleFactor(0.82)
+                .foregroundStyle(.white.opacity(0.74))
             }
           }
-          .padding(.horizontal, 5)
-          .frame(width: layout.leftWingFrame.width)
+          .padding(.leading, 7)
+          .padding(.trailing, 9)
+          .frame(
+            width: layout.leftWingFrame.width,
+            alignment: .trailing
+          )
 
           Color.clear
             .frame(width: layout.obstructionFrame.width)
             .accessibilityHidden(true)
 
           Text(presentation.compactTitle)
-            .font(.system(size: 10.5, weight: .medium))
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.white.opacity(0.92))
             .lineLimit(1)
             .truncationMode(.tail)
-            .minimumScaleFactor(0.7)
-            .padding(.horizontal, 6)
-            .frame(width: layout.rightWingFrame.width)
+            .minimumScaleFactor(0.78)
+            .padding(.leading, 9)
+            .padding(.trailing, 7)
+            .frame(
+              width: layout.rightWingFrame.width,
+              alignment: .leading
+            )
         }
       }
     }
@@ -506,6 +530,17 @@ struct CalendarSurfaceView: View {
     Image(systemName: "calendar")
       .font(.system(size: 11, weight: .semibold))
       .foregroundStyle(.white.opacity(0.76))
+  }
+
+  private func notchedCalendarSymbol(isOngoing: Bool) -> some View {
+    Image(systemName: "calendar")
+      .font(.system(size: 11, weight: .semibold))
+      .foregroundStyle(
+        isOngoing
+          ? Color.orange.opacity(0.9)
+          : Color.white.opacity(0.7)
+      )
+      .accessibilityHidden(true)
   }
 
   private func calendarSymbolBadge(size: CGFloat) -> some View {
