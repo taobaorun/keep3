@@ -33,7 +33,16 @@ final class CalendarSurfacePresentationTests: XCTestCase {
     XCTAssertTrue(presentation.rows[0].isOngoing)
     XCTAssertEqual(presentation.rows[0].statusLabel, "进行中")
     XCTAssertTrue(presentation.rows[0].timeLabel.hasPrefix("至 "))
+    XCTAssertEqual(
+      presentation.rows[0].notchedCompactMetadata,
+      presentation.rows[0].timeLabel
+    )
+    XCTAssertEqual(
+      presentation.rows[1].notchedCompactMetadata,
+      presentation.rows[1].timeLabel
+    )
     XCTAssertEqual(presentation.rows[2].timeLabel, "全天")
+    XCTAssertEqual(presentation.rows[2].notchedCompactMetadata, "今天 全天")
     XCTAssertEqual(presentation.compactTitle, "ongoing")
     XCTAssertFalse(
       presentation.accessibilitySummary.contains("must-not-render")
@@ -100,6 +109,13 @@ final class CalendarSurfacePresentationTests: XCTestCase {
     )
     XCTAssertTrue(presentation.rows[0].compactMetadata.hasPrefix("今天 "))
     XCTAssertTrue(presentation.rows[1].compactMetadata.hasPrefix("明天 "))
+    XCTAssertEqual(
+      presentation.rows[0].notchedCompactMetadata,
+      presentation.rows[0].timeLabel
+    )
+    XCTAssertTrue(
+      presentation.rows[1].notchedCompactMetadata.hasPrefix("明天 ")
+    )
   }
 
   func testLoadingEmptyFailureAndDeniedNeverCarryEventTitles() {
