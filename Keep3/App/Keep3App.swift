@@ -49,15 +49,24 @@ struct Keep3App: App {
       EmptyView()
     }
     .commands {
-      UpdateCommands(updateController: appDelegate.updateController)
+      AppCommands(
+        updateController: appDelegate.updateController,
+        onOpenSettings: appDelegate.openSettings
+      )
     }
   }
 }
 
-private struct UpdateCommands: Commands {
+private struct AppCommands: Commands {
   @ObservedObject var updateController: SparkleUpdateController
+  let onOpenSettings: () -> Void
 
   var body: some Commands {
+    CommandGroup(replacing: .appSettings) {
+      Button("Settings…", action: onOpenSettings)
+        .keyboardShortcut(",", modifiers: .command)
+    }
+
     CommandGroup(after: .appInfo) {
       Button("检查更新…") {
         updateController.checkForUpdates()
@@ -80,6 +89,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     MediaPlayerApplicationActivator.live
   private let surfaceHapticFeedback = AppKitSurfaceHapticFeedback()
   lazy var updateController = AppDelegate.makeUpdateController()
+
+  func openSettings() {
+    editorWindowController.showSettings()
+  }
+
   private var state = Keep3State()
   private var isSurfaceAvailable = true
   private var activeMediaEpoch: UInt64?

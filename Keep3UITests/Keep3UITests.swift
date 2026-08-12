@@ -39,6 +39,21 @@ final class Keep3UITests: XCTestCase {
     XCTAssertTrue(editorWindow.frame.contains(brandLogo.frame))
   }
 
+  func testSettingsCommandRoutesToTheMainWindow() throws {
+    try launchIsolatedApp()
+    defer { cleanUpIsolatedApp() }
+
+    app.typeKey(",", modifierFlags: .command)
+
+    XCTAssertTrue(
+      app.descendants(matching: .any)["settings.category.general"]
+        .waitForExistence(timeout: 2),
+      app.debugDescription
+    )
+    XCTAssertEqual(app.windows.matching(identifier: "Keep3").count, 1)
+    XCTAssertFalse(app.windows["Keep3 Settings"].exists)
+  }
+
   func testThreeItemLimitCurrentFocusAndReordering() throws {
     try launchIsolatedApp()
     defer { cleanUpIsolatedApp() }
