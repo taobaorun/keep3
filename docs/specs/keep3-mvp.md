@@ -6,6 +6,9 @@ and public direct-distribution work tracked under
 [`docs/plans/2026-08-01-001-feat-open-source-distribution-donations-plan.md`](../plans/2026-08-01-001-feat-open-source-distribution-donations-plan.md)
 Source idea: [`docs/ideas/keep3.md`](../ideas/keep3.md)
 
+The aligned priority archive and Markdown export increment is governed by
+[`keep3-priority-archive-markdown-export.md`](keep3-priority-archive-markdown-export.md).
+
 ## Objective
 
 Keep3 is a quiet, native macOS event surface. It keeps at most three
@@ -52,7 +55,9 @@ measures.
 
 ### Out of Scope
 
-- Completion state, checkboxes, progress, history, review, or analytics.
+- Completion state, checkboxes, progress, review, or analytics. Priority history
+  is limited to the immutable local archive governed by
+  [`keep3-priority-archive-markdown-export.md`](keep3-priority-archive-markdown-export.md).
 - Priority-item dates, deadlines, reminders, or notifications.
 - Automatic activity monitoring or drift detection.
 - Reminders, third-party calendar services, accounts, cloud, or team integration.

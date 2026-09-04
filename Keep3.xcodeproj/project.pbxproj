@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D12000000000000000000005 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11000000000000000000005 /* HistoryView.swift */; };
+		D12000000000000000000002 /* MarkdownExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11000000000000000000002 /* MarkdownExporter.swift */; };
+		D12000000000000000000003 /* MarkdownDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11000000000000000000003 /* MarkdownDocument.swift */; };
+		D12000000000000000000004 /* MarkdownExporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11000000000000000000004 /* MarkdownExporterTests.swift */; };
+		D12000000000000000000001 /* ArchivedFocusItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11000000000000000000001 /* ArchivedFocusItem.swift */; };
 		100000000000000000000001 /* Keep3App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* Keep3App.swift */; };
 		100000000000000000000002 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* RootView.swift */; };
 		100000000000000000000003 /* ProjectSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000003 /* ProjectSmokeTests.swift */; };
@@ -153,6 +158,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		D11000000000000000000005 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		D11000000000000000000002 /* MarkdownExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownExporter.swift; sourceTree = "<group>"; };
+		D11000000000000000000003 /* MarkdownDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownDocument.swift; sourceTree = "<group>"; };
+		D11000000000000000000004 /* MarkdownExporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownExporterTests.swift; sourceTree = "<group>"; };
+		D11000000000000000000001 /* ArchivedFocusItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchivedFocusItem.swift; sourceTree = "<group>"; };
 		200000000000000000000001 /* Keep3App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keep3App.swift; sourceTree = "<group>"; };
 		200000000000000000000002 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		200000000000000000000003 /* ProjectSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectSmokeTests.swift; sourceTree = "<group>"; };
@@ -311,6 +321,7 @@
 			children = (
 				400000000000000000000003 /* App */,
 				400000000000000000000010 /* Domain */,
+				D13000000000000000000001 /* Export */,
 				400000000000000000000012 /* Features */,
 				400000000000000000000008 /* Overlay */,
 				400000000000000000000015 /* Persistence */,
@@ -373,6 +384,7 @@
 				200000000000000000000003 /* ProjectSmokeTests.swift */,
 				400000000000000000000011 /* App */,
 				400000000000000000000009 /* Domain */,
+				D13000000000000000000002 /* Export */,
 				400000000000000000000007 /* Overlay */,
 				400000000000000000000014 /* Persistence */,
 				400000000000000000000019 /* Media */,
@@ -449,9 +461,27 @@
 			path = Domain;
 			sourceTree = "<group>";
 		};
+		D13000000000000000000001 /* Export */ = {
+			isa = PBXGroup;
+			children = (
+				D11000000000000000000002 /* MarkdownExporter.swift */,
+				D11000000000000000000003 /* MarkdownDocument.swift */,
+			);
+			path = Export;
+			sourceTree = "<group>";
+		};
+		D13000000000000000000002 /* Export */ = {
+			isa = PBXGroup;
+			children = (
+				D11000000000000000000004 /* MarkdownExporterTests.swift */,
+			);
+			path = Export;
+			sourceTree = "<group>";
+		};
 		400000000000000000000010 /* Domain */ = {
 			isa = PBXGroup;
 			children = (
+				D11000000000000000000001 /* ArchivedFocusItem.swift */,
 				200000000000000000000014 /* FocusItem.swift */,
 				200000000000000000000015 /* Keep3State.swift */,
 				200000000000000000000024 /* RotationSchedule.swift */,
@@ -473,6 +503,7 @@
 			isa = PBXGroup;
 			children = (
 				400000000000000000000013 /* Editor */,
+				D13000000000000000000003 /* History */,
 				400000000000000000000016 /* Settings */,
 			);
 			path = Features;
@@ -485,6 +516,14 @@
 				200000000000000000000019 /* ItemEditorView.swift */,
 			);
 			path = Editor;
+			sourceTree = "<group>";
+		};
+		D13000000000000000000003 /* History */ = {
+			isa = PBXGroup;
+			children = (
+				D11000000000000000000005 /* HistoryView.swift */,
+			);
+			path = History;
 			sourceTree = "<group>";
 		};
 		400000000000000000000014 /* Persistence */ = {
@@ -778,6 +817,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D12000000000000000000005 /* HistoryView.swift in Sources */,
+				D12000000000000000000002 /* MarkdownExporter.swift in Sources */,
+				D12000000000000000000003 /* MarkdownDocument.swift in Sources */,
+				D12000000000000000000001 /* ArchivedFocusItem.swift in Sources */,
 				100000000000000000000001 /* Keep3App.swift in Sources */,
 				100000000000000000000002 /* RootView.swift in Sources */,
 				100000000000000000000006 /* DisplayGeometry.swift in Sources */,
@@ -846,6 +889,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D12000000000000000000004 /* MarkdownExporterTests.swift in Sources */,
 				100000000000000000000003 /* ProjectSmokeTests.swift in Sources */,
 				100000000000000000000005 /* DisplayGeometryTests.swift in Sources */,
 				100000000000000000000007 /* TopSurfacePanelTests.swift in Sources */,

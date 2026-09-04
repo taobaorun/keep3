@@ -8,6 +8,7 @@ struct ItemEditorView: View {
   let onUpdate: (String, String, [String]) -> Void
   let onMakeCurrent: () -> Void
   let onMove: (Int) -> Void
+  let onArchive: () -> Void
   let onDelete: () -> Void
 
   @State private var title: String
@@ -23,6 +24,7 @@ struct ItemEditorView: View {
     onUpdate: @escaping (String, String, [String]) -> Void,
     onMakeCurrent: @escaping () -> Void,
     onMove: @escaping (Int) -> Void,
+    onArchive: @escaping () -> Void,
     onDelete: @escaping () -> Void
   ) {
     self.item = item
@@ -32,6 +34,7 @@ struct ItemEditorView: View {
     self.onUpdate = onUpdate
     self.onMakeCurrent = onMakeCurrent
     self.onMove = onMove
+    self.onArchive = onArchive
     self.onDelete = onDelete
     _title = State(initialValue: item.title)
     _details = State(initialValue: item.details)
@@ -146,22 +149,33 @@ struct ItemEditorView: View {
 
           Spacer()
 
-          Button("删除", systemImage: "trash", role: .destructive) {
-            confirmsDeletion = true
+          Button("归档", systemImage: "archivebox", action: onArchive)
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("editor.archive")
+
+          Menu {
+            Button("永久删除…", systemImage: "trash", role: .destructive) {
+              confirmsDeletion = true
+            }
+            .accessibilityIdentifier("editor.permanentDelete")
+          } label: {
+            Label("更多", systemImage: "ellipsis.circle")
           }
-          .accessibilityIdentifier("editor.delete")
+          .accessibilityIdentifier("editor.moreActions")
         }
       }
       .padding(28)
     }
     .confirmationDialog(
-      "删除“\(item.title)”？",
+      "永久删除“\(item.title)”？",
       isPresented: $confirmsDeletion
     ) {
-      Button("删除", role: .destructive, action: onDelete)
+      Button("永久删除", role: .destructive, action: onDelete)
+        .accessibilityIdentifier("editor.confirmDelete")
       Button("取消", role: .cancel) {}
+        .accessibilityIdentifier("editor.cancelDelete")
     } message: {
-      Text("这会从三件事中移除该项。")
+      Text("这件事不会保存在历史记录中，且无法恢复。")
     }
   }
 

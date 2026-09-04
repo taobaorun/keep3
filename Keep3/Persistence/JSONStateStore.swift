@@ -6,13 +6,24 @@ final class JSONStateStore: StateStore {
     case recoveryFailed(readError: Error, preservationError: Error)
   }
 
-  private struct StoredState: Codable {
+  private struct SchemaHeader: Decodable {
+    let schemaVersion: Int
+  }
+
+  private struct StoredStateV1: Decodable {
     let schemaVersion: Int
     let items: [FocusItem]
     let currentFocusID: UUID?
   }
 
-  static let currentSchemaVersion = 1
+  private struct StoredStateV2: Codable {
+    let schemaVersion: Int
+    let items: [FocusItem]
+    let currentFocusID: UUID?
+    let archivedItems: [ArchivedFocusItem]
+  }
+
+  static let currentSchemaVersion = 2
 
   let fileURL: URL
 
@@ -58,14 +69,26 @@ final class JSONStateStore: StateStore {
 
     do {
       let data = try Data(contentsOf: fileURL)
-      let storedState = try JSONDecoder().decode(StoredState.self, from: data)
-      guard storedState.schemaVersion == Self.currentSchemaVersion else {
-        throw StoreError.unsupportedSchemaVersion(storedState.schemaVersion)
+      let decoder = JSONDecoder()
+      let header = try decoder.decode(SchemaHeader.self, from: data)
+      let state: Keep3State
+      switch header.schemaVersion {
+      case 1:
+        let storedState = try decoder.decode(StoredStateV1.self, from: data)
+        state = try Keep3State(
+          items: storedState.items,
+          currentFocusID: storedState.currentFocusID
+        )
+      case Self.currentSchemaVersion:
+        let storedState = try decoder.decode(StoredStateV2.self, from: data)
+        state = try Keep3State(
+          items: storedState.items,
+          currentFocusID: storedState.currentFocusID,
+          archivedItems: storedState.archivedItems
+        )
+      default:
+        throw StoreError.unsupportedSchemaVersion(header.schemaVersion)
       }
-      let state = try Keep3State(
-        items: storedState.items,
-        currentFocusID: storedState.currentFocusID
-      )
       return StateLoadResult(state: state)
     } catch {
       return try preserveUnreadableState(readError: error)
@@ -75,12 +98,14 @@ final class JSONStateStore: StateStore {
   func save(_ state: Keep3State) throws {
     _ = try Keep3State(
       items: state.items,
-      currentFocusID: state.currentFocusID
+      currentFocusID: state.currentFocusID,
+      archivedItems: state.archivedItems
     )
-    let storedState = StoredState(
+    let storedState = StoredStateV2(
       schemaVersion: Self.currentSchemaVersion,
       items: state.items,
-      currentFocusID: state.currentFocusID
+      currentFocusID: state.currentFocusID,
+      archivedItems: state.archivedItems
     )
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

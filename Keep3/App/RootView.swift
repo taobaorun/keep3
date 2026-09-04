@@ -2,6 +2,7 @@ import SwiftUI
 
 enum MainWindowDestination: Hashable {
   case editor
+  case history
   case settings
 }
 
@@ -27,6 +28,12 @@ struct RootView: View {
           Text("Keep3")
         }
         .tag(MainWindowDestination.editor)
+
+      HistoryView(model: model)
+        .tabItem {
+          Label("历史", systemImage: "archivebox")
+        }
+        .tag(MainWindowDestination.history)
 
       SettingsView(
         preferences: preferences,

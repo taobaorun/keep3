@@ -60,6 +60,84 @@ final class JSONStateStoreTests: XCTestCase {
     XCTAssertNil(loaded.message)
   }
 
+  func testSchemaOneMigratesLosslesslyWithEmptyArchiveAndSavesSchemaTwo()
+    throws
+  {
+    let id = UUID()
+    let json = """
+      {
+        "schemaVersion": 1,
+        "items": [
+          {"id":"\(id.uuidString)","title":"原有重点","details":"说明","subitems":["补充"]}
+        ],
+        "currentFocusID": "\(id.uuidString)"
+      }
+      """
+    try Data(json.utf8).write(to: stateFileURL)
+    let store = makeStore()
+
+    let migrated = try store.load().state
+
+    XCTAssertEqual(migrated.items.map(\.title), ["原有重点"])
+    XCTAssertEqual(migrated.currentFocusID, id)
+    XCTAssertTrue(migrated.archivedItems.isEmpty)
+
+    try store.save(migrated)
+    let saved =
+      try JSONSerialization.jsonObject(
+        with: Data(contentsOf: stateFileURL)
+      ) as? [String: Any]
+    XCTAssertEqual(saved?["schemaVersion"] as? Int, 2)
+  }
+
+  func testSchemaTwoRoundTripsArchiveHistory() throws {
+    let current = try FocusItem(title: "当前")
+    let old = ArchivedFocusItem(
+      item: try FocusItem(
+        title: "过去",
+        details: "历史说明",
+        subitems: ["一", "二"]
+      ),
+      archivedAt: Date(timeIntervalSince1970: 1_725_408_000)
+    )
+    let state = try Keep3State(
+      items: [current],
+      currentFocusID: current.id,
+      archivedItems: [old]
+    )
+    let store = makeStore()
+
+    try store.save(state)
+
+    XCTAssertEqual(try store.load().state, state)
+  }
+
+  func testSchemaTwoDuplicateIdentityIsPreservedForRecovery() throws {
+    let id = UUID()
+    let json = """
+      {
+        "schemaVersion": 2,
+        "items": [
+          {"id":"\(id.uuidString)","title":"当前","details":"","subitems":[]}
+        ],
+        "currentFocusID": "\(id.uuidString)",
+        "archivedItems": [
+          {
+            "item":{"id":"\(id.uuidString)","title":"历史","details":"","subitems":[]},
+            "archivedAt":0
+          }
+        ]
+      }
+      """
+    try Data(json.utf8).write(to: stateFileURL)
+    let store = makeStore()
+
+    let result = try store.load()
+
+    XCTAssertEqual(result.state, Keep3State())
+    XCTAssertNotNil(result.recoveryFileURL)
+  }
+
   func testMalformedJSONIsMovedAsideAndLoadsEmptyState() throws {
     let originalData = Data("{ definitely-not-json".utf8)
     try originalData.write(to: stateFileURL)
