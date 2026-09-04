@@ -58,6 +58,36 @@ struct EditorView: View {
         }
       }
 
+      if let pendingUndo = model.pendingArchiveUndo {
+        HStack(spacing: 8) {
+          Label(
+            "已归档“\(pendingUndo.itemTitle)”",
+            systemImage: "archivebox"
+          )
+          .font(.caption)
+          .lineLimit(2)
+
+          Spacer(minLength: 4)
+
+          Button("撤销") {
+            model.undoArchive(operationID: pendingUndo.operationID)
+          }
+          .buttonStyle(.borderless)
+          .accessibilityIdentifier("editor.undoArchive")
+
+          Button {
+            model.dismissArchiveUndo(operationID: pendingUndo.operationID)
+          } label: {
+            Image(systemName: "xmark")
+          }
+          .buttonStyle(.borderless)
+          .accessibilityLabel("关闭撤销提示")
+          .accessibilityIdentifier("editor.dismissArchiveUndo")
+        }
+        .padding(10)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+      }
+
       Spacer(minLength: 16)
 
       if model.state.items.count < Keep3State.maximumItemCount {
@@ -123,6 +153,9 @@ struct EditorView: View {
         },
         onMove: { destination in
           model.moveItem(id: item.id, to: destination)
+        },
+        onArchive: {
+          model.archiveItem(id: item.id)
         },
         onDelete: {
           model.removeItem(id: item.id)

@@ -81,6 +81,128 @@ final class Keep3UITests: XCTestCase {
     XCTAssertTrue(firstItem.label.contains("当前重点"))
   }
 
+  func testArchiveUndoAndReadOnlyHistorySurviveRelaunch() throws {
+    try launchIsolatedApp()
+    defer { cleanUpIsolatedApp() }
+
+    addItem("Archive Me")
+    let archive = app.buttons["editor.archive"]
+    XCTAssertTrue(archive.waitForExistence(timeout: 2))
+    archive.click()
+
+    let undo = app.buttons["editor.undoArchive"]
+    XCTAssertTrue(undo.waitForExistence(timeout: 2), app.debugDescription)
+    undo.click()
+    XCTAssertTrue(
+      app.buttons.matching(
+        NSPredicate(format: "label CONTAINS %@", "Archive Me")
+      ).firstMatch.waitForExistence(timeout: 2)
+    )
+
+    app.buttons["editor.archive"].click()
+    XCTAssertTrue(app.buttons["editor.undoArchive"].waitForExistence(timeout: 2))
+    app.terminate()
+    app.launch()
+
+    let historyTab = app.radioButtons["历史"]
+    XCTAssertTrue(historyTab.waitForExistence(timeout: 5))
+    historyTab.click()
+
+    XCTAssertTrue(
+      app.buttons["history.exportAll"].waitForExistence(timeout: 2),
+      app.debugDescription
+    )
+    XCTAssertTrue(app.staticTexts["Archive Me"].exists)
+    XCTAssertTrue(app.buttons["history.exportSelected"].exists)
+    XCTAssertTrue(app.buttons["history.delete"].exists)
+    XCTAssertFalse(app.textFields["editor.title"].exists)
+    XCTAssertFalse(app.buttons["editor.undoArchive"].exists)
+
+    let stateBeforeExport = try Data(contentsOf: stateFileURL())
+    app.buttons["history.exportAll"].click()
+    let savePanel = app.sheets["save-panel"]
+    XCTAssertTrue(savePanel.waitForExistence(timeout: 3), app.debugDescription)
+    app.typeKey(.escape, modifierFlags: [])
+    let dismissed = expectation(
+      for: NSPredicate(format: "exists == false"),
+      evaluatedWith: savePanel
+    )
+    wait(for: [dismissed], timeout: 3)
+    XCTAssertFalse(app.staticTexts["history.exportError"].exists)
+    XCTAssertEqual(try Data(contentsOf: stateFileURL()), stateBeforeExport)
+  }
+
+  func testHistoryExportFailureIsVisibleAndNonMutating() throws {
+    try launchIsolatedApp(exportFailureFixture: true)
+    defer { cleanUpIsolatedApp() }
+
+    addItem("Export Failure")
+    app.buttons["editor.archive"].click()
+    let stateBeforeExport = try Data(contentsOf: stateFileURL())
+    app.radioButtons["历史"].click()
+
+    let exportAll = app.buttons["history.exportAll"]
+    XCTAssertTrue(exportAll.waitForExistence(timeout: 2))
+    exportAll.click()
+
+    let error = app.descendants(matching: .any)["history.exportError"]
+    XCTAssertTrue(error.waitForExistence(timeout: 2), app.debugDescription)
+    XCTAssertTrue(valueDescription(of: error).contains("Markdown 文件未能保存"))
+    XCTAssertEqual(try Data(contentsOf: stateFileURL()), stateBeforeExport)
+  }
+
+  func testArchiveUndoCanBeExplicitlyDismissed() throws {
+    try launchIsolatedApp()
+    defer { cleanUpIsolatedApp() }
+
+    addItem("Dismiss Undo")
+    app.buttons["editor.archive"].click()
+    let dismiss = app.buttons["editor.dismissArchiveUndo"]
+    XCTAssertTrue(dismiss.waitForExistence(timeout: 2))
+
+    dismiss.click()
+
+    XCTAssertFalse(app.buttons["editor.undoArchive"].exists)
+    app.radioButtons["历史"].click()
+    XCTAssertTrue(app.staticTexts["Dismiss Undo"].waitForExistence(timeout: 2))
+  }
+
+  func testPermanentDeletePathsRequireConfirmation() throws {
+    try launchIsolatedApp()
+    defer { cleanUpIsolatedApp() }
+
+    addItem("Delete Active")
+    openActivePermanentDeleteConfirmation()
+    let cancelActive = app.descendants(matching: .any)["editor.cancelDelete"]
+    XCTAssertTrue(cancelActive.waitForExistence(timeout: 2), app.debugDescription)
+    cancelActive.click()
+    XCTAssertTrue(app.staticTexts["Delete Active"].exists)
+
+    openActivePermanentDeleteConfirmation()
+    let confirmActive = app.descendants(matching: .any)["editor.confirmDelete"]
+    XCTAssertTrue(confirmActive.waitForExistence(timeout: 2))
+    confirmActive.click()
+    XCTAssertTrue(app.staticTexts["还没有重点"].waitForExistence(timeout: 2))
+
+    addItem("Delete History")
+    app.buttons["editor.archive"].click()
+    app.radioButtons["历史"].click()
+    XCTAssertTrue(app.buttons["history.delete"].waitForExistence(timeout: 2))
+    app.buttons["history.delete"].click()
+    let cancelHistory = app.descendants(matching: .any)["history.cancelDelete"]
+    XCTAssertTrue(cancelHistory.waitForExistence(timeout: 2))
+    cancelHistory.click()
+    XCTAssertTrue(app.staticTexts["Delete History"].exists)
+
+    app.buttons["history.delete"].click()
+    let confirmHistory = app.descendants(matching: .any)["history.confirmDelete"]
+    XCTAssertTrue(confirmHistory.waitForExistence(timeout: 2))
+    confirmHistory.click()
+    XCTAssertTrue(
+      app.staticTexts["还没有历史记录"].waitForExistence(timeout: 2)
+    )
+  }
+
   func testContentAndBehaviorSettingsSurviveRelaunch() throws {
     try launchIsolatedApp()
     defer { cleanUpIsolatedApp() }
@@ -375,7 +497,8 @@ final class Keep3UITests: XCTestCase {
     expandedSurface: Bool = false,
     calendarFixture: Bool = false,
     updateFixture: Bool = false,
-    surfaceLevel: String? = nil
+    surfaceLevel: String? = nil,
+    exportFailureFixture: Bool = false
   ) throws {
     continueAfterFailure = false
 
@@ -403,6 +526,8 @@ final class Keep3UITests: XCTestCase {
       false.description
     app.launchEnvironment["KEEP3_UI_TEST_UPDATE_FIXTURE"] =
       updateFixture.description
+    app.launchEnvironment["KEEP3_UI_TEST_EXPORT_FAILURE"] =
+      exportFailureFixture.description
     if calendarFixture {
       app.launchEnvironment["KEEP3_UI_TEST_CALENDAR_FIXTURE"] = "authorized"
     }
@@ -444,6 +569,17 @@ final class Keep3UITests: XCTestCase {
         NSPredicate(format: "label CONTAINS %@", title)
       ).firstMatch.waitForExistence(timeout: 2)
     )
+  }
+
+  private func stateFileURL() -> URL {
+    testDirectoryURL.appendingPathComponent("state.json")
+  }
+
+  private func openActivePermanentDeleteConfirmation() {
+    app.buttons["editor.moreActions"].click()
+    let delete = app.descendants(matching: .any)["editor.permanentDelete"]
+    XCTAssertTrue(delete.waitForExistence(timeout: 2), app.debugDescription)
+    delete.click()
   }
 
   private func openSettings() {
