@@ -15,9 +15,9 @@ Authority: confirmed Product Contract plus its explicit delegated engineering de
   panel hit region. Resizing must continue to update the rendered frame and
   tracking area together.
 - `TopSurfaceKeyboardNavigationPresentation` already publishes whether an
-  explicit keyboard session is active, but the SwiftUI surface does not render
-  that state. Component-specific direction guidance is currently used only for
-  an accessibility announcement.
+  explicit keyboard session is active. Component-specific direction guidance is
+  used for the accessibility announcement and is intentionally not rendered as
+  surface chrome.
 - Pointer entry currently produces an immediate hover haptic independently of
   the deliberate gesture threshold. Gesture haptics are already emitted once
   when a supported gesture crosses its lock threshold.
@@ -41,12 +41,12 @@ Authority: confirmed Product Contract plus its explicit delegated engineering de
 
 ## Decision summary and active design dimensions
 
-1. Keyboard mode remains owned by the existing panel presentation. It gains a
-   shared, component-aware visual legend rather than provider-specific keyboard
-   state. When the logical level is hardware-only during an active keyboard
-   session, rendering uses the compact interaction envelope so the explicit
-   mode cannot become visually invisible; the logical level and arrow-key
-   semantics do not change.
+1. Keyboard mode remains owned by the existing panel presentation. It keeps a
+   component-aware accessibility announcement but renders no arrows, Return,
+   Escape, keyboard badge, or provider-specific visual guidance. When the logical
+   level is hardware-only during an active keyboard session, rendering may use
+   the compact interaction envelope so keyboard routing remains available; the
+   logical level and arrow-key semantics do not change.
 2. Surface controls share one internal pressed-state style. It changes only
    transform and opacity and substitutes opacity-only feedback under Reduce
    Motion.
@@ -70,8 +70,8 @@ Authority: confirmed Product Contract plus its explicit delegated engineering de
    layout, and retain immediate accessibility output.
 8. Surface frame animation becomes cause-aware. Existing pointer/gesture level
    motion and media transient motion remain available, while keyboard sessions,
-   keyboard commands, guidance replacement, focus content-class changes, and
-   companion-envelope recalculation update without animation.
+   keyboard commands, accessibility-guidance replacement, focus content-class
+   changes, and companion-envelope recalculation update without animation.
 
 The active design dimensions are user interaction state, internal presentation
 and geometry flow, accessibility, and motion performance. No durable data,
@@ -87,20 +87,14 @@ activated.
   the current `TopSurfaceKeyboardNavigationGuidance` alongside `isActive`.
 - `TopSurfacePanel` derives guidance from its current `PanelContent` both when a
   session begins and whenever content changes while the session remains active.
-  Media guidance continues to expose only supported previous/next actions.
-- `TopSurfaceRootView` owns one non-interactive `KeyboardNavigationStatusView`
-  overlay for all three providers. The overlay renders the bounded
-  `visibleDirections` legend plus an Escape affordance, applies a non-color-only
-  active treatment, and is excluded from hit testing.
-- The status view adapts to presentation style: floating surfaces use a centered
-  inset legend; notch-attached compact surfaces keep glyphs in drawable wing or
-  below-notch pixels rather than assuming the camera obstruction is visible.
-  It must not hide the primary title or an enabled media control.
+  Media guidance continues to announce only supported previous/next actions.
+- `TopSurfaceRootView` renders no keyboard-status overlay. Keyboard state remains
+  available only to motion suppression, focus handling, and accessibility
+  announcements; providers reserve no visual inset for it.
 - While keyboard navigation is active and the logical level is `.hardware`,
   `TopSurfaceController` resolves the visible layout with the compact envelope.
-  Provider content may remain hardware-empty; the shared keyboard status is the
-  visible content. Exiting the session immediately returns geometry to the
-  logical presentation chosen by the existing dismissal path.
+  Exiting the session immediately returns geometry to the logical presentation
+  chosen by the existing dismissal path.
 
 This keeps the keyboard lifecycle in the panel, preserves the navigation
 coordinator's state contract, and avoids three provider-owned session flags.
@@ -249,13 +243,13 @@ coordinator's state contract, and avoids three provider-owned session flags.
 2. Existing application code expands the logical surface and asks
    `TopSurfaceController` to begin keyboard navigation.
 3. The controller captures the prior application as today; the panel publishes
-   active state and guidance derived from current panel content.
-4. The shared root renders the status overlay. Provider changes update the same
-   published guidance without restarting the session.
+   active state and accessibility guidance derived from current panel content.
+4. Provider changes update the same accessibility guidance without restarting
+   the session; the shared root renders no keyboard legend.
 5. If navigation reaches logical hardware level, controller geometry uses the
    compact visible envelope while the coordinator remains at hardware level.
 6. Escape follows the existing dismissal and application-restoration path; the
-   active state, overlay, and any compact-envelope override clear immediately.
+   active state and any compact-envelope override clear immediately.
 
 No new public API is introduced. Any added presentation value is internal and
 immutable outside its MainActor owner.
@@ -313,9 +307,8 @@ preview callback reaches application services.
 
 - All new presentation state is transient, MainActor-confined, and rebuilt from
   existing component payloads or local preview state.
-- A component or capability change during keyboard navigation replaces guidance
-  atomically with the latest component guidance. Missing horizontal media
-  capabilities remove those glyphs rather than leaving stale instructions.
+- A component or capability change during keyboard navigation replaces the
+  accessibility announcement guidance atomically. No visual glyph layer exists.
 - If content becomes unavailable, existing component fallback decides the next
   component; the keyboard overlay follows that result and does not select a
   component itself.

@@ -76,7 +76,7 @@ final class Keep3UITests: XCTestCase {
     }
   }
 
-  func testKeyboardNavigationStatusIsVisibleAndClearsOnEscape() throws {
+  func testKeyboardNavigationHasNoVisualStatusAndClearsOnEscape() throws {
     try launchIsolatedApp(surfaceLevel: "compact")
     defer { cleanUpIsolatedApp() }
 
@@ -85,18 +85,20 @@ final class Keep3UITests: XCTestCase {
     XCTAssertTrue(compact.waitForExistence(timeout: 3), app.debugDescription)
     compact.click()
 
-    let status =
+    XCTAssertTrue(
+      app.buttons["overlay.openItem"].waitForExistence(timeout: 2),
+      app.debugDescription
+    )
+    XCTAssertFalse(
       app.descendants(matching: .any)["overlay.keyboardNavigationStatus"]
-    XCTAssertTrue(status.waitForExistence(timeout: 2), app.debugDescription)
-    XCTAssertTrue(status.label.contains("键盘导航已启用"))
-    XCTAssertTrue(status.label.contains("Escape"))
+        .exists
+    )
 
     app.typeKey(.escape, modifierFlags: [])
-    let dismissed = expectation(
-      for: NSPredicate(format: "exists == false"),
-      evaluatedWith: status
+    XCTAssertTrue(
+      app.buttons["overlay.compact"].waitForExistence(timeout: 2),
+      app.debugDescription
     )
-    wait(for: [dismissed], timeout: 2)
   }
 
   func testSettingsPreviewsExposeNoInertControls() throws {
