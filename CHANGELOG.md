@@ -2,6 +2,25 @@
 
 All notable user-facing changes to Keep3 are recorded here.
 
+## [1.0.5] - 2026-09-05
+
+### Added
+
+- Priorities can be archived without being permanently deleted, reviewed later
+  in a read-only History destination, and exported with active items as Markdown.
+
+### Changed
+
+- Refined top-surface motion, press feedback, content-proportionate expansion,
+  keyboard accessibility, Settings previews, and Reduce Motion behavior.
+- Unified the main-window tab layout, sidebar selection treatments, input focus,
+  and restrained Keep3 brand accents while keeping action buttons neutral.
+
+### Fixed
+
+- Compact priority titles now receive a bounded text region, tighten gently, and
+  use a tail ellipsis instead of being clipped at the surface edge.
+
 ## [1.0.4] - 2026-08-13
 
 ### Changed
