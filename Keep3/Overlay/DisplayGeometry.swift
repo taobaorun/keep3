@@ -67,6 +67,10 @@ struct SurfaceMetrics: Equatable {
   static let mediaNotchedWingWidth: CGFloat = 44
   static let mediaQuickPeekAdditionalHeight: CGFloat = 32
   static let focusExpandedHorizontalGrowth: CGFloat = 32
+  static let focusTitleOnlyExpandedHeight: CGFloat = 148
+  static let focusSupportingExpandedHeight: CGFloat = 216
+
+  private static let focusReferenceNotchHeight: CGFloat = 32
 
   enum NotchedCompactSizing: Equatable {
     case flexible(minimumWingWidth: CGFloat)
@@ -103,6 +107,7 @@ struct SurfaceMetrics: Equatable {
   let expandedSize: CGSize
   let floatingTopSpacing: CGFloat
   let notchedCompactSizing: NotchedCompactSizing
+  let notchedExpandedBodyMinimumHeight: CGFloat
 
   init(
     compactSize: CGSize,
@@ -110,22 +115,22 @@ struct SurfaceMetrics: Equatable {
     floatingTopSpacing: CGFloat,
     notchedCompactSizing: NotchedCompactSizing = .flexible(
       minimumWingWidth: 96
-    )
+    ),
+    notchedExpandedBodyMinimumHeight: CGFloat = 0
   ) {
     self.compactSize = compactSize
     self.expandedSize = expandedSize
     self.floatingTopSpacing = floatingTopSpacing
     self.notchedCompactSizing = notchedCompactSizing
+    self.notchedExpandedBodyMinimumHeight = max(
+      0,
+      notchedExpandedBodyMinimumHeight
+    )
   }
 
-  static let standard = SurfaceMetrics(
-    compactSize: CGSize(width: 280, height: 44),
-    expandedSize: CGSize(
-      width: 280 + focusExpandedHorizontalGrowth,
-      height: 216
-    ),
-    floatingTopSpacing: 8,
-    notchedCompactSizing: .flexible(minimumWingWidth: 96)
+  static let standard = focus(
+    compactWidth: 280,
+    contentClass: .supportingContent
   )
 
   static let media = SurfaceMetrics(
@@ -134,6 +139,30 @@ struct SurfaceMetrics: Equatable {
     floatingTopSpacing: 8,
     notchedCompactSizing: .fixedWingWidth(mediaNotchedWingWidth)
   )
+
+  static func focus(
+    compactWidth: CGFloat,
+    contentClass: FocusExpandedContentClass
+  ) -> SurfaceMetrics {
+    let expandedHeight: CGFloat
+    switch contentClass {
+    case .titleOnly:
+      expandedHeight = focusTitleOnlyExpandedHeight
+    case .supportingContent:
+      expandedHeight = focusSupportingExpandedHeight
+    }
+    return SurfaceMetrics(
+      compactSize: CGSize(width: compactWidth, height: 44),
+      expandedSize: CGSize(
+        width: compactWidth + focusExpandedHorizontalGrowth,
+        height: expandedHeight
+      ),
+      floatingTopSpacing: 8,
+      notchedCompactSizing: .flexible(minimumWingWidth: 96),
+      notchedExpandedBodyMinimumHeight:
+        expandedHeight - focusReferenceNotchHeight
+    )
+  }
 }
 
 struct SurfaceLayout: Equatable {
@@ -449,6 +478,9 @@ struct DisplayGeometry: Equatable {
         height: obstructionFrame.height
       )
     case .expanded:
+      let minimumExpandedHeight =
+        obstructionFrame.height
+        + metrics.notchedExpandedBodyMinimumHeight
       panelSize = CGSize(
         width: min(
           max(
@@ -459,7 +491,11 @@ struct DisplayGeometry: Equatable {
           screenFrame.width
         ),
         height: min(
-          max(metrics.expandedSize.height, obstructionFrame.height),
+          max(
+            metrics.expandedSize.height,
+            minimumExpandedHeight,
+            obstructionFrame.height
+          ),
           screenFrame.height
         )
       )

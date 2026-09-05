@@ -1,5 +1,18 @@
 import SwiftUI
 
+enum InteractionMotion {
+  static let pressInDuration: TimeInterval = 0.1
+  static let pressOutDuration: TimeInterval = 0.16
+  static let transientEntranceDuration: TimeInterval = 0.18
+  static let transientExitDuration: TimeInterval = 0.12
+  static let stateChangeDuration: TimeInterval = 0.16
+  static let reducedMotionDuration: TimeInterval = 0.12
+
+  static func strongEaseOut(duration: TimeInterval) -> Animation {
+    .timingCurve(0.23, 1, 0.32, 1, duration: duration)
+  }
+}
+
 enum MainWindowDestination: Hashable {
   case editor
   case history
@@ -25,7 +38,7 @@ struct RootView: View {
     TabView(selection: $destinationState.destination) {
       EditorView(model: model)
         .tabItem {
-          Text("Keep3")
+          Label("重点", systemImage: "scope")
         }
         .tag(MainWindowDestination.editor)
 
@@ -44,10 +57,10 @@ struct RootView: View {
         updateController: updateController
       )
       .tabItem {
-        Image(systemName: "gearshape")
-          .accessibilityLabel("设置")
+        Label("设置", systemImage: "gearshape")
       }
       .tag(MainWindowDestination.settings)
     }
+    .tint(Color("AccentColor"))
   }
 }

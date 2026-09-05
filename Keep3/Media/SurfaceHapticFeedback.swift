@@ -2,7 +2,6 @@ import AppKit
 
 @MainActor
 protocol SurfaceHapticPerforming: AnyObject {
-  func performHoverFeedback()
   func performNavigationGesture()
   func performTrackGesture()
 }
@@ -27,10 +26,6 @@ final class AppKitSurfaceHapticFeedback: SurfaceHapticPerforming {
     }
   ) {
     self.performFeedback = performFeedback
-  }
-
-  func performHoverFeedback() {
-    performFeedback(.alignment, .now)
   }
 
   func performNavigationGesture() {

@@ -58,6 +58,97 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertTrue(panel.canBecomeKey)
   }
 
+  func testKeyboardGuidanceFollowsTheCurrentPanelContent() throws {
+    let frame = CGRect(x: 100, y: 100, width: 360, height: 216)
+    let panel = TopSurfacePanel(
+      contentRect: frame,
+      content: try makeContent(title: "当前重点", isExpanded: true)
+    )
+    defer {
+      panel.setKeyboardNavigationEnabled(false, activateApplication: false)
+      panel.orderOut(nil)
+    }
+
+    panel.setKeyboardNavigationEnabled(true, activateApplication: false)
+    XCTAssertEqual(
+      panel.renderedKeyboardNavigationGuidance,
+      .priorities(itemCount: 1, level: .expanded)
+    )
+
+    let media = MediaSurfacePayload(
+      sessionID: "keyboard-guidance",
+      contentRevision: 1,
+      isExpanded: false,
+      areControlsEnabled: true,
+      session: MediaSession.normalize(
+        .init(
+          sessionID: "keyboard-guidance",
+          sourceBundleIdentifier: nil,
+          title: "Track",
+          artist: nil,
+          duration: nil,
+          progress: nil,
+          capabilities: ["next"]
+        )
+      )
+    )
+    panel.update(
+      mediaPayload: media,
+      presentationStyle: .floatingCapsule,
+      surfaceFrameInPanel: CGRect(origin: .zero, size: frame.size),
+      onHoverChanged: { _ in },
+      onScroll: { _ in },
+      onActivateSurface: {},
+      onMediaAction: { _ in }
+    )
+
+    XCTAssertEqual(
+      panel.renderedKeyboardNavigationGuidance,
+      .media(capabilities: [.next])
+    )
+    XCTAssertEqual(panel.renderedSurfaceFrameAnimationKind, .none)
+  }
+
+  func testKeyboardGuidanceOnlyAdvertisesAvailableActionsAtEachLevel() {
+    XCTAssertEqual(
+      TopSurfaceKeyboardNavigationGuidance.priorities(
+        itemCount: 1,
+        level: .hardware
+      ).visibleDirections,
+      "↓ ↩"
+    )
+    XCTAssertEqual(
+      TopSurfaceKeyboardNavigationGuidance.priorities(
+        itemCount: 2,
+        level: .compact
+      ).visibleDirections,
+      "← → ↑ ↓ ↩"
+    )
+    XCTAssertEqual(
+      TopSurfaceKeyboardNavigationGuidance.priorities(
+        itemCount: 1,
+        level: .expanded,
+        hasAlternativeComponents: false
+      ).visibleDirections,
+      "↩"
+    )
+    XCTAssertEqual(
+      TopSurfaceKeyboardNavigationGuidance.calendar(
+        level: .expanded,
+        hasAlternativeComponents: true
+      ).visibleDirections,
+      "↑ ↓"
+    )
+    XCTAssertEqual(
+      TopSurfaceKeyboardNavigationGuidance.media(
+        capabilities: [.next],
+        level: .expanded,
+        hasAlternativeComponents: false
+      ).visibleDirections,
+      "→ ↑"
+    )
+  }
+
   func testKeyboardCommandsAcceptOnlyUnmodifiedNavigationKeys() {
     XCTAssertEqual(
       TopSurfaceKeyboardCommand(keyCode: 123, modifiers: []),
@@ -300,13 +391,13 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertTrue(
       FocusTitleCardBackingPolicy.shouldShow(
         presentationStyle: notched,
-        transition: .cardFlip(duration: 0.58)
+        transition: .cardFlip(duration: 0.22)
       )
     )
     XCTAssertFalse(
       FocusTitleCardBackingPolicy.shouldShow(
         presentationStyle: .floatingCapsule,
-        transition: .cardFlip(duration: 0.58)
+        transition: .cardFlip(duration: 0.22)
       )
     )
     XCTAssertFalse(
@@ -345,6 +436,196 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertGreaterThan(hovered.scaleY, resting.scaleY)
     XCTAssertLessThanOrEqual(hovered.scaleX, 1.03)
     XCTAssertLessThanOrEqual(hovered.scaleY, 1.06)
+  }
+
+  func testSurfacePressEffectUsesAsymmetricMotionAndReducedMotionFallback() {
+    let resting = SurfacePressEffect(isPressed: false, reduceMotion: false)
+    let pressed = SurfacePressEffect(isPressed: true, reduceMotion: false)
+    let reduced = SurfacePressEffect(isPressed: true, reduceMotion: true)
+
+    XCTAssertEqual(resting.scale, 1)
+    XCTAssertEqual(resting.opacity, 1)
+    XCTAssertEqual(resting.duration, InteractionMotion.pressOutDuration)
+    XCTAssertEqual(pressed.scale, 0.97)
+    XCTAssertEqual(pressed.opacity, 0.92)
+    XCTAssertEqual(pressed.duration, InteractionMotion.pressInDuration)
+    XCTAssertEqual(reduced.scale, 1)
+    XCTAssertEqual(reduced.opacity, 0.92)
+    XCTAssertEqual(reduced.duration, InteractionMotion.reducedMotionDuration)
+    XCTAssertEqual(InteractionMotion.transientEntranceDuration, 0.18)
+    XCTAssertEqual(InteractionMotion.transientExitDuration, 0.12)
+    XCTAssertEqual(InteractionMotion.stateChangeDuration, 0.16)
+  }
+
+  func testKeyboardVisibilityKeepsLogicalHardwareSessionVisibleAtCompactLevel() {
+    XCTAssertEqual(
+      KeyboardSurfaceVisibilityPolicy.visibleLevel(
+        logicalLevel: .hardware,
+        keyboardNavigationActive: true
+      ),
+      .compact
+    )
+    XCTAssertEqual(
+      KeyboardSurfaceVisibilityPolicy.visibleLevel(
+        logicalLevel: .hardware,
+        keyboardNavigationActive: false
+      ),
+      .hardware
+    )
+    XCTAssertEqual(
+      KeyboardSurfaceVisibilityPolicy.visibleLevel(
+        logicalLevel: .expanded,
+        keyboardNavigationActive: true
+      ),
+      .expanded
+    )
+  }
+
+  func testFrameAnimationPolicySeparatesKeyboardLevelContentAndMediaCauses() {
+    let compactTitle = SurfaceFrameAnimationContext(
+      component: .priorities,
+      level: .compact,
+      transitionCause: .contentUpdate,
+      focusContentClass: .titleOnly,
+      mediaTrackChangeDirection: nil,
+      mediaTrackPeek: nil
+    )
+    let expandedTitle = SurfaceFrameAnimationContext(
+      component: .priorities,
+      level: .expanded,
+      transitionCause: .gesture,
+      focusContentClass: .titleOnly,
+      mediaTrackChangeDirection: nil,
+      mediaTrackPeek: nil
+    )
+    let compactSupporting = SurfaceFrameAnimationContext(
+      component: .priorities,
+      level: .compact,
+      transitionCause: .contentUpdate,
+      focusContentClass: .supportingContent,
+      mediaTrackChangeDirection: nil,
+      mediaTrackPeek: nil
+    )
+    let settledMedia = SurfaceFrameAnimationContext(
+      component: .media,
+      level: .compact,
+      transitionCause: .contentUpdate,
+      focusContentClass: nil,
+      mediaTrackChangeDirection: nil,
+      mediaTrackPeek: nil
+    )
+    let changingMedia = SurfaceFrameAnimationContext(
+      component: .media,
+      level: .compact,
+      transitionCause: .contentUpdate,
+      focusContentClass: nil,
+      mediaTrackChangeDirection: .next,
+      mediaTrackPeek: nil
+    )
+
+    XCTAssertEqual(
+      SurfaceFrameAnimationPolicy.resolve(
+        previous: compactTitle,
+        next: expandedTitle,
+        previousKeyboardNavigationActive: false,
+        keyboardNavigationActive: false
+      ),
+      .level
+    )
+    XCTAssertEqual(
+      SurfaceFrameAnimationPolicy.resolve(
+        previous: compactTitle,
+        next: expandedTitle,
+        previousKeyboardNavigationActive: false,
+        keyboardNavigationActive: true
+      ),
+      .none
+    )
+    XCTAssertEqual(
+      SurfaceFrameAnimationPolicy.resolve(
+        previous: compactTitle,
+        next: compactSupporting,
+        previousKeyboardNavigationActive: false,
+        keyboardNavigationActive: false
+      ),
+      .none
+    )
+    XCTAssertEqual(
+      SurfaceFrameAnimationPolicy.resolve(
+        previous: settledMedia,
+        next: changingMedia,
+        previousKeyboardNavigationActive: false,
+        keyboardNavigationActive: false
+      ),
+      .mediaTransient
+    )
+
+    let automaticMediaExit = SurfaceFrameAnimationContext(
+      component: .priorities,
+      level: .compact,
+      transitionCause: .mediaExit,
+      focusContentClass: .titleOnly,
+      mediaTrackChangeDirection: nil,
+      mediaTrackPeek: nil
+    )
+    XCTAssertEqual(
+      SurfaceFrameAnimationPolicy.resolve(
+        previous: SurfaceFrameAnimationContext(
+          component: .media,
+          level: .expanded,
+          transitionCause: .contentUpdate,
+          focusContentClass: nil,
+          mediaTrackChangeDirection: nil,
+          mediaTrackPeek: nil
+        ),
+        next: automaticMediaExit,
+        previousKeyboardNavigationActive: false,
+        keyboardNavigationActive: false
+      ),
+      .none
+    )
+    XCTAssertEqual(
+      SurfaceFrameAnimationPolicy.resolve(
+        previous: compactTitle,
+        next: expandedTitle,
+        previousKeyboardNavigationActive: true,
+        keyboardNavigationActive: false
+      ),
+      .none
+    )
+  }
+
+  func testLatestWinsFocusTitlePresentationBoundsLayersAndCancelsStaleCompletion() {
+    let firstID = UUID()
+    let secondID = UUID()
+    let thirdID = UUID()
+    var presentation = LatestWinsFocusTitlePresentation(
+      itemID: firstID,
+      title: "第一项"
+    )
+
+    let firstToken = presentation.prepareSwitch(
+      itemID: secondID,
+      title: "第二项",
+      animates: true
+    )!
+    presentation.animateSwitch(token: firstToken)
+    XCTAssertEqual(presentation.layers.map(\.id), [firstID, secondID])
+
+    let secondToken = presentation.prepareSwitch(
+      itemID: thirdID,
+      title: "第三项",
+      animates: true
+    )!
+    XCTAssertEqual(presentation.layers.map(\.id), [secondID, thirdID])
+    XCTAssertLessThanOrEqual(presentation.layers.count, 2)
+
+    presentation.completeSwitch(token: firstToken)
+    XCTAssertEqual(presentation.layers.map(\.id), [secondID, thirdID])
+
+    presentation.animateSwitch(token: secondToken)
+    presentation.completeSwitch(token: secondToken)
+    XCTAssertEqual(presentation.layers.map(\.id), [thirdID])
   }
 
   func testHoverRegionStaysEnteredWhenTheSurfaceExpandsUnderThePointer() {
@@ -636,6 +917,27 @@ final class TopSurfacePanelTests: XCTestCase {
 
     XCTAssertNil(content.displayDetails)
     XCTAssertEqual(content.displaySubitems, ["只展示上下文"])
+    XCTAssertEqual(content.expandedContentClass, .supportingContent)
+  }
+
+  func testExpandedContentClassUsesNormalizedVisibleContent() throws {
+    let titleOnly = TopSurfaceContent(
+      item: try FocusItem(title: "只保留标题", details: "  ", subitems: ["\n"]),
+      position: 1,
+      itemCount: 1,
+      isCurrentFocus: true,
+      isExpanded: true
+    )
+    let supporting = TopSurfaceContent(
+      item: try FocusItem(title: "包含说明", details: "上下文"),
+      position: 1,
+      itemCount: 1,
+      isCurrentFocus: true,
+      isExpanded: true
+    )
+
+    XCTAssertEqual(titleOnly.expandedContentClass, .titleOnly)
+    XCTAssertEqual(supporting.expandedContentClass, .supportingContent)
   }
 
   func testExpandedNotchLayoutKeepsSupportingContentAndFooterInBounds() {
@@ -651,6 +953,25 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertEqual(
       layout.footerFrame,
       CGRect(x: 20, y: 178, width: 337, height: 28)
+    )
+    XCTAssertEqual(
+      layout.surfaceSize.height - layout.footerFrame.maxY,
+      10,
+      accuracy: 0.001
+    )
+  }
+
+  func testTitleOnlyExpandedNotchLayoutKeepsFixedRegionsInBounds() {
+    let layout = ExpandedSurfaceContentLayout(
+      surfaceSize: CGSize(width: 377, height: 148),
+      topInset: 32
+    )
+
+    XCTAssertEqual(layout.supportingContentFrame.height, 7, accuracy: 0.001)
+    XCTAssertEqual(layout.footerFrame, CGRect(x: 20, y: 110, width: 337, height: 28))
+    XCTAssertGreaterThanOrEqual(
+      layout.footerFrame.minY,
+      layout.separatorFrame.maxY
     )
     XCTAssertEqual(
       layout.surfaceSize.height - layout.footerFrame.maxY,

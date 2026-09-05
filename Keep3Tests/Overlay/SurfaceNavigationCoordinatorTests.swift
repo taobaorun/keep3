@@ -41,6 +41,11 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
     coordinator.navigate(.next)
 
     XCTAssertEqual(coordinator.state.selectedComponent, .priorities)
+    XCTAssertEqual(
+      coordinator.state.availableComponents,
+      [.priorities, .calendar]
+    )
+    XCTAssertEqual(coordinator.state.transitionCause, .gesture)
   }
 
   func testNavigationWithNoOtherAvailableComponentLeavesStateUnchanged() {
@@ -114,6 +119,7 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
 
     XCTAssertEqual(coordinator.state.selectedComponent, .priorities)
     XCTAssertEqual(coordinator.state.level, .compact)
+    XCTAssertEqual(coordinator.state.transitionCause, .mediaExit)
   }
 
   func testDisplayRecoveryRequiresFreshReconciliation() {
@@ -140,6 +146,7 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
 
     XCTAssertEqual(coordinator.state.level, .hardware)
     XCTAssertEqual(coordinator.state.effectiveLevel, .compact)
+    XCTAssertEqual(coordinator.state.transitionCause, .pointer)
 
     coordinator.setHovering(false)
     XCTAssertEqual(coordinator.state.effectiveLevel, .hardware)
@@ -149,6 +156,7 @@ final class SurfaceNavigationCoordinatorTests: XCTestCase {
 
     XCTAssertEqual(coordinator.state.level, .compact)
     XCTAssertEqual(coordinator.state.effectiveLevel, .compact)
+    XCTAssertEqual(coordinator.state.transitionCause, .gesture)
   }
 
   func testHoverStateTracksPointerAtCompactLevel() {

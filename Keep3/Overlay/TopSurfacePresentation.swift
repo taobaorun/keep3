@@ -15,6 +15,7 @@ struct FocusSurfacePayload: Equatable, Sendable {
   let revision: UInt64
   let expansionReason: SurfaceExpansionReason
   let isHovered: Bool
+  let navigationContext: SurfaceNavigationContext
 
   init(
     visibleItemID: UUID?,
@@ -22,7 +23,8 @@ struct FocusSurfacePayload: Equatable, Sendable {
     level: SurfaceLevel? = nil,
     revision: UInt64,
     expansionReason: SurfaceExpansionReason,
-    isHovered: Bool = false
+    isHovered: Bool = false,
+    navigationContext: SurfaceNavigationContext? = nil
   ) {
     self.visibleItemID = visibleItemID
     self.isExpanded = isExpanded
@@ -30,6 +32,7 @@ struct FocusSurfacePayload: Equatable, Sendable {
     self.revision = revision
     self.expansionReason = expansionReason
     self.isHovered = isHovered
+    self.navigationContext = navigationContext ?? .isolated(.priorities)
   }
 }
 
@@ -101,6 +104,7 @@ struct MediaSurfacePayload: Equatable, Sendable {
   let trackChangeDirection: MediaTrackDirection?
   let trackPeek: MediaTrackPeek?
   let isHovered: Bool
+  let navigationContext: SurfaceNavigationContext
 
   init(
     sessionID: String,
@@ -116,7 +120,8 @@ struct MediaSurfacePayload: Equatable, Sendable {
     appearance: MediaSurfaceAppearance = .standard,
     trackChangeDirection: MediaTrackDirection? = nil,
     trackPeek: MediaTrackPeek? = nil,
-    isHovered: Bool = false
+    isHovered: Bool = false,
+    navigationContext: SurfaceNavigationContext? = nil
   ) {
     self.sessionID = sessionID
     self.contentRevision = contentRevision
@@ -132,6 +137,7 @@ struct MediaSurfacePayload: Equatable, Sendable {
     self.trackChangeDirection = trackChangeDirection
     self.trackPeek = trackPeek
     self.isHovered = isHovered
+    self.navigationContext = navigationContext ?? .isolated(.media)
   }
 
   var isTemporaryExpansion: Bool {
@@ -144,17 +150,20 @@ struct CalendarSurfacePayload: Equatable, Sendable {
   let level: SurfaceLevel
   let revision: UInt64
   let isHovered: Bool
+  let navigationContext: SurfaceNavigationContext
 
   init(
     state: CalendarSessionState,
     level: SurfaceLevel,
     revision: UInt64,
-    isHovered: Bool = false
+    isHovered: Bool = false,
+    navigationContext: SurfaceNavigationContext? = nil
   ) {
     self.state = state
     self.level = level
     self.revision = revision
     self.isHovered = isHovered
+    self.navigationContext = navigationContext ?? .isolated(.calendar)
   }
 
   var isExpanded: Bool {

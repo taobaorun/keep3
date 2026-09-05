@@ -220,6 +220,8 @@ struct CalendarSurfaceView: View {
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+  @Environment(\.isTopSurfaceKeyboardNavigationActive) private
+    var isKeyboardNavigationActive
 
   var body: some View {
     let presentation = CalendarSurfacePresentation(payload: payload)
@@ -344,7 +346,7 @@ struct CalendarSurfaceView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
     }
-    .buttonStyle(.plain)
+    .buttonStyle(SurfacePressButtonStyle())
     .accessibilityIdentifier("calendar.compact")
   }
 
@@ -585,7 +587,7 @@ struct CalendarSurfaceView: View {
 
   private var expandedTopInset: CGFloat {
     guard case .notchAttached(let notchSize) = presentationStyle else {
-      return 0
+      return isKeyboardNavigationActive ? 10 : 0
     }
     return notchSize.height
   }

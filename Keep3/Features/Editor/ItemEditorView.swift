@@ -15,6 +15,7 @@ struct ItemEditorView: View {
   @State private var details: String
   @State private var subitems: [String]
   @State private var confirmsDeletion = false
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   init(
     item: FocusItem,
@@ -56,19 +57,14 @@ struct ItemEditorView: View {
 
           Spacer()
 
-          if isCurrentFocus {
-            Label("当前重点", systemImage: "scope")
-              .font(.callout)
-          } else {
-            Button("设为当前重点", systemImage: "scope", action: onMakeCurrent)
-              .accessibilityIdentifier("editor.makeCurrent")
-          }
+          currentFocusStatus
         }
 
         VStack(alignment: .leading, spacing: 8) {
           Text("标题")
             .font(.headline)
           TextField("这件事是什么？", text: titleBinding)
+            .font(.body.weight(.regular))
             .accessibilityLabel("事项标题")
             .accessibilityIdentifier("editor.title")
           Text("\(title.count) / \(FocusItem.maximumTitleLength)")
@@ -80,7 +76,7 @@ struct ItemEditorView: View {
           Text("说明")
             .font(.headline)
           TextEditor(text: detailsBinding)
-            .font(.body)
+            .font(.body.weight(.regular))
             .frame(minHeight: 100)
             .padding(4)
             .background(.background)
@@ -111,6 +107,7 @@ struct ItemEditorView: View {
                 "补充说明 \(index + 1)",
                 text: subitemBinding(at: index)
               )
+              .font(.body.weight(.regular))
               .accessibilityLabel("补充说明 \(index + 1)")
               .accessibilityIdentifier("editor.subitem.\(index + 1)")
 
@@ -150,7 +147,8 @@ struct ItemEditorView: View {
           Spacer()
 
           Button("归档", systemImage: "archivebox", action: onArchive)
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
+            .tint(.primary)
             .accessibilityIdentifier("editor.archive")
 
           Menu {
@@ -161,6 +159,7 @@ struct ItemEditorView: View {
           } label: {
             Label("更多", systemImage: "ellipsis.circle")
           }
+          .tint(.primary)
           .accessibilityIdentifier("editor.moreActions")
         }
       }
@@ -177,6 +176,49 @@ struct ItemEditorView: View {
     } message: {
       Text("这件事不会保存在历史记录中，且无法恢复。")
     }
+  }
+
+  private var currentFocusStatus: some View {
+    ZStack(alignment: .trailing) {
+      if isCurrentFocus {
+        Label("当前重点", systemImage: "scope")
+          .font(.callout)
+          .accessibilityIdentifier("editor.currentFocus")
+          .transition(currentFocusInsertionTransition)
+      } else {
+        Button("设为当前重点", systemImage: "scope", action: onMakeCurrent)
+          .accessibilityIdentifier("editor.makeCurrent")
+          .transition(currentFocusRemovalTransition)
+      }
+    }
+    .frame(minWidth: 150, alignment: .trailing)
+    .accessibilityElement(children: .contain)
+  }
+
+  private var currentFocusInsertionTransition: AnyTransition {
+    let transition =
+      reduceMotion
+      ? AnyTransition.opacity
+      : .opacity.combined(with: .scale(scale: 0.97, anchor: .trailing))
+    return transition.animation(
+      InteractionMotion.strongEaseOut(
+        duration:
+          reduceMotion
+          ? InteractionMotion.reducedMotionDuration
+          : InteractionMotion.stateChangeDuration
+      )
+    )
+  }
+
+  private var currentFocusRemovalTransition: AnyTransition {
+    .opacity.animation(
+      InteractionMotion.strongEaseOut(
+        duration:
+          reduceMotion
+          ? InteractionMotion.reducedMotionDuration
+          : InteractionMotion.pressInDuration
+      )
+    )
   }
 
   private var titleBinding: Binding<String> {

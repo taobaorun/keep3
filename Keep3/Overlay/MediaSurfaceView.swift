@@ -319,7 +319,7 @@ struct MediaSurfaceView: View {
           .padding(.horizontal, 10)
           .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SurfacePressButtonStyle())
         .accessibilityIdentifier("media.compact")
 
         compactPlaybackControl(
@@ -365,7 +365,7 @@ struct MediaSurfaceView: View {
         }
         .contentShape(Rectangle())
       }
-      .buttonStyle(.plain)
+      .buttonStyle(SurfacePressButtonStyle())
       .accessibilityIdentifier("media.compact")
 
       compactPlaybackControl(
@@ -420,7 +420,7 @@ struct MediaSurfaceView: View {
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .contentShape(Rectangle())
     }
-    .buttonStyle(.plain)
+    .buttonStyle(SurfacePressButtonStyle())
     .accessibilityIdentifier("media.track-peek")
   }
 
@@ -470,7 +470,7 @@ struct MediaSurfaceView: View {
       }
       .contentShape(Rectangle())
     }
-    .buttonStyle(.plain)
+    .buttonStyle(SurfacePressButtonStyle())
     .accessibilityIdentifier("media.track-peek")
   }
 
@@ -680,7 +680,7 @@ struct MediaSurfaceView: View {
       .frame(width: hitSize.width, height: hitSize.height)
       .contentShape(Rectangle())
     }
-    .buttonStyle(.plain)
+    .buttonStyle(SurfacePressButtonStyle())
     .disabled(!isEnabled)
     .opacity(isEnabled ? 1 : 0.55)
     .onHover { isHovered in
@@ -782,7 +782,7 @@ struct MediaSurfaceView: View {
         } label: {
           artworkView(artwork: artwork, size: 56, cornerRadius: 14)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SurfacePressButtonStyle())
         .contentShape(
           RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
@@ -916,7 +916,7 @@ struct MediaSurfaceView: View {
         .frame(width: 32, height: 32)
         .foregroundStyle(.white)
     }
-    .buttonStyle(.plain)
+    .buttonStyle(SurfacePressButtonStyle())
     .disabled(!presentation.areControlsEnabled)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(label(for: action))

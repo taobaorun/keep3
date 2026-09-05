@@ -10,10 +10,10 @@ struct SettingsView: View {
   @State private var selection: SettingsCategory = .general
 
   var body: some View {
-    NavigationSplitView {
+    HSplitView {
       SettingsSidebarView(selection: $selection)
-        .navigationSplitViewColumnWidth(min: 180, ideal: 210)
-    } detail: {
+        .frame(minWidth: 220, idealWidth: 240, maxWidth: 280)
+
       ScrollView {
         VStack(alignment: .leading, spacing: 20) {
           Label(selection.title, systemImage: selection.symbol)
@@ -22,8 +22,9 @@ struct SettingsView: View {
         }
         .padding(28)
       }
+      .frame(minWidth: 480, maxWidth: .infinity, maxHeight: .infinity)
     }
-    .frame(minWidth: 760, minHeight: 560)
+    .frame(minWidth: 720, minHeight: 520)
     .accessibilityIdentifier("settings.root")
   }
 

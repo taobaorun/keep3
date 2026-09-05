@@ -3,6 +3,7 @@ import SwiftUI
 
 struct UpdateSettingsView: View {
   @ObservedObject var updateController: SparkleUpdateController
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
     GroupBox("更新") {
@@ -18,6 +19,16 @@ struct UpdateSettingsView: View {
           Text(updateController.status.message)
             .font(.caption)
             .foregroundStyle(.secondary)
+            .contentTransition(.opacity)
+            .animation(
+              InteractionMotion.strongEaseOut(
+                duration:
+                  reduceMotion
+                  ? InteractionMotion.reducedMotionDuration
+                  : InteractionMotion.stateChangeDuration
+              ),
+              value: updateController.status
+            )
             .accessibilityIdentifier("settings.updates.status")
             .accessibilityLabel(
               "更新状态：\(updateController.status.message)"

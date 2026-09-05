@@ -50,22 +50,31 @@ struct CalendarSettingsView: View {
   }
 
   private var preview: some View {
-    VStack(alignment: .leading, spacing: 10) {
+    let payload = CalendarSurfacePayload(
+      state: previewState,
+      level: .compact,
+      revision: 1
+    )
+    let presentation = CalendarSurfacePresentation(payload: payload)
+
+    return VStack(alignment: .leading, spacing: 10) {
       Text("实时预览")
         .font(.headline)
       CalendarSurfaceView(
-        payload: CalendarSurfacePayload(
-          state: previewState,
-          level: .compact,
-          revision: 1
-        ),
+        payload: payload,
         presentationStyle: .floatingCapsule,
         surfaceSize: CGSize(width: 310, height: 44),
         onActivateSurface: {},
         onRequestKeyboardNavigation: {},
         onSurfaceNavigation: { _ in }
       )
-      Text("向下双指滑动可进入常态、展开当前组件，并继续切换到下一组件。")
+      .allowsHitTesting(false)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(
+        "日历胶囊外观预览：\(presentation.accessibilitySummary)"
+      )
+      .accessibilityIdentifier("settings.calendar.preview")
+      Text("实际顶部表面支持纵向手势：显示、展开或切换组件；此处仅展示外观。")
         .font(.caption)
         .foregroundStyle(.secondary)
     }

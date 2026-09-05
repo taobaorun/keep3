@@ -560,7 +560,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           expansionReason:
             navigation.isHoverPreviewed
             ? .hover : level == .expanded ? .manual : .none,
-          isHovered: navigation.isHovering
+          isHovered: navigation.isHovering,
+          navigationContext: navigation.navigationContext
         )
       )
     case .media:
@@ -586,7 +587,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           appearance: sourceMediaPayload.appearance,
           trackChangeDirection: sourceMediaPayload.trackChangeDirection,
           trackPeek: sourceMediaPayload.trackPeek,
-          isHovered: navigation.isHovering
+          isHovered: navigation.isHovering,
+          navigationContext: navigation.navigationContext
         )
       )
     case .calendar:
@@ -595,7 +597,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           state: calendarState,
           level: level,
           revision: calendarRevision,
-          isHovered: navigation.isHovering
+          isHovered: navigation.isHovering,
+          navigationContext: navigation.navigationContext
         )
       )
     }
@@ -647,7 +650,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
     topSurfaceController.showOnPrimaryDisplay(
       content: content,
-      metrics: surfaceMetrics,
+      metrics: focusSurfaceMetrics(for: content),
       onHoverChanged: { [weak self] isInside in
         self?.handleSurfaceHoverChange(isInside)
       },
@@ -757,21 +760,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func dismissSurfaceNavigation() {
+    surfaceNavigationCoordinator.setLevel(.compact, cause: .keyboard)
     topSurfaceController.endKeyboardNavigation()
-    surfaceNavigationCoordinator.setLevel(.compact)
   }
 
   private func activateSurfaceForKeyboardNavigation() {
-    surfaceNavigationCoordinator.setLevel(.expanded)
     topSurfaceController.beginKeyboardNavigation()
+    surfaceNavigationCoordinator.setLevel(.expanded, cause: .keyboard)
   }
 
   private func handleSurfaceHoverChange(_ isInside: Bool) {
-    let wasHovering = surfaceNavigationCoordinator.state.isHovering
     surfaceNavigationCoordinator.setHovering(isInside)
-    if isInside && !wasHovering {
-      surfaceHapticFeedback.performHoverFeedback()
-    }
   }
 
   private func handlePendingMediaActionChange(
@@ -1001,14 +1000,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private var surfaceMetrics: SurfaceMetrics {
-    SurfaceMetrics(
-      compactSize: CGSize(width: preferences.capsuleWidth, height: 44),
-      expandedSize: CGSize(
-        width: preferences.capsuleWidth
-          + SurfaceMetrics.focusExpandedHorizontalGrowth,
-        height: 216
-      ),
-      floatingTopSpacing: 8
+    SurfaceMetrics.focus(
+      compactWidth: preferences.capsuleWidth,
+      contentClass: .supportingContent
+    )
+  }
+
+  private func focusSurfaceMetrics(
+    for content: TopSurfaceContent
+  ) -> SurfaceMetrics {
+    SurfaceMetrics.focus(
+      compactWidth: preferences.capsuleWidth,
+      contentClass: content.expandedContentClass
     )
   }
 

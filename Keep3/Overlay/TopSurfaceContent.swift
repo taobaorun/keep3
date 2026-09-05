@@ -18,8 +18,12 @@ enum FocusItemSwitchTransition: Equatable, Sendable {
   static func resolve(
     effect: FocusItemSwitchEffect,
     level: SurfaceLevel,
-    reduceMotion: Bool
+    reduceMotion: Bool,
+    keyboardNavigationActive: Bool = false
   ) -> Self {
+    guard !keyboardNavigationActive else {
+      return .instant
+    }
     guard level == .compact else {
       return .instant
     }
@@ -30,9 +34,14 @@ enum FocusItemSwitchTransition: Equatable, Sendable {
     case .instant:
       return .instant
     case .cardFlip:
-      return .cardFlip(duration: 0.58)
+      return .cardFlip(duration: 0.22)
     }
   }
+}
+
+enum FocusExpandedContentClass: Equatable, Sendable {
+  case titleOnly
+  case supportingContent
 }
 
 struct TopSurfaceContent: Equatable, Sendable {
@@ -43,6 +52,7 @@ struct TopSurfaceContent: Equatable, Sendable {
   let isExpanded: Bool
   let level: SurfaceLevel
   let isHovered: Bool
+  let navigationContext: SurfaceNavigationContext
   var appearance: SurfaceAppearance = .default
 
   let presentationRevision: UInt64
@@ -59,6 +69,11 @@ struct TopSurfaceContent: Equatable, Sendable {
     item.subitems.compactMap(nonempty)
   }
 
+  var expandedContentClass: FocusExpandedContentClass {
+    displayDetails == nil && displaySubitems.isEmpty
+      ? .titleOnly : .supportingContent
+  }
+
   init(
     item: FocusItem,
     position: Int,
@@ -66,7 +81,8 @@ struct TopSurfaceContent: Equatable, Sendable {
     isCurrentFocus: Bool,
     isExpanded: Bool,
     level: SurfaceLevel? = nil,
-    appearance: SurfaceAppearance = .default
+    appearance: SurfaceAppearance = .default,
+    navigationContext: SurfaceNavigationContext? = nil
   ) {
     self.item = item
     self.position = position
@@ -76,6 +92,7 @@ struct TopSurfaceContent: Equatable, Sendable {
     self.level = level ?? (isExpanded ? .expanded : .compact)
     isHovered = false
     self.appearance = appearance
+    self.navigationContext = navigationContext ?? .isolated(.priorities)
     presentationRevision = 0
   }
 
@@ -95,6 +112,7 @@ struct TopSurfaceContent: Equatable, Sendable {
     level = presentation.level
     isHovered = presentation.isHovered
     self.appearance = appearance
+    navigationContext = presentation.navigationContext
     presentationRevision = presentation.revision
   }
 

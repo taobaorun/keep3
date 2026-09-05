@@ -86,6 +86,45 @@ final class DisplayGeometryTests: XCTestCase {
     XCTAssertEqual(compact.obstructionSize, CGSize(width: 185, height: 32))
   }
 
+  func testTitleOnlyFocusUsesCompactExpandedHeightOnStandardNotch() {
+    let descriptor = DisplayDescriptor(
+      frame: CGRect(x: 0, y: 0, width: 1_728, height: 1_117),
+      visibleFrame: CGRect(x: 0, y: 0, width: 1_728, height: 1_079),
+      safeAreaInsets: DisplayInsets(top: 32, left: 0, bottom: 0, right: 0),
+      auxiliaryTopLeftArea: CGRect(x: 0, y: 1_085, width: 771, height: 32),
+      auxiliaryTopRightArea: CGRect(x: 956, y: 1_085, width: 772, height: 32)
+    )
+    let geometry = DisplayGeometry(
+      descriptor: descriptor,
+      metrics: .focus(compactWidth: 280, contentClass: .titleOnly)
+    )
+
+    XCTAssertEqual(
+      geometry.layout(level: .expanded).surfaceFrameInScreen.height,
+      SurfaceMetrics.focusTitleOnlyExpandedHeight
+    )
+  }
+
+  func testTitleOnlyFocusAddsTheFixedBodyBelowATallerNotch() {
+    let descriptor = DisplayDescriptor(
+      frame: CGRect(x: 0, y: 0, width: 1_728, height: 1_117),
+      visibleFrame: CGRect(x: 0, y: 0, width: 1_728, height: 1_069),
+      safeAreaInsets: DisplayInsets(top: 40, left: 0, bottom: 0, right: 0),
+      auxiliaryTopLeftArea: CGRect(x: 0, y: 1_077, width: 771, height: 40),
+      auxiliaryTopRightArea: CGRect(x: 956, y: 1_077, width: 772, height: 40)
+    )
+    let metrics = SurfaceMetrics.focus(
+      compactWidth: 280,
+      contentClass: .titleOnly
+    )
+    let geometry = DisplayGeometry(descriptor: descriptor, metrics: metrics)
+
+    XCTAssertEqual(
+      geometry.layout(level: .expanded).surfaceFrameInScreen.height,
+      40 + metrics.notchedExpandedBodyMinimumHeight
+    )
+  }
+
   func testFloatingLayoutKeepsPanelAndSurfaceFramesIdentical() {
     let descriptor = DisplayDescriptor(
       frame: CGRect(x: 1_512, y: 0, width: 1_920, height: 1_080),

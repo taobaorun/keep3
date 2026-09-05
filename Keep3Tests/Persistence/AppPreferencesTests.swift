@@ -97,7 +97,7 @@ final class AppPreferencesTests: XCTestCase {
         level: .compact,
         reduceMotion: false
       ),
-      .cardFlip(duration: 0.58)
+      .cardFlip(duration: 0.22)
     )
     XCTAssertEqual(
       FocusItemSwitchTransition.resolve(
@@ -120,6 +120,15 @@ final class AppPreferencesTests: XCTestCase {
         effect: .cardFlip,
         level: .hardware,
         reduceMotion: false
+      ),
+      .instant
+    )
+    XCTAssertEqual(
+      FocusItemSwitchTransition.resolve(
+        effect: .cardFlip,
+        level: .compact,
+        reduceMotion: false,
+        keyboardNavigationActive: true
       ),
       .instant
     )
