@@ -36,14 +36,115 @@ enum TopSurfaceKeyboardCommand: Equatable, Sendable {
   }
 }
 
+enum SurfaceFrameAnimationKind: Equatable, Sendable {
+  case none
+  case level
+  case mediaTransient
+
+  func animation(reduceMotion: Bool) -> Animation? {
+    guard !reduceMotion else {
+      return nil
+    }
+    switch self {
+    case .none:
+      return nil
+    case .level, .mediaTransient:
+      return .easeInOut(duration: 0.22)
+    }
+  }
+}
+
+struct SurfaceFrameAnimationContext: Equatable, Sendable {
+  let component: SurfaceComponentID
+  let level: SurfaceLevel
+  let transitionCause: SurfaceTransitionCause
+  let focusContentClass: FocusExpandedContentClass?
+  let mediaTrackChangeDirection: MediaTrackDirection?
+  let mediaTrackPeek: MediaTrackPeek?
+}
+
+struct SurfaceFrameAnimationPolicy {
+  static func resolve(
+    previous: SurfaceFrameAnimationContext?,
+    next: SurfaceFrameAnimationContext,
+    previousKeyboardNavigationActive: Bool,
+    keyboardNavigationActive: Bool
+  ) -> SurfaceFrameAnimationKind {
+    guard let previous, !previousKeyboardNavigationActive,
+      !keyboardNavigationActive
+    else {
+      return .none
+    }
+    if [.pointer, .gesture].contains(next.transitionCause),
+      previous.level != next.level || previous.component != next.component
+    {
+      return .level
+    }
+    if previous.component == .media, next.component == .media,
+      previous.mediaTrackChangeDirection != next.mediaTrackChangeDirection
+        || previous.mediaTrackPeek != next.mediaTrackPeek
+    {
+      return .mediaTransient
+    }
+    return .none
+  }
+}
+
+extension SurfaceFrameAnimationContext {
+  static func focus(_ content: TopSurfaceContent) -> Self {
+    Self(
+      component: .priorities,
+      level: content.level,
+      transitionCause: content.navigationContext.transitionCause,
+      focusContentClass: content.expandedContentClass,
+      mediaTrackChangeDirection: nil,
+      mediaTrackPeek: nil
+    )
+  }
+
+  static func media(_ payload: MediaSurfacePayload) -> Self {
+    Self(
+      component: .media,
+      level: payload.level,
+      transitionCause: payload.navigationContext.transitionCause,
+      focusContentClass: nil,
+      mediaTrackChangeDirection: payload.trackChangeDirection,
+      mediaTrackPeek: payload.trackPeek
+    )
+  }
+
+  static func calendar(_ payload: CalendarSurfacePayload) -> Self {
+    Self(
+      component: .calendar,
+      level: payload.level,
+      transitionCause: payload.navigationContext.transitionCause,
+      focusContentClass: nil,
+      mediaTrackChangeDirection: nil,
+      mediaTrackPeek: nil
+    )
+  }
+}
+
 @MainActor
 private final class TopSurfaceKeyboardNavigationPresentation:
   ObservableObject
 {
   @Published private(set) var isActive = false
+  @Published private(set) var guidance: TopSurfaceKeyboardNavigationGuidance?
 
-  func setActive(_ isActive: Bool) {
+  func setActive(
+    _ isActive: Bool,
+    guidance: TopSurfaceKeyboardNavigationGuidance?
+  ) {
+    self.guidance = isActive ? guidance : nil
     self.isActive = isActive
+  }
+
+  func updateGuidance(_ guidance: TopSurfaceKeyboardNavigationGuidance) {
+    guard isActive, self.guidance != guidance else {
+      return
+    }
+    self.guidance = guidance
   }
 }
 
@@ -115,6 +216,8 @@ final class TopSurfacePanel: NSPanel {
   private var renderedPanelSize: CGSize
   private(set) var renderedPresentationStyle: TopSurfacePresentationStyle
   private(set) var renderedSurfaceFrameInPanel: CGRect
+  private(set) var renderedSurfaceFrameAnimationKind: SurfaceFrameAnimationKind
+  private var renderedKeyboardNavigationActive = false
   private let keyboardNavigationPresentation: TopSurfaceKeyboardNavigationPresentation
   private var keyboardEventMonitor: Any?
 
@@ -137,6 +240,10 @@ final class TopSurfacePanel: NSPanel {
       return nil
     }
     return payload
+  }
+
+  var renderedKeyboardNavigationGuidance: TopSurfaceKeyboardNavigationGuidance? {
+    keyboardNavigationPresentation.guidance
   }
 
   convenience init(
@@ -269,6 +376,7 @@ final class TopSurfacePanel: NSPanel {
     renderedPanelSize = contentRect.size
     renderedPresentationStyle = presentationStyle
     renderedSurfaceFrameInPanel = resolvedSurfaceFrame
+    renderedSurfaceFrameAnimationKind = .none
     self.keyboardNavigationPresentation = keyboardNavigationPresentation
     eventView = TopSurfaceEventView(
       frame: CGRect(origin: .zero, size: contentRect.size),
@@ -278,6 +386,7 @@ final class TopSurfacePanel: NSPanel {
         presentationStyle: presentationStyle,
         panelSize: contentRect.size,
         surfaceFrameInPanel: resolvedSurfaceFrame,
+        frameAnimationKind: .none,
         keyboardNavigationPresentation: keyboardNavigationPresentation,
         onActivateSurface: onActivateSurface,
         onRequestKeyboardNavigation: onRequestKeyboardNavigation,
@@ -347,6 +456,12 @@ final class TopSurfacePanel: NSPanel {
     onOpenItem: @escaping () -> Void,
     onOpenKeep3: @escaping () -> Void
   ) {
+    let frameAnimationKind = SurfaceFrameAnimationPolicy.resolve(
+      previous: panelContent.frameAnimationContext,
+      next: .focus(content),
+      previousKeyboardNavigationActive: renderedKeyboardNavigationActive,
+      keyboardNavigationActive: keyboardNavigationPresentation.isActive
+    )
     let currentPresentation = panelContent.focusPresentation
     let needsRootViewUpdate =
       currentPresentation == nil
@@ -376,6 +491,8 @@ final class TopSurfacePanel: NSPanel {
     panelContent = .focus(presentation)
     renderedPresentationStyle = presentationStyle
     renderedSurfaceFrameInPanel = surfaceFrameInPanel
+    renderedSurfaceFrameAnimationKind = frameAnimationKind
+    renderedKeyboardNavigationActive = keyboardNavigationPresentation.isActive
     renderedPanelSize = eventView.bounds.size
     hasShadow = presentationStyle.hasPanelShadow
     eventView.onHoverChanged = onHoverChanged
@@ -384,6 +501,9 @@ final class TopSurfacePanel: NSPanel {
     eventView.onDismiss = onDismiss
     eventView.onOpenItem = onOpenItem
     eventView.updateActiveFrame(surfaceFrameInPanel)
+    keyboardNavigationPresentation.updateGuidance(
+      panelContent.keyboardNavigationGuidance
+    )
     guard needsRootViewUpdate else {
       return
     }
@@ -392,6 +512,7 @@ final class TopSurfacePanel: NSPanel {
       presentationStyle: presentationStyle,
       panelSize: eventView.bounds.size,
       surfaceFrameInPanel: surfaceFrameInPanel,
+      frameAnimationKind: frameAnimationKind,
       keyboardNavigationPresentation: keyboardNavigationPresentation,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
@@ -416,9 +537,17 @@ final class TopSurfacePanel: NSPanel {
     onNavigate: @escaping (TopSurfaceBrowseDirection) -> Void = { _ in },
     onMediaAction: @escaping (MediaSurfaceAction) -> Void
   ) {
+    let frameAnimationKind = SurfaceFrameAnimationPolicy.resolve(
+      previous: panelContent.frameAnimationContext,
+      next: .media(mediaPayload),
+      previousKeyboardNavigationActive: renderedKeyboardNavigationActive,
+      keyboardNavigationActive: keyboardNavigationPresentation.isActive
+    )
     panelContent = .media(mediaPayload)
     renderedPresentationStyle = presentationStyle
     renderedSurfaceFrameInPanel = surfaceFrameInPanel
+    renderedSurfaceFrameAnimationKind = frameAnimationKind
+    renderedKeyboardNavigationActive = keyboardNavigationPresentation.isActive
     renderedPanelSize = eventView.bounds.size
     hasShadow = presentationStyle.hasPanelShadow
     eventView.onHoverChanged = onHoverChanged
@@ -427,11 +556,15 @@ final class TopSurfacePanel: NSPanel {
     eventView.onDismiss = onDismiss
     eventView.onOpenItem = {}
     eventView.updateActiveFrame(surfaceFrameInPanel)
+    keyboardNavigationPresentation.updateGuidance(
+      panelContent.keyboardNavigationGuidance
+    )
     eventView.hostingView.rootView = Self.rootView(
       for: panelContent,
       presentationStyle: presentationStyle,
       panelSize: eventView.bounds.size,
       surfaceFrameInPanel: surfaceFrameInPanel,
+      frameAnimationKind: frameAnimationKind,
       keyboardNavigationPresentation: keyboardNavigationPresentation,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
@@ -454,9 +587,17 @@ final class TopSurfacePanel: NSPanel {
     onSurfaceNavigation: @escaping (SurfaceGestureIntent) -> Void = { _ in },
     onDismiss: @escaping () -> Void = {}
   ) {
+    let frameAnimationKind = SurfaceFrameAnimationPolicy.resolve(
+      previous: panelContent.frameAnimationContext,
+      next: .calendar(calendarPayload),
+      previousKeyboardNavigationActive: renderedKeyboardNavigationActive,
+      keyboardNavigationActive: keyboardNavigationPresentation.isActive
+    )
     panelContent = .calendar(calendarPayload)
     renderedPresentationStyle = presentationStyle
     renderedSurfaceFrameInPanel = surfaceFrameInPanel
+    renderedSurfaceFrameAnimationKind = frameAnimationKind
+    renderedKeyboardNavigationActive = keyboardNavigationPresentation.isActive
     renderedPanelSize = eventView.bounds.size
     hasShadow = presentationStyle.hasPanelShadow
     eventView.onHoverChanged = onHoverChanged
@@ -465,11 +606,15 @@ final class TopSurfacePanel: NSPanel {
     eventView.onDismiss = onDismiss
     eventView.onOpenItem = {}
     eventView.updateActiveFrame(surfaceFrameInPanel)
+    keyboardNavigationPresentation.updateGuidance(
+      panelContent.keyboardNavigationGuidance
+    )
     eventView.hostingView.rootView = Self.rootView(
       for: panelContent,
       presentationStyle: presentationStyle,
       panelSize: eventView.bounds.size,
       surfaceFrameInPanel: surfaceFrameInPanel,
+      frameAnimationKind: frameAnimationKind,
       keyboardNavigationPresentation: keyboardNavigationPresentation,
       onActivateSurface: onActivateSurface,
       onRequestKeyboardNavigation: onRequestKeyboardNavigation,
@@ -486,6 +631,7 @@ final class TopSurfacePanel: NSPanel {
     presentationStyle: TopSurfacePresentationStyle,
     panelSize: CGSize,
     surfaceFrameInPanel: CGRect,
+    frameAnimationKind: SurfaceFrameAnimationKind,
     keyboardNavigationPresentation:
       TopSurfaceKeyboardNavigationPresentation,
     onActivateSurface: @escaping () -> Void,
@@ -510,7 +656,8 @@ final class TopSurfacePanel: NSPanel {
           keyboardNavigationPresentation: keyboardNavigationPresentation,
           presentation: presentation,
           presentationStyle: presentationStyle,
-          surfaceSize: surfaceSize
+          surfaceSize: surfaceSize,
+          frameAnimationKind: frameAnimationKind
         )
       )
     case .media(let media):
@@ -518,6 +665,8 @@ final class TopSurfacePanel: NSPanel {
         TopSurfaceRootView(
           layout: layout,
           isHovered: media.isHovered && media.level != .expanded,
+          presentationStyle: presentationStyle,
+          frameAnimationKind: frameAnimationKind,
           keyboardNavigationPresentation: keyboardNavigationPresentation,
           content: MediaSurfaceView(
             payload: media,
@@ -535,6 +684,8 @@ final class TopSurfacePanel: NSPanel {
         TopSurfaceRootView(
           layout: layout,
           isHovered: calendar.isHovered && calendar.level != .expanded,
+          presentationStyle: presentationStyle,
+          frameAnimationKind: frameAnimationKind,
           keyboardNavigationPresentation: keyboardNavigationPresentation,
           content: CalendarSurfaceView(
             payload: calendar,
@@ -557,7 +708,11 @@ final class TopSurfacePanel: NSPanel {
     guard keyboardNavigationPresentation.isActive != isEnabled else {
       return
     }
-    keyboardNavigationPresentation.setActive(isEnabled)
+    keyboardNavigationPresentation.setActive(
+      isEnabled,
+      guidance: panelContent.keyboardNavigationGuidance
+    )
+    renderedKeyboardNavigationActive = isEnabled
 
     guard isEnabled else {
       postKeyboardNavigationAnnouncement(
@@ -619,19 +774,8 @@ final class TopSurfacePanel: NSPanel {
   }
 
   private var activationAnnouncement: String {
-    let guidance: TopSurfaceKeyboardNavigationGuidance
-    switch panelContent {
-    case .focus(let presentation):
-      guidance = .priorities(itemCount: presentation.content.itemCount)
-    case .media(let payload):
-      guidance = .media(
-        capabilities: payload.session?.capabilities ?? []
-      )
-    case .calendar:
-      guidance = .calendar
-    }
     return
-      "键盘导航已启用。\(guidance.accessibilityInstructions)"
+      "键盘导航已启用。\(panelContent.keyboardNavigationGuidance.accessibilityInstructions)"
   }
 
   private func postKeyboardNavigationAnnouncement(_ announcement: String) {
@@ -649,6 +793,7 @@ final class TopSurfacePanel: NSPanel {
   }
 }
 
+@MainActor
 private enum PanelContent {
   case focus(TopSurfaceFocusPresentation)
   case media(MediaSurfacePayload)
@@ -660,6 +805,43 @@ private enum PanelContent {
     }
     return presentation
   }
+
+  var frameAnimationContext: SurfaceFrameAnimationContext {
+    switch self {
+    case .focus(let presentation):
+      .focus(presentation.content)
+    case .media(let payload):
+      .media(payload)
+    case .calendar(let payload):
+      .calendar(payload)
+    }
+  }
+
+  var keyboardNavigationGuidance: TopSurfaceKeyboardNavigationGuidance {
+    switch self {
+    case .focus(let presentation):
+      let content = presentation.content
+      return TopSurfaceKeyboardNavigationGuidance.priorities(
+        itemCount: content.itemCount,
+        level: content.level,
+        hasAlternativeComponents: content.navigationContext
+          .hasAlternative(to: .priorities)
+      )
+    case .media(let payload):
+      return TopSurfaceKeyboardNavigationGuidance.media(
+        capabilities: payload.session?.capabilities ?? [],
+        level: payload.level,
+        hasAlternativeComponents: payload.navigationContext
+          .hasAlternative(to: .media)
+      )
+    case .calendar(let payload):
+      return TopSurfaceKeyboardNavigationGuidance.calendar(
+        level: payload.level,
+        hasAlternativeComponents: payload.navigationContext
+          .hasAlternative(to: .calendar)
+      )
+    }
+  }
 }
 
 private struct TopSurfaceFocusRootView: View {
@@ -668,6 +850,7 @@ private struct TopSurfaceFocusRootView: View {
   @ObservedObject var presentation: TopSurfaceFocusPresentation
   let presentationStyle: TopSurfacePresentationStyle
   let surfaceSize: CGSize
+  let frameAnimationKind: SurfaceFrameAnimationKind
 
   var body: some View {
     TopSurfaceRootView(
@@ -675,6 +858,8 @@ private struct TopSurfaceFocusRootView: View {
       isHovered:
         presentation.content.isHovered
         && presentation.content.level != .expanded,
+      presentationStyle: presentationStyle,
+      frameAnimationKind: frameAnimationKind,
       keyboardNavigationPresentation: keyboardNavigationPresentation,
       content: TopSurfaceView(
         content: presentation.content,
@@ -708,6 +893,8 @@ private struct TopSurfaceRootView<Content: View>: View {
 
   let layout: TopSurfaceHostedLayout
   let isHovered: Bool
+  let presentationStyle: TopSurfacePresentationStyle
+  let frameAnimationKind: SurfaceFrameAnimationKind
   @ObservedObject var keyboardNavigationPresentation: TopSurfaceKeyboardNavigationPresentation
   let content: Content
 
@@ -725,6 +912,17 @@ private struct TopSurfaceRootView<Content: View>: View {
           y: hoverEffect.scaleY,
           anchor: .top
         )
+        .overlay(alignment: .top) {
+          if keyboardNavigationPresentation.isActive,
+            let guidance = keyboardNavigationPresentation.guidance
+          {
+            KeyboardNavigationStatusView(
+              guidance: guidance,
+              presentationStyle: presentationStyle,
+              surfaceSize: layout.surfaceFrameInPanel.size
+            )
+          }
+        }
     }
     .frame(
       width: layout.panelSize.width,
@@ -732,9 +930,7 @@ private struct TopSurfaceRootView<Content: View>: View {
       alignment: .topLeading
     )
     .animation(
-      !reduceMotion
-        ? .easeInOut(duration: 0.22)
-        : nil,
+      frameAnimationKind.animation(reduceMotion: reduceMotion),
       value: layout.surfaceFrameInPanel
     )
     .animation(
@@ -745,6 +941,66 @@ private struct TopSurfaceRootView<Content: View>: View {
       \.isTopSurfaceKeyboardNavigationActive,
       keyboardNavigationPresentation.isActive
     )
+  }
+}
+
+private struct KeyboardNavigationStatusView: View {
+  let guidance: TopSurfaceKeyboardNavigationGuidance
+  let presentationStyle: TopSurfacePresentationStyle
+  let surfaceSize: CGSize
+
+  var body: some View {
+    Group {
+      switch presentationStyle {
+      case .floatingCapsule:
+        HStack(spacing: 4) {
+          Image(systemName: "keyboard")
+          Text(guidance.visibleDirections)
+          Text("esc")
+        }
+        .padding(.horizontal, 6)
+        .frame(height: 11)
+        .background(.black.opacity(0.88), in: Capsule())
+        .overlay {
+          Capsule().stroke(.white.opacity(0.28), lineWidth: 0.5)
+        }
+        .padding(.top, 2)
+      case .notchAttached(let notchSize):
+        let layout = NotchCompactContentLayout(
+          surfaceSize: surfaceSize,
+          obstructionSize: notchSize
+        )
+        let tokens =
+          guidance.visibleDirections.split(separator: " ").map(String.init)
+          + ["esc"]
+        let splitIndex = (tokens.count + 1) / 2
+        HStack(spacing: 0) {
+          wingLegend(Array(tokens[..<splitIndex]))
+            .frame(width: layout.leftWingFrame.width)
+          Color.clear
+            .frame(width: layout.obstructionFrame.width)
+          wingLegend(Array(tokens[splitIndex...]))
+            .frame(width: layout.rightWingFrame.width)
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .padding(.top, 2)
+      }
+    }
+    .font(.system(size: 7, weight: .semibold, design: .monospaced))
+    .foregroundStyle(.white.opacity(0.82))
+    .allowsHitTesting(false)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(
+      "键盘导航已启用。\(guidance.accessibilityInstructions)"
+    )
+    .accessibilityIdentifier("overlay.keyboardNavigationStatus")
+  }
+
+  private func wingLegend(_ tokens: [String]) -> some View {
+    Text(tokens.joined(separator: " "))
+      .lineLimit(1)
+      .minimumScaleFactor(0.7)
+      .frame(maxWidth: .infinity)
   }
 }
 

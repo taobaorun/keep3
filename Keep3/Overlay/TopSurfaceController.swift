@@ -1,5 +1,15 @@
 import AppKit
 
+struct KeyboardSurfaceVisibilityPolicy {
+  static func visibleLevel(
+    logicalLevel: SurfaceLevel,
+    keyboardNavigationActive: Bool
+  ) -> SurfaceLevel {
+    logicalLevel == .hardware && keyboardNavigationActive
+      ? .compact : logicalLevel
+  }
+}
+
 @MainActor
 struct TopSurfaceApplicationRestoration {
   private let restore: () -> Void
@@ -76,7 +86,12 @@ final class TopSurfaceController {
       descriptor: DisplayDescriptor(screen: screen),
       metrics: metrics
     )
-    let activeLayout = geometry.layout(level: content.level)
+    let activeLayout = geometry.layout(
+      level: KeyboardSurfaceVisibilityPolicy.visibleLevel(
+        logicalLevel: content.level,
+        keyboardNavigationActive: isKeyboardNavigationSessionActive
+      )
+    )
     show(
       layout: geometry.sharedEnvelopeLayout(
         containing: activeLayout,
@@ -118,7 +133,10 @@ final class TopSurfaceController {
       metrics: metrics
     )
     let activeLayout = geometry.mediaLayout(
-      level: payload.level,
+      level: KeyboardSurfaceVisibilityPolicy.visibleLevel(
+        logicalLevel: payload.level,
+        keyboardNavigationActive: isKeyboardNavigationSessionActive
+      ),
       trackChangeDirection:
         payload.trackChangeDirection ?? payload.trackPeek?.direction,
       showsTrackPeek: payload.trackPeek != nil
@@ -159,7 +177,12 @@ final class TopSurfaceController {
       descriptor: DisplayDescriptor(screen: screen),
       metrics: metrics
     )
-    let activeLayout = geometry.layout(level: payload.level)
+    let activeLayout = geometry.layout(
+      level: KeyboardSurfaceVisibilityPolicy.visibleLevel(
+        logicalLevel: payload.level,
+        keyboardNavigationActive: isKeyboardNavigationSessionActive
+      )
+    )
     showCalendar(
       layout: geometry.sharedEnvelopeLayout(
         containing: activeLayout,

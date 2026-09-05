@@ -16,6 +16,7 @@ final class SurfaceNavigationCoordinator {
   private var isSurfaceAvailable = true
   private var isAwaitingReconciliation = false
   private var generation: UInt64 = 0
+  private var transitionCause: SurfaceTransitionCause = .initial
 
   var state: SurfaceNavigationState {
     SurfaceNavigationState(
@@ -25,7 +26,11 @@ final class SurfaceNavigationCoordinator {
       isHovering: isHovering,
       isHoverPreviewed: isHoverPreviewed,
       isPresented: isSurfaceAvailable && !isAwaitingReconciliation,
-      generation: generation
+      generation: generation,
+      availableComponents: Set(
+        availability.compactMap { $0.value ? $0.key : nil }
+      ),
+      transitionCause: transitionCause
     )
   }
 
@@ -61,6 +66,7 @@ final class SurfaceNavigationCoordinator {
       return
     }
     availability[component] = isAvailable
+    transitionCause = .availability
 
     guard !self.isAvailable(selectedComponent) else {
       publish()
@@ -75,6 +81,7 @@ final class SurfaceNavigationCoordinator {
     }
     selectedComponent = component
     selectionSource = .manual
+    transitionCause = .gesture
     recordManualMediaSelection()
     publish()
   }
@@ -83,6 +90,7 @@ final class SurfaceNavigationCoordinator {
     guard moveSelection(direction) else {
       return
     }
+    transitionCause = .gesture
     publish()
   }
 
@@ -109,11 +117,15 @@ final class SurfaceNavigationCoordinator {
     return false
   }
 
-  func setLevel(_ level: SurfaceLevel) {
+  func setLevel(
+    _ level: SurfaceLevel,
+    cause: SurfaceTransitionCause = .contentUpdate
+  ) {
     guard self.level != level else {
       return
     }
     self.level = level
+    transitionCause = cause
     publish()
   }
 
@@ -124,6 +136,7 @@ final class SurfaceNavigationCoordinator {
     if !isHovering, level == .expanded {
       isHoverPreviewed = false
       level = .compact
+      transitionCause = .pointer
       publish()
       return
     }
@@ -133,6 +146,7 @@ final class SurfaceNavigationCoordinator {
       return
     }
     isHoverPreviewed = shouldPreview
+    transitionCause = .pointer
     publish()
   }
 
@@ -146,6 +160,7 @@ final class SurfaceNavigationCoordinator {
 
     var didChange = isHoverPreviewed
     isHoverPreviewed = false
+    transitionCause = .gesture
     switch intent {
     case .advanceDepth:
       switch level {
@@ -206,6 +221,7 @@ final class SurfaceNavigationCoordinator {
       }
       selectedComponent = .media
       selectionSource = .automaticMedia
+      transitionCause = .automaticMedia
       publish()
       return
     }
@@ -216,6 +232,7 @@ final class SurfaceNavigationCoordinator {
     let needsAvailableFallback = !isAvailable(selectedComponent)
     mediaSessionID = sessionID
     availability[.media] = true
+    transitionCause = .automaticMedia
 
     if needsAvailableFallback {
       manuallyDismissedMediaSessionID = nil
@@ -259,6 +276,7 @@ final class SurfaceNavigationCoordinator {
       selectedComponent = .priorities
     }
     selectionSource = .mediaExit
+    transitionCause = .mediaExit
     isHoverPreviewed = false
     level = .compact
     publish()
@@ -278,6 +296,7 @@ final class SurfaceNavigationCoordinator {
     }
     isSurfaceAvailable = isAvailable
     isAwaitingReconciliation = true
+    transitionCause = .displayLifecycle
     publish()
   }
 
@@ -286,12 +305,14 @@ final class SurfaceNavigationCoordinator {
       return
     }
     isAwaitingReconciliation = false
+    transitionCause = .displayLifecycle
     publish()
   }
 
   private func selectFallback(after component: SurfaceComponentID) {
     selectedComponent = firstAvailableComponent(after: component) ?? .priorities
     selectionSource = .fallback
+    transitionCause = .availability
     publish()
   }
 

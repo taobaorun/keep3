@@ -26,11 +26,11 @@ final class Keep3UITests: XCTestCase {
     XCTAssertTrue(brandName.exists)
     XCTAssertEqual(brandName.label, "Keep3")
     XCTAssertTrue(app.staticTexts["把重要的事留在视线里"].exists)
-    let keep3Tab = app.radioButtons["Keep3"]
-    XCTAssertTrue(keep3Tab.exists)
-    XCTAssertEqual(valueDescription(of: keep3Tab), "1")
+    let focusTab = app.radioButtons["重点"]
+    XCTAssertTrue(focusTab.exists)
+    XCTAssertEqual(valueDescription(of: focusTab), "1")
+    XCTAssertTrue(app.radioButtons["历史"].exists)
     XCTAssertTrue(app.radioButtons["设置"].exists)
-    XCTAssertFalse(app.staticTexts["设置"].exists)
     XCTAssertEqual(brandLogo.frame.width, brandLogo.frame.height, accuracy: 1)
     XCTAssertGreaterThan(brandName.frame.minX, brandLogo.frame.maxX)
     XCTAssertEqual(brandName.frame.midY, brandLogo.frame.midY, accuracy: 1)
@@ -54,6 +54,75 @@ final class Keep3UITests: XCTestCase {
     XCTAssertFalse(app.windows["Keep3 Settings"].exists)
   }
 
+  func testMainTabControlDoesNotMoveWhenSettingsIsSelected() throws {
+    try launchIsolatedApp()
+    defer { cleanUpIsolatedApp() }
+
+    let focusTab = app.radioButtons["重点"]
+    let historyTab = app.radioButtons["历史"]
+    let settingsTab = app.radioButtons["设置"]
+    XCTAssertTrue(focusTab.waitForExistence(timeout: 2))
+    let initialFrames = [focusTab.frame, historyTab.frame, settingsTab.frame]
+
+    settingsTab.click()
+
+    XCTAssertTrue(
+      app.descendants(matching: .any)["settings.category.general"]
+        .waitForExistence(timeout: 2)
+    )
+    for (tab, initialFrame) in zip([focusTab, historyTab, settingsTab], initialFrames) {
+      XCTAssertEqual(tab.frame.minX, initialFrame.minX, accuracy: 1)
+      XCTAssertEqual(tab.frame.minY, initialFrame.minY, accuracy: 1)
+    }
+  }
+
+  func testKeyboardNavigationStatusIsVisibleAndClearsOnEscape() throws {
+    try launchIsolatedApp(surfaceLevel: "compact")
+    defer { cleanUpIsolatedApp() }
+
+    addItem("Keyboard Guidance")
+    let compact = app.buttons["overlay.compact"]
+    XCTAssertTrue(compact.waitForExistence(timeout: 3), app.debugDescription)
+    compact.click()
+
+    let status =
+      app.descendants(matching: .any)["overlay.keyboardNavigationStatus"]
+    XCTAssertTrue(status.waitForExistence(timeout: 2), app.debugDescription)
+    XCTAssertTrue(status.label.contains("键盘导航已启用"))
+    XCTAssertTrue(status.label.contains("Escape"))
+
+    app.typeKey(.escape, modifierFlags: [])
+    let dismissed = expectation(
+      for: NSPredicate(format: "exists == false"),
+      evaluatedWith: status
+    )
+    wait(for: [dismissed], timeout: 2)
+  }
+
+  func testSettingsPreviewsExposeNoInertControls() throws {
+    try launchIsolatedApp()
+    defer { cleanUpIsolatedApp() }
+
+    openSettings()
+    openSettingsCategory("media")
+    let mediaPreview =
+      app.descendants(matching: .any)["settings.media.preview.surface"]
+    XCTAssertTrue(
+      mediaPreview.waitForExistence(timeout: 2),
+      app.debugDescription
+    )
+    XCTAssertEqual(mediaPreview.descendants(matching: .button).count, 0)
+
+    openSettingsCategory("calendar")
+    let calendarPreview =
+      app.descendants(matching: .any)["settings.calendar.preview"]
+    XCTAssertTrue(
+      calendarPreview.waitForExistence(timeout: 2),
+      app.debugDescription
+    )
+    XCTAssertEqual(calendarPreview.descendants(matching: .button).count, 0)
+  }
+
   func testThreeItemLimitCurrentFocusAndReordering() throws {
     try launchIsolatedApp()
     defer { cleanUpIsolatedApp() }
@@ -69,6 +138,10 @@ final class Keep3UITests: XCTestCase {
     let makeCurrent = app.buttons["editor.makeCurrent"]
     XCTAssertTrue(makeCurrent.waitForExistence(timeout: 2))
     makeCurrent.click()
+    XCTAssertTrue(
+      app.descendants(matching: .any)["editor.currentFocus"]
+        .waitForExistence(timeout: 2)
+    )
 
     let moveUp = app.buttons["editor.moveUp"]
     moveUp.click()
@@ -326,7 +399,7 @@ final class Keep3UITests: XCTestCase {
     XCTAssertGreaterThan(keep3Button.frame.width, keep3Button.frame.height)
     keep3Button.click()
 
-    XCTAssertEqual(valueDescription(of: app.radioButtons["Keep3"]), "1")
+    XCTAssertEqual(valueDescription(of: app.radioButtons["重点"]), "1")
     let titleField = app.textFields["editor.title"]
     XCTAssertTrue(titleField.waitForExistence(timeout: 3))
     XCTAssertEqual(titleField.value as? String, "Beta")
@@ -441,7 +514,7 @@ final class Keep3UITests: XCTestCase {
     )
     XCTAssertFalse(app.buttons["overlay.keep3"].exists)
 
-    app.radioButtons["Keep3"].click()
+    app.radioButtons["重点"].click()
     addItem("Calendar Fallback")
     openSettings()
     openSettingsCategory("calendar")

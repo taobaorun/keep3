@@ -9,11 +9,14 @@ struct HistoryView: View {
   @State private var exportFilename = "Keep3-导出.md"
   @State private var isExporting = false
   @State private var exportMessage: String?
+  @State private var hoveredArchiveID: UUID?
+  @FocusState private var focusedArchiveID: UUID?
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
     HSplitView {
       sidebar
-        .frame(minWidth: 240, idealWidth: 260, maxWidth: 320)
+        .frame(minWidth: 220, idealWidth: 240, maxWidth: 280)
 
       detail
         .frame(minWidth: 460, maxWidth: .infinity, maxHeight: .infinity)
@@ -79,6 +82,8 @@ struct HistoryView: View {
           .foregroundStyle(.red)
           .accessibilityLabel("导出错误：\(message)")
           .accessibilityIdentifier("history.exportError")
+          .id(message)
+          .transition(transientMessageTransition)
       }
 
       if let message = model.editorMessage {
@@ -86,6 +91,8 @@ struct HistoryView: View {
           .font(.caption)
           .foregroundStyle(.red)
           .accessibilityLabel("历史记录错误：\(message)")
+          .id(message)
+          .transition(transientMessageTransition)
       }
     }
     .padding(20)
@@ -209,13 +216,32 @@ struct HistoryView: View {
       .padding(8)
       .contentShape(Rectangle())
       .background(
-        selectedArchiveID == archivedItem.id
-          ? Color.accentColor.opacity(0.14)
-          : Color.clear
+        rowBackground(for: archivedItem)
       )
       .clipShape(RoundedRectangle(cornerRadius: 6))
+      .overlay(alignment: .leading) {
+        if selectedArchiveID == archivedItem.id {
+          Capsule()
+            .fill(Color("AccentColor"))
+            .frame(width: 3)
+            .padding(.vertical, 6)
+        }
+      }
+      .overlay {
+        if focusedArchiveID == archivedItem.id {
+          RoundedRectangle(cornerRadius: 6)
+            .stroke(.primary.opacity(0.46), lineWidth: 1)
+        }
+      }
     }
-    .buttonStyle(.plain)
+    .buttonStyle(SidebarRowPressButtonStyle())
+    .focused($focusedArchiveID, equals: archivedItem.id)
+    .onHover { isHovered in
+      hoveredArchiveID = isHovered ? archivedItem.id : nil
+    }
+    .accessibilityAddTraits(
+      selectedArchiveID == archivedItem.id ? .isSelected : []
+    )
     .accessibilityIdentifier("history.item.\(archivedItem.id.uuidString)")
     .accessibilityLabel(
       "\(archivedItem.item.title)，归档于 \(archivedItem.archivedAt.formatted())"
@@ -229,6 +255,36 @@ struct HistoryView: View {
       return
     }
     selectedArchiveID = model.state.archivedItems.first?.id
+  }
+
+  private func rowBackground(
+    for archivedItem: ArchivedFocusItem
+  ) -> Color {
+    if selectedArchiveID == archivedItem.id {
+      return Color("AccentColor").opacity(0.14)
+    }
+    if hoveredArchiveID == archivedItem.id {
+      return Color.primary.opacity(0.055)
+    }
+    return .clear
+  }
+
+  private var transientMessageTransition: AnyTransition {
+    .asymmetric(
+      insertion: .opacity.animation(
+        InteractionMotion.strongEaseOut(
+          duration:
+            reduceMotion
+            ? InteractionMotion.reducedMotionDuration
+            : InteractionMotion.stateChangeDuration
+        )
+      ),
+      removal: .opacity.animation(
+        InteractionMotion.strongEaseOut(
+          duration: InteractionMotion.transientExitDuration
+        )
+      )
+    )
   }
 
   private func beginCompleteExport() {

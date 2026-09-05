@@ -5,23 +5,6 @@ import XCTest
 
 @MainActor
 final class MediaCommandCoordinatorTests: XCTestCase {
-  func testHoverUsesImmediateAlignmentHapticFeedback() {
-    var calls:
-      [(
-        NSHapticFeedbackManager.FeedbackPattern,
-        NSHapticFeedbackManager.PerformanceTime
-      )] = []
-    let haptic = AppKitSurfaceHapticFeedback {
-      calls.append(($0, $1))
-    }
-
-    haptic.performHoverFeedback()
-
-    XCTAssertEqual(calls.count, 1)
-    XCTAssertEqual(calls.first?.0, .alignment)
-    XCTAssertEqual(calls.first?.1, .now)
-  }
-
   func testTrackGestureUsesImmediateGenericHapticFeedback() {
     var calls:
       [(

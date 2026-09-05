@@ -4,17 +4,38 @@ struct TopSurfaceKeyboardNavigationGuidance: Equatable, Sendable {
   let visibleDirections: String
   let accessibilityInstructions: String
 
-  static func priorities(itemCount: Int) -> Self {
-    let horizontal =
-      itemCount > 1 ? "←/→ 浏览重点，" : ""
+  static func priorities(
+    itemCount: Int,
+    level: SurfaceLevel = .compact,
+    hasAlternativeComponents: Bool = false
+  ) -> Self {
+    var visibleDirections: [String] = []
+    var instructions: [String] = []
+    if itemCount > 1 {
+      visibleDirections.append(contentsOf: ["←", "→"])
+      instructions.append("←/→ 浏览重点")
+    }
+    appendVerticalNavigation(
+      level: level,
+      hasAlternativeComponents: hasAlternativeComponents,
+      expandedUpAction: "上一个表面",
+      to: &visibleDirections,
+      instructions: &instructions
+    )
+    visibleDirections.append("↩")
+    instructions.append("Return 打开当前重点")
+    instructions.append("Escape 退出并返回上一个应用")
     return Self(
-      visibleDirections: itemCount > 1 ? "← → ↑ ↓ ↩" : "↑ ↓ ↩",
-      accessibilityInstructions:
-        "\(horizontal)↑/↓ 切换表面，Return 打开当前重点，Escape 退出并返回上一个应用"
+      visibleDirections: visibleDirections.joined(separator: " "),
+      accessibilityInstructions: instructions.joined(separator: "，")
     )
   }
 
-  static func media(capabilities: Set<MediaCapability>) -> Self {
+  static func media(
+    capabilities: Set<MediaCapability>,
+    level: SurfaceLevel = .compact,
+    hasAlternativeComponents: Bool = false
+  ) -> Self {
     var visibleDirections: [String] = []
     var instructions: [String] = []
     if capabilities.contains(.previous) {
@@ -25,9 +46,14 @@ struct TopSurfaceKeyboardNavigationGuidance: Equatable, Sendable {
       visibleDirections.append("→")
       instructions.append("→ 下一首")
     }
-    visibleDirections.append(contentsOf: ["↑", "↓"])
-    instructions.append("↑ 返回普通播放器")
-    instructions.append("↓ 切换到下一个表面")
+    appendVerticalNavigation(
+      level: level,
+      hasAlternativeComponents: hasAlternativeComponents,
+      expandedUpAction: "返回普通播放器",
+      to: &visibleDirections,
+      instructions: &instructions,
+      expandedUpAlwaysAvailable: true
+    )
     instructions.append("Escape 退出并返回上一个应用")
     return Self(
       visibleDirections: visibleDirections.joined(separator: " "),
@@ -35,11 +61,53 @@ struct TopSurfaceKeyboardNavigationGuidance: Equatable, Sendable {
     )
   }
 
-  static let calendar = Self(
-    visibleDirections: "↑ ↓",
-    accessibilityInstructions:
-      "↑/↓ 切换表面，Escape 退出并返回上一个应用"
-  )
+  static func calendar(
+    level: SurfaceLevel = .compact,
+    hasAlternativeComponents: Bool = false
+  ) -> Self {
+    var visibleDirections: [String] = []
+    var instructions: [String] = []
+    appendVerticalNavigation(
+      level: level,
+      hasAlternativeComponents: hasAlternativeComponents,
+      expandedUpAction: "上一个表面",
+      to: &visibleDirections,
+      instructions: &instructions
+    )
+    instructions.append("Escape 退出并返回上一个应用")
+    return Self(
+      visibleDirections: visibleDirections.joined(separator: " "),
+      accessibilityInstructions: instructions.joined(separator: "，")
+    )
+  }
+
+  private static func appendVerticalNavigation(
+    level: SurfaceLevel,
+    hasAlternativeComponents: Bool,
+    expandedUpAction: String,
+    to visibleDirections: inout [String],
+    instructions: inout [String],
+    expandedUpAlwaysAvailable: Bool = false
+  ) {
+    switch level {
+    case .hardware:
+      visibleDirections.append("↓")
+      instructions.append("↓ 显示表面")
+    case .compact:
+      visibleDirections.append(contentsOf: ["↑", "↓"])
+      instructions.append("↑ 隐藏表面")
+      instructions.append("↓ 展开当前表面")
+    case .expanded:
+      if expandedUpAlwaysAvailable || hasAlternativeComponents {
+        visibleDirections.append("↑")
+        instructions.append("↑ \(expandedUpAction)")
+      }
+      if hasAlternativeComponents {
+        visibleDirections.append("↓")
+        instructions.append("↓ 下一个表面")
+      }
+    }
+  }
 }
 
 private struct TopSurfaceKeyboardNavigationActiveKey: EnvironmentKey {
@@ -50,6 +118,41 @@ extension EnvironmentValues {
   var isTopSurfaceKeyboardNavigationActive: Bool {
     get { self[TopSurfaceKeyboardNavigationActiveKey.self] }
     set { self[TopSurfaceKeyboardNavigationActiveKey.self] = newValue }
+  }
+}
+
+struct SurfacePressEffect: Equatable {
+  let scale: CGFloat
+  let opacity: Double
+  let duration: TimeInterval
+
+  init(isPressed: Bool, reduceMotion: Bool) {
+    scale = isPressed && !reduceMotion ? 0.97 : 1
+    opacity = isPressed ? 0.92 : 1
+    duration =
+      reduceMotion
+      ? InteractionMotion.reducedMotionDuration
+      : isPressed
+        ? InteractionMotion.pressInDuration
+        : InteractionMotion.pressOutDuration
+  }
+}
+
+struct SurfacePressButtonStyle: ButtonStyle {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+  func makeBody(configuration: Configuration) -> some View {
+    let effect = SurfacePressEffect(
+      isPressed: configuration.isPressed,
+      reduceMotion: reduceMotion
+    )
+    configuration.label
+      .scaleEffect(effect.scale)
+      .opacity(effect.opacity)
+      .animation(
+        InteractionMotion.strongEaseOut(duration: effect.duration),
+        value: configuration.isPressed
+      )
   }
 }
 
@@ -416,6 +519,244 @@ struct SurfaceAccessibilityNavigationModifier: ViewModifier {
   }
 }
 
+enum FocusTitlePresentationPhase: Equatable, Sendable {
+  case incoming
+  case settled
+  case outgoing
+}
+
+struct FocusTitlePresentationLayer: Equatable, Identifiable, Sendable {
+  let id: UUID
+  var title: String
+  var phase: FocusTitlePresentationPhase
+}
+
+struct LatestWinsFocusTitlePresentation: Equatable, Sendable {
+  private(set) var layers: [FocusTitlePresentationLayer]
+  private var generation: UInt64 = 0
+
+  init(itemID: UUID, title: String) {
+    layers = [
+      FocusTitlePresentationLayer(
+        id: itemID,
+        title: title,
+        phase: .settled
+      )
+    ]
+  }
+
+  mutating func prepareSwitch(
+    itemID: UUID,
+    title: String,
+    animates: Bool
+  ) -> UInt64? {
+    generation &+= 1
+    let token = generation
+    guard animates else {
+      layers = [
+        FocusTitlePresentationLayer(
+          id: itemID,
+          title: title,
+          phase: .settled
+        )
+      ]
+      return nil
+    }
+    guard let current = layers.last(where: { $0.phase != .outgoing }) else {
+      layers = [
+        FocusTitlePresentationLayer(
+          id: itemID,
+          title: title,
+          phase: .settled
+        )
+      ]
+      return nil
+    }
+    guard current.id != itemID else {
+      layers = [
+        FocusTitlePresentationLayer(
+          id: itemID,
+          title: title,
+          phase: .settled
+        )
+      ]
+      return nil
+    }
+    layers = [
+      current,
+      FocusTitlePresentationLayer(
+        id: itemID,
+        title: title,
+        phase: .incoming
+      ),
+    ]
+    return token
+  }
+
+  mutating func animateSwitch(token: UInt64) {
+    guard generation == token, layers.count == 2 else {
+      return
+    }
+    layers[0].phase = .outgoing
+    layers[1].phase = .settled
+  }
+
+  mutating func completeSwitch(token: UInt64) {
+    guard generation == token, let current = layers.last else {
+      return
+    }
+    layers = [
+      FocusTitlePresentationLayer(
+        id: current.id,
+        title: current.title,
+        phase: .settled
+      )
+    ]
+  }
+}
+
+private struct FocusTitleSwitchTaskKey: Hashable {
+  let itemID: UUID
+  let title: String
+  let transitionKey: String
+}
+
+private struct LatestWinsFocusTitleSlot<SlotContent: View>: View {
+  let itemID: UUID
+  let title: String
+  let transition: FocusItemSwitchTransition
+  let presentationStyle: TopSurfacePresentationStyle
+  let slotContent: (String) -> SlotContent
+
+  @State private var presentation: LatestWinsFocusTitlePresentation
+
+  init(
+    itemID: UUID,
+    title: String,
+    transition: FocusItemSwitchTransition,
+    presentationStyle: TopSurfacePresentationStyle,
+    @ViewBuilder slotContent: @escaping (String) -> SlotContent
+  ) {
+    self.itemID = itemID
+    self.title = title
+    self.transition = transition
+    self.presentationStyle = presentationStyle
+    self.slotContent = slotContent
+    _presentation = State(
+      initialValue: LatestWinsFocusTitlePresentation(
+        itemID: itemID,
+        title: title
+      )
+    )
+  }
+
+  var body: some View {
+    ZStack {
+      ForEach(presentation.layers) { layer in
+        renderedLayer(layer)
+          .accessibilityHidden(layer.phase == .outgoing)
+      }
+    }
+    .task(id: taskKey) {
+      await presentLatestTitle()
+    }
+  }
+
+  @ViewBuilder
+  private func renderedLayer(_ layer: FocusTitlePresentationLayer) -> some View {
+    let content = slotContent(layer.title)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .background {
+        if FocusTitleCardBackingPolicy.shouldShow(
+          presentationStyle: presentationStyle,
+          transition: transition
+        ) {
+          Color.black
+        }
+      }
+
+    switch transition {
+    case .instant:
+      content
+    case .crossfade:
+      content.opacity(layer.phase == .settled ? 1 : 0)
+    case .cardFlip:
+      content.modifier(
+        FocusTitleCardFoldModifier(
+          progress: layer.phase == .settled ? 1 : 0,
+          role: layer.phase == .outgoing ? .outgoing : .incoming
+        )
+      )
+    }
+  }
+
+  @MainActor
+  private func presentLatestTitle() async {
+    let token = presentation.prepareSwitch(
+      itemID: itemID,
+      title: title,
+      animates: transition.duration != nil
+    )
+    guard let token, let duration = transition.duration else {
+      return
+    }
+    await Task.yield()
+    guard !Task.isCancelled else {
+      return
+    }
+    withAnimation(transition.animation) {
+      presentation.animateSwitch(token: token)
+    }
+    do {
+      try await Task.sleep(for: .seconds(duration))
+    } catch {
+      return
+    }
+    presentation.completeSwitch(token: token)
+  }
+
+  private var taskKey: FocusTitleSwitchTaskKey {
+    FocusTitleSwitchTaskKey(
+      itemID: itemID,
+      title: title,
+      transitionKey: transition.taskKey
+    )
+  }
+}
+
+extension FocusItemSwitchTransition {
+  fileprivate var duration: TimeInterval? {
+    switch self {
+    case .instant:
+      nil
+    case .crossfade(let duration), .cardFlip(let duration):
+      duration
+    }
+  }
+
+  fileprivate var animation: Animation? {
+    switch self {
+    case .instant:
+      nil
+    case .crossfade(let duration):
+      .easeInOut(duration: duration)
+    case .cardFlip(let duration):
+      .timingCurve(0.33, 0, 0.2, 1, duration: duration)
+    }
+  }
+
+  fileprivate var taskKey: String {
+    switch self {
+    case .instant:
+      "instant"
+    case .crossfade(let duration):
+      "crossfade-\(duration)"
+    case .cardFlip(let duration):
+      "card-flip-\(duration)"
+    }
+  }
+}
+
 struct TopSurfaceView: View {
   let content: TopSurfaceContent
   let presentationStyle: TopSurfacePresentationStyle
@@ -433,6 +774,8 @@ struct TopSurfaceView: View {
   @Environment(\.colorSchemeContrast) private var colorSchemeContrast
   @Environment(\.accessibilityDifferentiateWithoutColor) private
     var differentiateWithoutColor
+  @Environment(\.isTopSurfaceKeyboardNavigationActive) private
+    var isKeyboardNavigationActive
 
   var body: some View {
     surfaceBody
@@ -493,8 +836,8 @@ struct TopSurfaceView: View {
       HStack(spacing: 8) {
         focusMarker
 
-        compactTitleSwitchingSlot {
-          Text(content.item.title)
+        compactTitleSwitchingSlot { title in
+          Text(title)
             .font(.subheadline.weight(.medium))
             .lineLimit(1)
             .truncationMode(.tail)
@@ -520,8 +863,8 @@ struct TopSurfaceView: View {
           .frame(width: layout.obstructionFrame.width)
           .accessibilityHidden(true)
 
-        compactTitleSwitchingSlot {
-          Text(content.item.title)
+        compactTitleSwitchingSlot { title in
+          Text(title)
             .font(.caption.weight(.medium))
             .lineLimit(1)
             .truncationMode(.tail)
@@ -533,25 +876,17 @@ struct TopSurfaceView: View {
   }
 
   private func compactTitleSwitchingSlot<SlotContent: View>(
-    @ViewBuilder slotContent: () -> SlotContent
+    @ViewBuilder slotContent: @escaping (String) -> SlotContent
   ) -> some View {
-    ZStack {
-      slotContent()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background {
-          if FocusTitleCardBackingPolicy.shouldShow(
-            presentationStyle: presentationStyle,
-            transition: resolvedItemSwitchTransition
-          ) {
-            Color.black
-          }
-        }
-        .id(content.item.id)
-        .transition(itemSwitchTransition)
-    }
+    LatestWinsFocusTitleSlot(
+      itemID: content.item.id,
+      title: content.item.title,
+      transition: resolvedItemSwitchTransition,
+      presentationStyle: presentationStyle,
+      slotContent: slotContent
+    )
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .clipped()
-    .animation(itemSwitchAnimation, value: content.item.id)
   }
 
   private func compactButton<Label: View>(
@@ -562,7 +897,7 @@ struct TopSurfaceView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
     }
-    .buttonStyle(.plain)
+    .buttonStyle(SurfacePressButtonStyle())
     .accessibilityLabel(content.item.title)
     .accessibilityHint("展开当前可见重点")
     .accessibilityIdentifier("overlay.compact")
@@ -648,7 +983,7 @@ struct TopSurfaceView: View {
       }
       .contentShape(Rectangle())
     }
-    .buttonStyle(.plain)
+    .buttonStyle(SurfacePressButtonStyle())
     .accessibilityLabel("打开 \(content.item.title)")
     .accessibilityIdentifier("overlay.openItem")
   }
@@ -725,7 +1060,7 @@ struct TopSurfaceView: View {
               .stroke(.white.opacity(0.08), lineWidth: 0.5)
           }
       }
-      .buttonStyle(.plain)
+      .buttonStyle(SurfacePressButtonStyle())
       .accessibilityLabel("Keep3")
       .accessibilityHint("打开主窗口")
       .accessibilityIdentifier("overlay.keep3")
@@ -767,7 +1102,7 @@ struct TopSurfaceView: View {
             .stroke(.white.opacity(0.08), lineWidth: 0.5)
         }
     }
-    .buttonStyle(.plain)
+    .buttonStyle(SurfacePressButtonStyle())
     .accessibilityLabel(label)
     .accessibilityIdentifier(
       direction == .previous ? "overlay.previous" : "overlay.next"
@@ -797,7 +1132,7 @@ struct TopSurfaceView: View {
     if case .notchAttached(let notchSize) = presentationStyle {
       return notchSize.height
     }
-    return 0
+    return isKeyboardNavigationActive ? 10 : 0
   }
 
   private var surfaceBackgroundOpacity: Double {
@@ -820,39 +1155,9 @@ struct TopSurfaceView: View {
     FocusItemSwitchTransition.resolve(
       effect: content.appearance.itemSwitchEffect,
       level: content.level,
-      reduceMotion: reduceMotion
+      reduceMotion: reduceMotion,
+      keyboardNavigationActive: isKeyboardNavigationActive
     )
-  }
-
-  private var itemSwitchAnimation: Animation? {
-    switch resolvedItemSwitchTransition {
-    case .instant:
-      nil
-    case .crossfade(let duration):
-      .easeInOut(duration: duration)
-    case .cardFlip(let duration):
-      .timingCurve(0.33, 0, 0.2, 1, duration: duration)
-    }
-  }
-
-  private var itemSwitchTransition: AnyTransition {
-    switch resolvedItemSwitchTransition {
-    case .instant:
-      .identity
-    case .crossfade:
-      .opacity
-    case .cardFlip:
-      .asymmetric(
-        insertion: .modifier(
-          active: FocusTitleCardFoldModifier(progress: 0, role: .incoming),
-          identity: FocusTitleCardFoldModifier(progress: 1, role: .incoming)
-        ),
-        removal: .modifier(
-          active: FocusTitleCardFoldModifier(progress: 0, role: .outgoing),
-          identity: FocusTitleCardFoldModifier(progress: 1, role: .outgoing)
-        )
-      )
-    }
   }
 
   private var titleTransition: AnyTransition {

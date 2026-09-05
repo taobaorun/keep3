@@ -1,9 +1,31 @@
 import AppKit
 import SwiftUI
 
+struct SidebarRowPressButtonStyle: ButtonStyle {
+  @Environment(\.isEnabled) private var isEnabled
+
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .opacity(
+        !isEnabled
+          ? 0.5 : configuration.isPressed ? 0.78 : 1
+      )
+      .animation(
+        InteractionMotion.strongEaseOut(
+          duration: InteractionMotion.pressInDuration
+        ),
+        value: configuration.isPressed
+      )
+  }
+}
+
 struct EditorView: View {
   @ObservedObject var model: AppModel
   @State private var newItemTitle = ""
+  @State private var hoveredItemID: UUID?
+  @FocusState private var focusedItemID: UUID?
+  @FocusState private var isNewItemTitleFocused: Bool
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
     HSplitView {
@@ -86,21 +108,50 @@ struct EditorView: View {
         }
         .padding(10)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        .id(pendingUndo.operationID)
+        .allowsHitTesting(
+          model.pendingArchiveUndo?.operationID == pendingUndo.operationID
+        )
+        .transition(archiveUndoTransition)
       }
 
       Spacer(minLength: 16)
 
       if model.state.items.count < Keep3State.maximumItemCount {
         HStack(spacing: 8) {
-          TextField("添加一件事", text: $newItemTitle)
-            .onSubmit(addItem)
-            .accessibilityLabel("新事项标题")
-            .accessibilityIdentifier("editor.newItemTitle")
+          TextField(
+            "",
+            text: $newItemTitle,
+            prompt: Text("添加一件事")
+              .font(.system(size: NSFont.systemFontSize, weight: .regular))
+          )
+          .font(.system(size: NSFont.systemFontSize, weight: .regular))
+          .textFieldStyle(.plain)
+          .padding(.horizontal, 7)
+          .frame(height: 22)
+          .background(
+            Color(nsColor: .textBackgroundColor),
+            in: RoundedRectangle(cornerRadius: 4)
+          )
+          .overlay {
+            RoundedRectangle(cornerRadius: 4)
+              .stroke(
+                isNewItemTitleFocused
+                  ? Color("AccentColor") : Color(nsColor: .separatorColor),
+                lineWidth: 1
+              )
+          }
+          .focusEffectDisabled()
+          .focused($isNewItemTitleFocused)
+          .onSubmit(addItem)
+          .accessibilityLabel("新事项标题")
+          .accessibilityIdentifier("editor.newItemTitle")
 
           Button(action: addItem) {
             Image(systemName: "plus")
           }
-          .buttonStyle(.borderedProminent)
+          .buttonStyle(.bordered)
+          .tint(.primary)
           .disabled(
             newItemTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
           )
@@ -118,6 +169,8 @@ struct EditorView: View {
           .font(.caption)
           .foregroundStyle(.red)
           .accessibilityLabel("编辑错误：\(message)")
+          .id(message)
+          .transition(transientMessageTransition)
       }
 
       if let message = model.persistenceMessage {
@@ -125,6 +178,8 @@ struct EditorView: View {
           .font(.caption)
           .foregroundStyle(.orange)
           .accessibilityLabel("本地存储提示：\(message)")
+          .id(message)
+          .transition(transientMessageTransition)
       }
     }
     .padding(20)
@@ -197,13 +252,32 @@ struct EditorView: View {
       .padding(8)
       .contentShape(Rectangle())
       .background(
-        model.selectedItemID == item.id
-          ? Color.accentColor.opacity(0.14)
-          : Color.clear
+        rowBackground(for: item)
       )
       .clipShape(RoundedRectangle(cornerRadius: 6))
+      .overlay(alignment: .leading) {
+        if model.selectedItemID == item.id {
+          Capsule()
+            .fill(Color("AccentColor"))
+            .frame(width: 3)
+            .padding(.vertical, 6)
+        }
+      }
+      .overlay {
+        if focusedItemID == item.id {
+          RoundedRectangle(cornerRadius: 6)
+            .stroke(.primary.opacity(0.46), lineWidth: 1)
+        }
+      }
     }
-    .buttonStyle(.plain)
+    .buttonStyle(SidebarRowPressButtonStyle())
+    .focused($focusedItemID, equals: item.id)
+    .onHover { isHovered in
+      hoveredItemID = isHovered ? item.id : nil
+    }
+    .accessibilityAddTraits(
+      model.selectedItemID == item.id ? .isSelected : []
+    )
     .accessibilityIdentifier("editor.item.\(position)")
     .accessibilityLabel(
       model.state.currentFocusID == item.id
@@ -218,5 +292,54 @@ struct EditorView: View {
     }
     newItemTitle = ""
     model.selectItem(id: id)
+  }
+
+  private func rowBackground(for item: FocusItem) -> Color {
+    if model.selectedItemID == item.id {
+      return Color("AccentColor").opacity(0.14)
+    }
+    if hoveredItemID == item.id {
+      return Color.primary.opacity(0.055)
+    }
+    return .clear
+  }
+
+  private var archiveUndoTransition: AnyTransition {
+    let insertion = AnyTransition.opacity
+      .combined(
+        with: .offset(y: reduceMotion ? 0 : -6)
+      )
+      .animation(
+        InteractionMotion.strongEaseOut(
+          duration:
+            reduceMotion
+            ? InteractionMotion.reducedMotionDuration
+            : InteractionMotion.transientEntranceDuration
+        )
+      )
+    let removal = AnyTransition.opacity.animation(
+      InteractionMotion.strongEaseOut(
+        duration: InteractionMotion.transientExitDuration
+      )
+    )
+    return .asymmetric(insertion: insertion, removal: removal)
+  }
+
+  private var transientMessageTransition: AnyTransition {
+    .asymmetric(
+      insertion: .opacity.animation(
+        InteractionMotion.strongEaseOut(
+          duration:
+            reduceMotion
+            ? InteractionMotion.reducedMotionDuration
+            : InteractionMotion.stateChangeDuration
+        )
+      ),
+      removal: .opacity.animation(
+        InteractionMotion.strongEaseOut(
+          duration: InteractionMotion.transientExitDuration
+        )
+      )
+    )
   }
 }

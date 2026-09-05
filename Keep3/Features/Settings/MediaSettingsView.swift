@@ -261,6 +261,10 @@ private struct MediaSettingsPreview: View {
         onRequestKeyboardNavigation: {},
         onSurfaceNavigation: { _ in }
       )
+      .allowsHitTesting(false)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel("媒体胶囊外观预览：夏夜晚风，Keep3 Radio")
+      .accessibilityIdentifier("settings.media.preview.surface")
       Text("预览使用与顶部媒体胶囊相同的外观与辅助功能规则。")
         .font(.caption)
         .foregroundStyle(.secondary)

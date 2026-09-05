@@ -68,6 +68,34 @@ enum SurfaceSelectionSource: Equatable, Sendable {
   case mediaExit
 }
 
+enum SurfaceTransitionCause: Equatable, Sendable {
+  case initial
+  case availability
+  case pointer
+  case gesture
+  case keyboard
+  case automaticMedia
+  case mediaExit
+  case displayLifecycle
+  case contentUpdate
+}
+
+struct SurfaceNavigationContext: Equatable, Sendable {
+  let availableComponents: Set<SurfaceComponentID>
+  let transitionCause: SurfaceTransitionCause
+
+  func hasAlternative(to component: SurfaceComponentID) -> Bool {
+    availableComponents.contains(where: { $0 != component })
+  }
+
+  static func isolated(_ component: SurfaceComponentID) -> Self {
+    Self(
+      availableComponents: [component],
+      transitionCause: .contentUpdate
+    )
+  }
+}
+
 struct SurfaceNavigationState: Equatable, Sendable {
   let selectedComponent: SurfaceComponentID
   let selectionSource: SurfaceSelectionSource
@@ -76,8 +104,17 @@ struct SurfaceNavigationState: Equatable, Sendable {
   let isHoverPreviewed: Bool
   let isPresented: Bool
   let generation: UInt64
+  let availableComponents: Set<SurfaceComponentID>
+  let transitionCause: SurfaceTransitionCause
 
   var effectiveLevel: SurfaceLevel {
     level == .hardware && isHoverPreviewed ? .compact : level
+  }
+
+  var navigationContext: SurfaceNavigationContext {
+    SurfaceNavigationContext(
+      availableComponents: availableComponents,
+      transitionCause: transitionCause
+    )
   }
 }
