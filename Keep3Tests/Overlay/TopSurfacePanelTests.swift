@@ -664,6 +664,19 @@ final class TopSurfacePanelTests: XCTestCase {
     XCTAssertFalse(layout.rightWingFrame.intersects(layout.obstructionFrame))
   }
 
+  func testFloatingCompactTitleGetsTheFiniteRemainingWidth() {
+    let minimumLayout = FloatingCompactTitleLayout(surfaceWidth: 220)
+    let standardLayout = FloatingCompactTitleLayout(surfaceWidth: 280)
+
+    XCTAssertEqual(minimumLayout.titleWidth, 165, accuracy: 0.001)
+    XCTAssertEqual(standardLayout.titleWidth, 225, accuracy: 0.001)
+    XCTAssertEqual(
+      FloatingCompactTitleLayout(surfaceWidth: 40).titleWidth,
+      0,
+      accuracy: 0.001
+    )
+  }
+
   func testControllerShowsRepositionsAndRemovesOnePanel() throws {
     let controller = TopSurfaceController()
     let initialFrame = CGRect(x: 100, y: 500, width: 280, height: 44)
