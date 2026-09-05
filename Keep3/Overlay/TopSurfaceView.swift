@@ -201,6 +201,24 @@ struct NotchCompactContentLayout: Equatable {
   }
 }
 
+struct FloatingCompactTitleLayout: Equatable {
+  let surfaceWidth: CGFloat
+
+  let horizontalPadding: CGFloat = 16
+  let markerWidth: CGFloat = 15
+  let titleSpacing: CGFloat = 8
+
+  var titleWidth: CGFloat {
+    max(
+      0,
+      surfaceWidth
+        - (2 * horizontalPadding)
+        - markerWidth
+        - titleSpacing
+    )
+  }
+}
+
 struct ExpandedSurfaceContentLayout: Equatable {
   let surfaceSize: CGSize
   let topInset: CGFloat
@@ -813,8 +831,12 @@ struct TopSurfaceView: View {
   }
 
   private var floatingCompactContent: some View {
-    compactButton {
-      HStack(spacing: 8) {
+    let layout = FloatingCompactTitleLayout(
+      surfaceWidth: surfaceSize.width
+    )
+
+    return compactButton {
+      HStack(spacing: layout.titleSpacing) {
         focusMarker
 
         compactTitleSwitchingSlot { title in
@@ -822,9 +844,13 @@ struct TopSurfaceView: View {
             .font(.subheadline.weight(.medium))
             .lineLimit(1)
             .truncationMode(.tail)
+            .allowsTightening(true)
+            .minimumScaleFactor(0.88)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(width: layout.titleWidth, alignment: .leading)
       }
-      .padding(.horizontal, 16)
+      .padding(.horizontal, layout.horizontalPadding)
     }
   }
 
@@ -849,7 +875,9 @@ struct TopSurfaceView: View {
             .font(.caption.weight(.medium))
             .lineLimit(1)
             .truncationMode(.tail)
-            .minimumScaleFactor(0.72)
+            .allowsTightening(true)
+            .minimumScaleFactor(0.82)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(width: layout.rightWingFrame.width)
       }
