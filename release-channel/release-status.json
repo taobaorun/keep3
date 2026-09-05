@@ -3,7 +3,7 @@
   "signed": {
     "repository": "taobaorun/keep3",
     "canonicalOrigin": "https://taobaorun.github.io",
-    "sequence": 26,
+    "sequence": 27,
     "version": "1.0.5",
     "build": 6,
     "tag": "v1.0.5",
@@ -11,15 +11,15 @@
     "publishedAt": "2026-09-05T08:07:51Z",
     "keyId": "keep3-release-metadata-production",
     "expiresAt": "2026-12-04T08:07:51Z",
-    "state": "Promoting",
+    "state": "Degraded",
     "candidateManifestUrl": "https://taobaorun.github.io/keep3/release-channel/releases/v1.0.5/manifest.json",
     "currentManifestUrl": "https://taobaorun.github.io/keep3/release-channel/releases/v1.0.4/manifest.json",
-    "message": "Passive channels are converging.",
+    "message": "Promotion paused; the prior current release remains active.",
     "fallbackUrl": "https://github.com/taobaorun/keep3/releases"
   },
   "signature": {
     "algorithm": "Ed25519",
     "keyId": "keep3-release-metadata-production",
-    "value": "7gomnCWqiO+o0UMbei+g5AQeP7crKovZvu/k0AESLmkxnfOhQqH+kwYV+dWmM2Ehw5OE+s851KWNs3QoiVE3CA=="
+    "value": "N1tZjhC57NbQBuVsTKGHp50UTAXYlhTevP0J34En+vc8K4GjJOeCLV2sSLv5d4jS/MsQ1Q6uhgZimTWoacd1CA=="
   }
 }
