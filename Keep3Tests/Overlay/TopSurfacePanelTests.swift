@@ -110,43 +110,44 @@ final class TopSurfacePanelTests: XCTestCase {
   }
 
   func testKeyboardGuidanceOnlyAdvertisesAvailableActionsAtEachLevel() {
-    XCTAssertEqual(
-      TopSurfaceKeyboardNavigationGuidance.priorities(
-        itemCount: 1,
-        level: .hardware
-      ).visibleDirections,
-      "↓ ↩"
+    let hardwarePriority = TopSurfaceKeyboardNavigationGuidance.priorities(
+      itemCount: 1,
+      level: .hardware
     )
-    XCTAssertEqual(
-      TopSurfaceKeyboardNavigationGuidance.priorities(
-        itemCount: 2,
-        level: .compact
-      ).visibleDirections,
-      "← → ↑ ↓ ↩"
+    XCTAssertTrue(hardwarePriority.accessibilityInstructions.contains("↓ 显示表面"))
+    XCTAssertFalse(hardwarePriority.accessibilityInstructions.contains("↑"))
+
+    let compactPriority = TopSurfaceKeyboardNavigationGuidance.priorities(
+      itemCount: 2,
+      level: .compact
     )
-    XCTAssertEqual(
-      TopSurfaceKeyboardNavigationGuidance.priorities(
-        itemCount: 1,
-        level: .expanded,
-        hasAlternativeComponents: false
-      ).visibleDirections,
-      "↩"
+    XCTAssertTrue(compactPriority.accessibilityInstructions.contains("←/→ 浏览重点"))
+    XCTAssertTrue(compactPriority.accessibilityInstructions.contains("↑ 隐藏表面"))
+    XCTAssertTrue(compactPriority.accessibilityInstructions.contains("↓ 展开当前表面"))
+
+    let expandedPriority = TopSurfaceKeyboardNavigationGuidance.priorities(
+      itemCount: 1,
+      level: .expanded,
+      hasAlternativeComponents: false
     )
-    XCTAssertEqual(
-      TopSurfaceKeyboardNavigationGuidance.calendar(
-        level: .expanded,
-        hasAlternativeComponents: true
-      ).visibleDirections,
-      "↑ ↓"
+    XCTAssertFalse(expandedPriority.accessibilityInstructions.contains("上一个表面"))
+    XCTAssertFalse(expandedPriority.accessibilityInstructions.contains("下一个表面"))
+
+    let calendar = TopSurfaceKeyboardNavigationGuidance.calendar(
+      level: .expanded,
+      hasAlternativeComponents: true
     )
-    XCTAssertEqual(
-      TopSurfaceKeyboardNavigationGuidance.media(
-        capabilities: [.next],
-        level: .expanded,
-        hasAlternativeComponents: false
-      ).visibleDirections,
-      "→ ↑"
+    XCTAssertTrue(calendar.accessibilityInstructions.contains("↑ 上一个表面"))
+    XCTAssertTrue(calendar.accessibilityInstructions.contains("↓ 下一个表面"))
+
+    let media = TopSurfaceKeyboardNavigationGuidance.media(
+      capabilities: [.next],
+      level: .expanded,
+      hasAlternativeComponents: false
     )
+    XCTAssertTrue(media.accessibilityInstructions.contains("→ 下一首"))
+    XCTAssertTrue(media.accessibilityInstructions.contains("↑ 返回普通播放器"))
+    XCTAssertFalse(media.accessibilityInstructions.contains("↓ 下一个表面"))
   }
 
   func testKeyboardCommandsAcceptOnlyUnmodifiedNavigationKeys() {

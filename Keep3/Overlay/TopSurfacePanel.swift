@@ -665,7 +665,6 @@ final class TopSurfacePanel: NSPanel {
         TopSurfaceRootView(
           layout: layout,
           isHovered: media.isHovered && media.level != .expanded,
-          presentationStyle: presentationStyle,
           frameAnimationKind: frameAnimationKind,
           keyboardNavigationPresentation: keyboardNavigationPresentation,
           content: MediaSurfaceView(
@@ -684,7 +683,6 @@ final class TopSurfacePanel: NSPanel {
         TopSurfaceRootView(
           layout: layout,
           isHovered: calendar.isHovered && calendar.level != .expanded,
-          presentationStyle: presentationStyle,
           frameAnimationKind: frameAnimationKind,
           keyboardNavigationPresentation: keyboardNavigationPresentation,
           content: CalendarSurfaceView(
@@ -858,7 +856,6 @@ private struct TopSurfaceFocusRootView: View {
       isHovered:
         presentation.content.isHovered
         && presentation.content.level != .expanded,
-      presentationStyle: presentationStyle,
       frameAnimationKind: frameAnimationKind,
       keyboardNavigationPresentation: keyboardNavigationPresentation,
       content: TopSurfaceView(
@@ -893,7 +890,6 @@ private struct TopSurfaceRootView<Content: View>: View {
 
   let layout: TopSurfaceHostedLayout
   let isHovered: Bool
-  let presentationStyle: TopSurfacePresentationStyle
   let frameAnimationKind: SurfaceFrameAnimationKind
   @ObservedObject var keyboardNavigationPresentation: TopSurfaceKeyboardNavigationPresentation
   let content: Content
@@ -912,17 +908,6 @@ private struct TopSurfaceRootView<Content: View>: View {
           y: hoverEffect.scaleY,
           anchor: .top
         )
-        .overlay(alignment: .top) {
-          if keyboardNavigationPresentation.isActive,
-            let guidance = keyboardNavigationPresentation.guidance
-          {
-            KeyboardNavigationStatusView(
-              guidance: guidance,
-              presentationStyle: presentationStyle,
-              surfaceSize: layout.surfaceFrameInPanel.size
-            )
-          }
-        }
     }
     .frame(
       width: layout.panelSize.width,
@@ -941,66 +926,6 @@ private struct TopSurfaceRootView<Content: View>: View {
       \.isTopSurfaceKeyboardNavigationActive,
       keyboardNavigationPresentation.isActive
     )
-  }
-}
-
-private struct KeyboardNavigationStatusView: View {
-  let guidance: TopSurfaceKeyboardNavigationGuidance
-  let presentationStyle: TopSurfacePresentationStyle
-  let surfaceSize: CGSize
-
-  var body: some View {
-    Group {
-      switch presentationStyle {
-      case .floatingCapsule:
-        HStack(spacing: 4) {
-          Image(systemName: "keyboard")
-          Text(guidance.visibleDirections)
-          Text("esc")
-        }
-        .padding(.horizontal, 6)
-        .frame(height: 11)
-        .background(.black.opacity(0.88), in: Capsule())
-        .overlay {
-          Capsule().stroke(.white.opacity(0.28), lineWidth: 0.5)
-        }
-        .padding(.top, 2)
-      case .notchAttached(let notchSize):
-        let layout = NotchCompactContentLayout(
-          surfaceSize: surfaceSize,
-          obstructionSize: notchSize
-        )
-        let tokens =
-          guidance.visibleDirections.split(separator: " ").map(String.init)
-          + ["esc"]
-        let splitIndex = (tokens.count + 1) / 2
-        HStack(spacing: 0) {
-          wingLegend(Array(tokens[..<splitIndex]))
-            .frame(width: layout.leftWingFrame.width)
-          Color.clear
-            .frame(width: layout.obstructionFrame.width)
-          wingLegend(Array(tokens[splitIndex...]))
-            .frame(width: layout.rightWingFrame.width)
-        }
-        .frame(maxHeight: .infinity, alignment: .top)
-        .padding(.top, 2)
-      }
-    }
-    .font(.system(size: 7, weight: .semibold, design: .monospaced))
-    .foregroundStyle(.white.opacity(0.82))
-    .allowsHitTesting(false)
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(
-      "键盘导航已启用。\(guidance.accessibilityInstructions)"
-    )
-    .accessibilityIdentifier("overlay.keyboardNavigationStatus")
-  }
-
-  private func wingLegend(_ tokens: [String]) -> some View {
-    Text(tokens.joined(separator: " "))
-      .lineLimit(1)
-      .minimumScaleFactor(0.7)
-      .frame(maxWidth: .infinity)
   }
 }
 

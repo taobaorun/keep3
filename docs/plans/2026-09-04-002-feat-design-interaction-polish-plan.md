@@ -10,12 +10,11 @@ Commit policy / authority: `none`; the user requested planning, not commits, pus
 - Work test-first at the existing pure presentation, geometry, panel, and UI-test
   seams. Do not add a second navigation state machine or persist presentation
   state.
-- Extend the existing keyboard-navigation presentation with current guidance and
-  render one shared status overlay. Use compact visible geometry as the floor
-  only while a keyboard session is active at logical hardware level; do not
-  change `SurfaceNavigationCoordinator` semantics.
-- Give the keyboard status a stable accessibility identifier and aggregate label.
-  It must not be a button or accept hit testing.
+- Keep current keyboard guidance for accessibility announcements and render no
+  arrows, Return, Escape, badge, or shared status overlay. Use compact visible
+  geometry as the floor only while a keyboard session is active at logical
+  hardware level; do not change `SurfaceNavigationCoordinator` semantics.
+- Verify keyboard navigation remains accessible without adding visual guidance.
 - Use one internal `SurfacePressButtonStyle` or equivalently narrow shared style:
   press-in uses `scaleEffect(0.97)` and opacity `0.92` for 100 milliseconds;
   release returns both values to `1` over 160 milliseconds. Use
@@ -77,7 +76,7 @@ website changes, provider behavior, or broader editor redesign.
 
 ## Implementation units
 
-### U1 — Make explicit keyboard navigation visibly persistent
+### U1 — Keep explicit keyboard navigation quiet and accessible
 
 - Requirements: R1, R10.
 - Dependencies and accepted-design pointers: Technical Design sections
@@ -87,31 +86,30 @@ website changes, provider behavior, or broader editor redesign.
 - Affected modules and mutation:
   - `Keep3/Overlay/TopSurfacePanel.swift`: publish active guidance, refresh it
     when `PanelContent` changes, retain existing accessibility announcements,
-    and expose the status to the shared root.
+    and expose no visual status to the shared root.
   - `Keep3/Overlay/TopSurfaceController.swift`: resolve compact visible geometry
     for active-keyboard/logical-hardware presentation without mutating the
     coordinator; mark keyboard navigation active before publishing the expanded
     logical level; derive the value-only frame animation category from the
     previous/next presentation.
-  - `Keep3/Overlay/TopSurfaceView.swift`: render the shared, non-interactive,
-    component-aware keyboard status and make notch/floating placement legible.
+  - `Keep3/Overlay/TopSurfaceView.swift`: retain keyboard-driven motion
+    suppression without rendering keyboard guidance.
   - `Keep3/Overlay/MediaSurfaceView.swift` and
-    `Keep3/Overlay/CalendarSurfaceView.swift`: only the minimum insets or
-    presentation metadata needed to prevent status collision; no provider-owned
-    keyboard state.
+    `Keep3/Overlay/CalendarSurfaceView.swift`: reserve no keyboard-status inset
+    and add no provider-owned keyboard state.
   - `Keep3Tests/Overlay/TopSurfacePanelTests.swift` and
     `Keep3Tests/Overlay/DisplayGeometryTests.swift`: guidance, component refresh,
     hardware visual-floor, focus, frame, hit-region, and frame-animation-policy
     coverage. Assert `.none` for activation, every keyboard arrow, guidance
     replacement, and keyboard exit; retain 220ms only for pointer/gesture level
     changes.
-  - `Keep3UITests/Keep3UITests.swift`: visible status, component-specific
-    directions, and Escape removal/restoration flow.
+  - `Keep3UITests/Keep3UITests.swift`: absence of visual keyboard status plus
+    preserved activation and Escape restoration flow.
 - Entry / exit conditions: enter with existing keyboard routing and focus tests
   green. Exit when Priorities, capability-varying Media, and Calendar publish
-  correct visible guidance at hardware/compact/expanded logical levels, status
-  never intercepts clicks, and Escape clears it immediately without changing
-  existing key routing or restoration. Slow-motion inspection must show no
+  correct accessibility guidance at hardware/compact/expanded logical levels,
+  no visual legend is rendered, and Escape clears the session immediately
+  without changing existing key routing or restoration. Slow-motion inspection must show no
   surface-frame animation on activation, any keyboard command, guidance update,
   or exit.
 - Focused verification:
@@ -131,7 +129,7 @@ website changes, provider behavior, or broader editor redesign.
 - Dependencies and accepted-design pointers: Technical Design sections “Press
   and row feedback”, “Motion recipes and transition provenance”, and “Haptic
   ownership”. Independent of U1 except for overlapping `TopSurfaceView` edits,
-  which must preserve U1 status behavior.
+  which must preserve U1 keyboard behavior.
 - Affected modules and mutation:
   - `Keep3/App/Keep3App.swift`: remove hover-entry haptic dispatch while retaining
     hover state and gesture feedback.
@@ -355,11 +353,11 @@ website changes, provider behavior, or broader editor redesign.
 
 - Required signed UI run on an unlocked desktop, without
   `CODE_SIGNING_ALLOWED=NO`, covering:
-  - component-specific keyboard status at logical hardware, compact, and
-    expanded levels, including capability-limited Media;
+  - no visual keyboard status at logical hardware, compact, or expanded levels,
+    while component-aware accessibility announcements remain correct;
   - immediate, non-animated keyboard activation, every arrow-driven depth or
-    component change, guidance replacement, Escape removal, and previous-
-    application restoration;
+    component change, accessibility-guidance replacement, Escape exit, and
+    previous-application restoration;
   - non-interactive Media/Calendar previews and consistent destination labels;
   - priority and History selection at the minimum 720×520 window;
   - archive undo appearance, immediate action, dismissal, replacement, and
@@ -371,7 +369,7 @@ website changes, provider behavior, or broader editor redesign.
   - all custom surface buttons provide immediate pressed feedback;
   - press-in is visibly faster than release without scaling the top-attached
     surface background or double-transforming a simultaneous level change;
-  - long titles do not collide with keyboard guidance;
+  - long titles retain the full layout because no keyboard guidance is rendered;
   - title-only 148-point and supporting 216-point priority surfaces remain
     top-anchored and visually balanced, and content-class/envelope changes do not
     inherit level motion;
@@ -401,9 +399,9 @@ website changes, provider behavior, or broader editor redesign.
 - Shared keyboard presentation and panel geometry overlap with mature focus and
   media code. Preserve one state owner and add characterization tests before
   changing frame resolution.
-- Compact guidance can collide with long titles or the media playback control.
-  Prefer bounded glyph treatment and provider-specific insets inside the shared
-  overlay contract; never hide an enabled control or primary title.
+- Accessibility guidance must never leak back into rendered surface chrome or
+  reserve provider-specific insets. Preserve the announcement and key-routing
+  paths without hiding an enabled control or primary title.
 - Dynamic item edits may switch 148↔216 while the pointer is inside. The existing
   controller must update the active frame and tracking region atomically; if it
   cannot, retain 216 during the current expanded interaction and apply the new
@@ -432,9 +430,9 @@ website changes, provider behavior, or broader editor redesign.
 
 - R1-R13 each have passing focused engineering evidence and the required human
   evidence named above.
-- Keyboard mode is visible throughout the session, including logical hardware
-  level, is fully non-animated throughout keyboard operation, and retains
-  existing focus/arrow/Escape semantics.
+- Keyboard mode renders no arrows, Return, Escape, badge, or other visual prompt,
+  remains fully non-animated throughout keyboard operation, and retains existing
+  accessibility announcements plus focus/arrow/Escape semantics.
 - Media and Calendar previews contain no inert interactive affordance; Focus
   motion preview demonstrates exactly once per selection change.
 - Incidental hover produces no haptic, committed supported gestures retain one,

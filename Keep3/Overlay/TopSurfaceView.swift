@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct TopSurfaceKeyboardNavigationGuidance: Equatable, Sendable {
-  let visibleDirections: String
   let accessibilityInstructions: String
 
   static func priorities(
@@ -9,24 +8,19 @@ struct TopSurfaceKeyboardNavigationGuidance: Equatable, Sendable {
     level: SurfaceLevel = .compact,
     hasAlternativeComponents: Bool = false
   ) -> Self {
-    var visibleDirections: [String] = []
     var instructions: [String] = []
     if itemCount > 1 {
-      visibleDirections.append(contentsOf: ["←", "→"])
       instructions.append("←/→ 浏览重点")
     }
     appendVerticalNavigation(
       level: level,
       hasAlternativeComponents: hasAlternativeComponents,
       expandedUpAction: "上一个表面",
-      to: &visibleDirections,
       instructions: &instructions
     )
-    visibleDirections.append("↩")
     instructions.append("Return 打开当前重点")
     instructions.append("Escape 退出并返回上一个应用")
     return Self(
-      visibleDirections: visibleDirections.joined(separator: " "),
       accessibilityInstructions: instructions.joined(separator: "，")
     )
   }
@@ -36,27 +30,22 @@ struct TopSurfaceKeyboardNavigationGuidance: Equatable, Sendable {
     level: SurfaceLevel = .compact,
     hasAlternativeComponents: Bool = false
   ) -> Self {
-    var visibleDirections: [String] = []
     var instructions: [String] = []
     if capabilities.contains(.previous) {
-      visibleDirections.append("←")
       instructions.append("← 上一首")
     }
     if capabilities.contains(.next) {
-      visibleDirections.append("→")
       instructions.append("→ 下一首")
     }
     appendVerticalNavigation(
       level: level,
       hasAlternativeComponents: hasAlternativeComponents,
       expandedUpAction: "返回普通播放器",
-      to: &visibleDirections,
       instructions: &instructions,
       expandedUpAlwaysAvailable: true
     )
     instructions.append("Escape 退出并返回上一个应用")
     return Self(
-      visibleDirections: visibleDirections.joined(separator: " "),
       accessibilityInstructions: instructions.joined(separator: "，")
     )
   }
@@ -65,18 +54,15 @@ struct TopSurfaceKeyboardNavigationGuidance: Equatable, Sendable {
     level: SurfaceLevel = .compact,
     hasAlternativeComponents: Bool = false
   ) -> Self {
-    var visibleDirections: [String] = []
     var instructions: [String] = []
     appendVerticalNavigation(
       level: level,
       hasAlternativeComponents: hasAlternativeComponents,
       expandedUpAction: "上一个表面",
-      to: &visibleDirections,
       instructions: &instructions
     )
     instructions.append("Escape 退出并返回上一个应用")
     return Self(
-      visibleDirections: visibleDirections.joined(separator: " "),
       accessibilityInstructions: instructions.joined(separator: "，")
     )
   }
@@ -85,25 +71,20 @@ struct TopSurfaceKeyboardNavigationGuidance: Equatable, Sendable {
     level: SurfaceLevel,
     hasAlternativeComponents: Bool,
     expandedUpAction: String,
-    to visibleDirections: inout [String],
     instructions: inout [String],
     expandedUpAlwaysAvailable: Bool = false
   ) {
     switch level {
     case .hardware:
-      visibleDirections.append("↓")
       instructions.append("↓ 显示表面")
     case .compact:
-      visibleDirections.append(contentsOf: ["↑", "↓"])
       instructions.append("↑ 隐藏表面")
       instructions.append("↓ 展开当前表面")
     case .expanded:
       if expandedUpAlwaysAvailable || hasAlternativeComponents {
-        visibleDirections.append("↑")
         instructions.append("↑ \(expandedUpAction)")
       }
       if hasAlternativeComponents {
-        visibleDirections.append("↓")
         instructions.append("↓ 下一个表面")
       }
     }
@@ -1132,7 +1113,7 @@ struct TopSurfaceView: View {
     if case .notchAttached(let notchSize) = presentationStyle {
       return notchSize.height
     }
-    return isKeyboardNavigationActive ? 10 : 0
+    return 0
   }
 
   private var surfaceBackgroundOpacity: Double {

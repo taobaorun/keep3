@@ -9,8 +9,8 @@ The actor is a Keep3 user who glances at and directly manipulates the top
 surface, or manages priorities and preferences in the main window.
 
 After this change, Keep3 retains its quiet black event-surface identity while
-making every interaction honest and legible: keyboard capture is visibly
-active, incidental hover does not create physical feedback, clickable controls
+making every interaction honest and legible: keyboard capture remains accessible
+without adding visual chrome to the surface, incidental hover does not create physical feedback, clickable controls
 respond to press, previews do not pretend to work, sparse priority content does
 not produce an oversized empty surface, repeated motion stays fast, and the
 main-window navigation and selectable rows use consistent affordances.
@@ -20,17 +20,17 @@ appear or disappear abruptly.
 
 ## Requirements
 
-- **R1 — Visible keyboard-navigation state.** When explicit surface activation
-  starts keyboard navigation, a sighted user can see that the mode is active,
-  which directions/actions are currently available, and how to exit. The
-  indication remains present for the keyboard-navigation session and disappears
-  immediately on exit. Starting or operating this keyboard-driven mode does not
-  add a decorative entrance animation. Acceptance: activate Priorities, Media,
-  and Calendar keyboard navigation and observe component-appropriate guidance;
-  press Escape and observe its immediate removal and restoration of the prior
-  application. Owner/method: engineering UI coverage plus human keyboard-flow
-  verification. Provenance: user acceptance of the full 2026-09-04 design
-  interaction review; existing keyboard-navigation product behavior.
+- **R1 — Quiet keyboard-navigation state.** Explicit surface activation retains
+  the existing keyboard commands, Escape exit, prior-application restoration,
+  and component-aware accessibility announcement without rendering arrows,
+  Return, Escape, or other keyboard guidance on the surface. Starting or
+  operating this keyboard-driven mode does not add decorative chrome or an
+  entrance animation. Acceptance: activate Priorities, Media, and Calendar
+  keyboard navigation; observe no visual keyboard legend; verify supported keys,
+  the accessibility announcement, and Escape restoration still work.
+  Owner/method: engineering UI/accessibility coverage plus human keyboard-flow
+  verification. Provenance: user correction on 2026-09-05 after installed-app
+  review; existing keyboard-navigation product behavior.
 
 - **R2 — Honest Settings previews.** A preview must either perform the action it
   visually advertises in an isolated preview state or be visibly and
@@ -112,8 +112,9 @@ appear or disappear abruptly.
   Reduce Motion, Reduce Transparency, increased contrast, and differentiation
   without color continue to work. Hover alone never steals application focus,
   and only the existing explicit keyboard-navigation activation may capture
-  keys. Acceptance: affected accessibility tests pass and a human pass confirms
-  focus behavior before activation, during navigation, and after Escape.
+  keys. The mode uses accessibility announcements rather than persistent visual
+  instructions. Acceptance: affected accessibility tests pass and a human pass
+  confirms focus behavior before activation, during navigation, and after Escape.
   Owner/method: engineering regression suite plus human accessibility/focus
   verification. Provenance: existing Keep3 Product Contract and user acceptance
   of the full 2026-09-04 design interaction review.

@@ -220,8 +220,6 @@ struct CalendarSurfaceView: View {
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-  @Environment(\.isTopSurfaceKeyboardNavigationActive) private
-    var isKeyboardNavigationActive
 
   var body: some View {
     let presentation = CalendarSurfacePresentation(payload: payload)
@@ -587,7 +585,7 @@ struct CalendarSurfaceView: View {
 
   private var expandedTopInset: CGFloat {
     guard case .notchAttached(let notchSize) = presentationStyle else {
-      return isKeyboardNavigationActive ? 10 : 0
+      return 0
     }
     return notchSize.height
   }
